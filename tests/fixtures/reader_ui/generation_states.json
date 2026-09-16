@@ -1,0 +1,9 @@
+[
+  {"status":"queued","completed_children":0,"total_children":3},
+  {"status":"drafting","completed_children":1,"total_children":3},
+  {"status":"stitching","completed_children":3,"total_children":3},
+  {"status":"validating","completed_children":3,"total_children":3},
+  {"status":"published","completed_children":3,"total_children":3},
+  {"status":"failed","completed_children":1,"total_children":3,"error":{"message":"Controlled generation failure"}},
+  {"status":"cancelled","completed_children":1,"total_children":3}
+]

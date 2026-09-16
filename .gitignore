@@ -1,0 +1,42 @@
+# Python and build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ruff_cache/
+
+# Frontend artifacts (manifests and lockfiles remain trackable)
+node_modules/
+.next/
+coverage/
+
+# Lean generated artifacts
+.lake/
+*.olean
+*.ilean
+
+# Local design records and working data
+/dev_docs/
+/data/
+/.runtime/
+/.cache/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+/configs/local/
+.DS_Store
+.vscode/
+
+# Local agent guidance, matching LC defaults
+AGENTS.md
+**/AGENTS.md

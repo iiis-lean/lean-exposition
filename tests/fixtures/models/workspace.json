@@ -1,0 +1,370 @@
+{
+  "declarations": [
+    {
+      "completion_status": {
+        "provenance": [
+          {
+            "method": "synthetic_fixture",
+            "ranges": [],
+            "source_ref": "fixture:v1"
+          }
+        ],
+        "reason": "Not extracted or checked by Lean",
+        "state": "fixture_only"
+      },
+      "extraction_status": {
+        "provenance": [
+          {
+            "method": "synthetic_fixture",
+            "ranges": [],
+            "source_ref": "fixture:v1"
+          }
+        ],
+        "reason": "Not extracted or checked by Lean",
+        "state": "fixture_only"
+      },
+      "generated_from": null,
+      "kernel_kind": null,
+      "kind": "def",
+      "lean_name": "Example.one",
+      "local_public": true,
+      "module": "Example",
+      "native_scope": "root",
+      "proof": null,
+      "provenance": [
+        {
+          "method": "synthetic_fixture",
+          "ranges": [],
+          "source_ref": "fixture:v1"
+        }
+      ],
+      "ref": {
+        "local_id": "one",
+        "repo_key": "example"
+      },
+      "source_context": [],
+      "source_refs": [
+        {
+          "asset_id": "example-source",
+          "end_column": 19,
+          "end_line": 3,
+          "start_column": 1,
+          "start_line": 3
+        }
+      ],
+      "statement": {
+        "deps": [],
+        "formal": {
+          "check": {
+            "provenance": [
+              {
+                "method": "synthetic_fixture",
+                "ranges": [],
+                "source_ref": "fixture:v1"
+              }
+            ],
+            "reason": null,
+            "state": "not_checked"
+          },
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": null,
+          "status": "present",
+          "text": "def one : Nat := 1"
+        },
+        "nl": {
+          "check": null,
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": "No NL supplied by fixture",
+          "status": "missing",
+          "text": null
+        }
+      }
+    },
+    {
+      "completion_status": {
+        "provenance": [
+          {
+            "method": "synthetic_fixture",
+            "ranges": [],
+            "source_ref": "fixture:v1"
+          }
+        ],
+        "reason": "Not extracted or checked by Lean",
+        "state": "fixture_only"
+      },
+      "extraction_status": {
+        "provenance": [
+          {
+            "method": "synthetic_fixture",
+            "ranges": [],
+            "source_ref": "fixture:v1"
+          }
+        ],
+        "reason": "Not extracted or checked by Lean",
+        "state": "fixture_only"
+      },
+      "generated_from": null,
+      "kernel_kind": null,
+      "kind": "theorem",
+      "lean_name": "Example.one_eq",
+      "local_public": true,
+      "module": "Example",
+      "native_scope": "root",
+      "proof": {
+        "deps": [
+          {
+            "evidence_kind": "lc_declared",
+            "provenance": [
+              {
+                "method": "synthetic_fixture",
+                "ranges": [],
+                "source_ref": "fixture:v1"
+              }
+            ],
+            "provider": {
+              "local_id": "one",
+              "repo_key": "example"
+            }
+          },
+          {
+            "evidence_kind": "text_reference",
+            "provenance": [
+              {
+                "method": "synthetic_fixture",
+                "ranges": [],
+                "source_ref": "fixture:v1"
+              }
+            ],
+            "provider": {
+              "local_id": "Nat",
+              "repo_key": "stdlib-unresolved"
+            }
+          }
+        ],
+        "formal": {
+          "check": {
+            "provenance": [
+              {
+                "method": "synthetic_fixture",
+                "ranges": [],
+                "source_ref": "fixture:v1"
+              }
+            ],
+            "reason": null,
+            "state": "not_checked"
+          },
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": null,
+          "status": "present",
+          "text": "rfl"
+        },
+        "nl": {
+          "check": null,
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": "No NL supplied by fixture",
+          "status": "missing",
+          "text": null
+        }
+      },
+      "provenance": [
+        {
+          "method": "synthetic_fixture",
+          "ranges": [],
+          "source_ref": "fixture:v1"
+        }
+      ],
+      "ref": {
+        "local_id": "one_eq",
+        "repo_key": "example"
+      },
+      "source_context": [
+        {
+          "check": null,
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": null,
+          "status": "present",
+          "text": "namespace Example"
+        }
+      ],
+      "source_refs": [
+        {
+          "asset_id": "example-source",
+          "end_column": null,
+          "end_line": 5,
+          "start_column": null,
+          "start_line": 5
+        }
+      ],
+      "statement": {
+        "deps": [
+          {
+            "evidence_kind": "lean_type",
+            "provenance": [
+              {
+                "method": "synthetic_fixture",
+                "ranges": [],
+                "source_ref": "fixture:v1"
+              }
+            ],
+            "provider": {
+              "local_id": "Nat",
+              "repo_key": "stdlib-unresolved"
+            }
+          }
+        ],
+        "formal": {
+          "check": {
+            "provenance": [
+              {
+                "method": "synthetic_fixture",
+                "ranges": [],
+                "source_ref": "fixture:v1"
+              }
+            ],
+            "reason": null,
+            "state": "not_checked"
+          },
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": null,
+          "status": "present",
+          "text": "one = 1"
+        },
+        "nl": {
+          "check": null,
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": null,
+          "status": "present",
+          "text": ""
+        }
+      }
+    }
+  ],
+  "manifest": {
+    "assets": [
+      {
+        "asset_id": "example-source",
+        "path": "Example.lean",
+        "repo_key": "example",
+        "sha256": "c20b5732688d1b1ea852cfd1e9fe100819deab812f48f02ab87fa406720dfe8c"
+      }
+    ],
+    "dependency_locks": [
+      {
+        "dependency_repo_key": "stdlib-unresolved",
+        "provenance": [
+          {
+            "method": "synthetic_fixture",
+            "ranges": [],
+            "source_ref": "fixture:v1"
+          }
+        ],
+        "repo_key": "example"
+      }
+    ],
+    "repositories": [
+      {
+        "input_digest": "c20b5732688d1b1ea852cfd1e9fe100819deab812f48f02ab87fa406720dfe8c",
+        "primary_outcomes": [
+          {
+            "local_id": "one_eq",
+            "repo_key": "example"
+          }
+        ],
+        "repo_key": "example",
+        "revision": null,
+        "root_scope": "root",
+        "toolchain": "leanprover/lean4:v4.24.0",
+        "unresolved_reason": null,
+        "version_status": "fixed"
+      },
+      {
+        "input_digest": null,
+        "primary_outcomes": [],
+        "repo_key": "stdlib-unresolved",
+        "revision": null,
+        "root_scope": null,
+        "toolchain": null,
+        "unresolved_reason": "Synthetic fixture intentionally has no resolved standard-library lock",
+        "version_status": "unresolved"
+      }
+    ]
+  },
+  "scopes": [
+    {
+      "kind": "lean_module",
+      "name": "Example",
+      "parent": null,
+      "provenance": [
+        {
+          "method": "synthetic_fixture",
+          "ranges": [],
+          "source_ref": "fixture:v1"
+        }
+      ],
+      "repo_key": "example",
+      "scope_id": "root"
+    }
+  ],
+  "units": [
+    {
+      "members": [
+        "helper"
+      ],
+      "representative": {
+        "local_id": "one_eq",
+        "repo_key": "example"
+      },
+      "unit_id": "main"
+    },
+    {
+      "members": [],
+      "representative": {
+        "local_id": "one",
+        "repo_key": "example"
+      },
+      "unit_id": "helper"
+    }
+  ]
+}

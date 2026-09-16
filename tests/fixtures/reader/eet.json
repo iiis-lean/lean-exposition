@@ -1,0 +1,530 @@
+{
+  "blocks": {
+    "bound": {
+      "anchors": [],
+      "proof": "Adding one cannot decrease a natural number.",
+      "statement": "For every $n\\in\\mathbb{N}$, $n\\le f(n)$."
+    },
+    "conclusion": {
+      "anchors": [],
+      "lead_in": "We now strengthen the comparison.",
+      "lead_out": "",
+      "synopsis": "The increase is strict."
+    },
+    "definition": {
+      "anchors": [
+        {
+          "part": "content",
+          "targets": [
+            {
+              "decl_ref": {
+                "local_id": "definition",
+                "repo_key": "demo"
+              }
+            }
+          ]
+        }
+      ],
+      "content": "Define $f(n)=n+1$ for $n\\in\\mathbb{N}$."
+    },
+    "result": {
+      "anchors": [],
+      "proof": "Since $f(n)=n+1$, the inequality is immediate.",
+      "statement": "For every $n\\in\\mathbb{N}$, $n<f(n)$."
+    },
+    "root": {
+      "anchors": [],
+      "lead_in": "Consider the natural numbers.",
+      "lead_out": "Thus the natural numbers admit a strictly increasing successor.",
+      "synopsis": "The successor construction gives a strict increase."
+    },
+    "setup": {
+      "anchors": [],
+      "lead_in": "",
+      "lead_out": "The successor never decreases its input.",
+      "synopsis": "Define the successor and establish its weak bound."
+    }
+  },
+  "hierarchy": {
+    "config": {
+      "origin": "handwritten_fixture"
+    },
+    "config_digest": "b9a43f723720a837af7bb7c638e225c4c1136f1cb8870f34c79f9e487d46d883",
+    "diagnostics": [],
+    "edges": [
+      {
+        "consumer_decl": {
+          "local_id": "bound",
+          "repo_key": "demo"
+        },
+        "consumer_node": "bound",
+        "id": "edge-bound",
+        "provider_decl": {
+          "local_id": "definition",
+          "repo_key": "demo"
+        },
+        "provider_node": "definition"
+      },
+      {
+        "consumer_decl": {
+          "local_id": "result",
+          "repo_key": "demo"
+        },
+        "consumer_node": "result",
+        "id": "edge-result",
+        "provider_decl": {
+          "local_id": "definition",
+          "repo_key": "demo"
+        },
+        "provider_node": "definition"
+      }
+    ],
+    "external_refs": [],
+    "hierarchy_id": "hierarchy:9a6c6353ef318a99b18b5c07",
+    "nodes": [
+      {
+        "children": [
+          "setup",
+          "conclusion"
+        ],
+        "decl_refs": [
+          {
+            "local_id": "definition",
+            "repo_key": "demo"
+          },
+          {
+            "local_id": "bound",
+            "repo_key": "demo"
+          },
+          {
+            "local_id": "result",
+            "repo_key": "demo"
+          }
+        ],
+        "id": "root",
+        "kind": "repo",
+        "parent": null,
+        "representative": null,
+        "source_scope": "scope",
+        "title": "A simple successor argument"
+      },
+      {
+        "children": [
+          "definition",
+          "bound"
+        ],
+        "decl_refs": [
+          {
+            "local_id": "definition",
+            "repo_key": "demo"
+          },
+          {
+            "local_id": "bound",
+            "repo_key": "demo"
+          }
+        ],
+        "id": "setup",
+        "kind": "region",
+        "parent": "root",
+        "representative": null,
+        "source_scope": "scope",
+        "title": "The successor and its bound"
+      },
+      {
+        "children": [
+          "result"
+        ],
+        "decl_refs": [
+          {
+            "local_id": "result",
+            "repo_key": "demo"
+          }
+        ],
+        "id": "conclusion",
+        "kind": "scope",
+        "parent": "root",
+        "representative": null,
+        "source_scope": "scope",
+        "title": "Strict growth"
+      },
+      {
+        "children": [],
+        "decl_refs": [
+          {
+            "local_id": "definition",
+            "repo_key": "demo"
+          }
+        ],
+        "id": "definition",
+        "kind": "unit",
+        "parent": "setup",
+        "representative": {
+          "local_id": "definition",
+          "repo_key": "demo"
+        },
+        "source_scope": "scope",
+        "title": "Successor"
+      },
+      {
+        "children": [],
+        "decl_refs": [
+          {
+            "local_id": "bound",
+            "repo_key": "demo"
+          }
+        ],
+        "id": "bound",
+        "kind": "unit",
+        "parent": "setup",
+        "representative": {
+          "local_id": "bound",
+          "repo_key": "demo"
+        },
+        "source_scope": "scope",
+        "title": "Weak bound"
+      },
+      {
+        "children": [],
+        "decl_refs": [
+          {
+            "local_id": "result",
+            "repo_key": "demo"
+          }
+        ],
+        "id": "result",
+        "kind": "unit",
+        "parent": "conclusion",
+        "representative": {
+          "local_id": "result",
+          "repo_key": "demo"
+        },
+        "source_scope": "scope",
+        "title": "Strict bound"
+      }
+    ],
+    "repo_key": "demo",
+    "root_id": "root",
+    "source_digest": "998bba2e9c105a78e315fec3c3fb649b1b2629d14873ef021c2d58b6a1388bc9",
+    "workspace_digest": "de0da1611fde09bdd06ad30a2df3b42f1df5534767c4efaf7d008859b329dc6f"
+  },
+  "workspace": {
+    "declarations": [
+      {
+        "completion_status": null,
+        "extraction_status": {
+          "provenance": [
+            {
+              "method": "handwritten_fixture",
+              "ranges": [],
+              "source_ref": "reader-demo"
+            }
+          ],
+          "reason": null,
+          "state": "fixture"
+        },
+        "generated_from": null,
+        "kernel_kind": null,
+        "kind": "def",
+        "lean_name": "definition",
+        "local_public": false,
+        "module": "Main",
+        "native_scope": "scope",
+        "proof": null,
+        "provenance": [
+          {
+            "method": "handwritten_fixture",
+            "ranges": [],
+            "source_ref": "reader-demo"
+          }
+        ],
+        "ref": {
+          "local_id": "definition",
+          "repo_key": "demo"
+        },
+        "source_context": [],
+        "source_refs": [],
+        "statement": {
+          "deps": [],
+          "formal": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "def f (n : Nat) := n + 1"
+          },
+          "nl": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "Let f(n) = n + 1."
+          }
+        }
+      },
+      {
+        "completion_status": null,
+        "extraction_status": {
+          "provenance": [
+            {
+              "method": "handwritten_fixture",
+              "ranges": [],
+              "source_ref": "reader-demo"
+            }
+          ],
+          "reason": null,
+          "state": "fixture"
+        },
+        "generated_from": null,
+        "kernel_kind": null,
+        "kind": "theorem",
+        "lean_name": "bound",
+        "local_public": false,
+        "module": "Main",
+        "native_scope": "scope",
+        "proof": {
+          "deps": [],
+          "formal": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "by omega"
+          },
+          "nl": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "The claim follows by arithmetic."
+          }
+        },
+        "provenance": [
+          {
+            "method": "handwritten_fixture",
+            "ranges": [],
+            "source_ref": "reader-demo"
+          }
+        ],
+        "ref": {
+          "local_id": "bound",
+          "repo_key": "demo"
+        },
+        "source_context": [],
+        "source_refs": [],
+        "statement": {
+          "deps": [
+            {
+              "evidence_kind": "lean_type",
+              "provenance": [
+                {
+                  "method": "handwritten_fixture",
+                  "ranges": [],
+                  "source_ref": "reader-demo"
+                }
+              ],
+              "provider": {
+                "local_id": "definition",
+                "repo_key": "demo"
+              }
+            }
+          ],
+          "formal": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "theorem bound (n : Nat) : n ≤ f n := by omega"
+          },
+          "nl": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "For n ≥ 0, n ≤ f(n)."
+          }
+        }
+      },
+      {
+        "completion_status": null,
+        "extraction_status": {
+          "provenance": [
+            {
+              "method": "handwritten_fixture",
+              "ranges": [],
+              "source_ref": "reader-demo"
+            }
+          ],
+          "reason": null,
+          "state": "fixture"
+        },
+        "generated_from": null,
+        "kernel_kind": null,
+        "kind": "theorem",
+        "lean_name": "result",
+        "local_public": false,
+        "module": "Main",
+        "native_scope": "scope",
+        "proof": {
+          "deps": [],
+          "formal": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "by omega"
+          },
+          "nl": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "The claim follows by arithmetic."
+          }
+        },
+        "provenance": [
+          {
+            "method": "handwritten_fixture",
+            "ranges": [],
+            "source_ref": "reader-demo"
+          }
+        ],
+        "ref": {
+          "local_id": "result",
+          "repo_key": "demo"
+        },
+        "source_context": [],
+        "source_refs": [],
+        "statement": {
+          "deps": [
+            {
+              "evidence_kind": "lean_type",
+              "provenance": [
+                {
+                  "method": "handwritten_fixture",
+                  "ranges": [],
+                  "source_ref": "reader-demo"
+                }
+              ],
+              "provider": {
+                "local_id": "definition",
+                "repo_key": "demo"
+              }
+            }
+          ],
+          "formal": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "theorem result (n : Nat) : n < f n := by omega"
+          },
+          "nl": {
+            "check": null,
+            "provenance": [
+              {
+                "method": "handwritten_fixture",
+                "ranges": [],
+                "source_ref": "reader-demo"
+              }
+            ],
+            "reason": null,
+            "status": "present",
+            "text": "For every natural n, n < f(n)."
+          }
+        }
+      }
+    ],
+    "manifest": {
+      "assets": [],
+      "dependency_locks": [],
+      "repositories": [
+        {
+          "input_digest": null,
+          "primary_outcomes": [
+            {
+              "local_id": "result",
+              "repo_key": "demo"
+            }
+          ],
+          "repo_key": "demo",
+          "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "root_scope": "scope",
+          "toolchain": "leanprover/lean4:v4.28.0",
+          "unresolved_reason": null,
+          "version_status": "fixed"
+        }
+      ]
+    },
+    "scopes": [
+      {
+        "kind": "repository",
+        "name": "Demo",
+        "parent": null,
+        "provenance": [
+          {
+            "method": "handwritten_fixture",
+            "ranges": [],
+            "source_ref": "reader-demo"
+          }
+        ],
+        "repo_key": "demo",
+        "scope_id": "scope"
+      }
+    ],
+    "units": []
+  }
+}

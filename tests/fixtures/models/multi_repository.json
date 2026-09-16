@@ -1,0 +1,290 @@
+{
+  "declarations": [
+    {
+      "extraction_status": {
+        "provenance": [
+          {
+            "method": "synthetic_fixture",
+            "ranges": [],
+            "source_ref": "fixture:v1"
+          }
+        ],
+        "reason": "Not extracted or checked by Lean",
+        "state": "fixture_only"
+      },
+      "generated_from": null,
+      "kernel_kind": null,
+      "kind": "def",
+      "lean_name": "Example.one",
+      "local_public": true,
+      "module": "Example",
+      "native_scope": "example-root",
+      "proof": null,
+      "provenance": [
+        {
+          "method": "synthetic_fixture",
+          "ranges": [],
+          "source_ref": "fixture:v1"
+        }
+      ],
+      "ref": {
+        "local_id": "one",
+        "repo_key": "example"
+      },
+      "source_context": [],
+      "source_refs": [
+        {
+          "asset_id": "example-source",
+          "end_column": 19,
+          "end_line": 3,
+          "start_column": 1,
+          "start_line": 3
+        }
+      ],
+      "statement": {
+        "deps": [],
+        "formal": {
+          "check": {
+            "provenance": [
+              {
+                "method": "synthetic_fixture",
+                "ranges": [],
+                "source_ref": "fixture:v1"
+              }
+            ],
+            "reason": null,
+            "state": "not_checked"
+          },
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": null,
+          "status": "present",
+          "text": "def one : Nat := 1"
+        },
+        "nl": {
+          "check": null,
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": "No NL supplied by fixture",
+          "status": "missing",
+          "text": null
+        }
+      }
+    },
+    {
+      "extraction_status": {
+        "provenance": [
+          {
+            "method": "synthetic_fixture",
+            "ranges": [],
+            "source_ref": "fixture:v1"
+          }
+        ],
+        "reason": "Not extracted or checked by Lean",
+        "state": "fixture_only"
+      },
+      "generated_from": null,
+      "kernel_kind": null,
+      "kind": "def",
+      "lean_name": "Consumer.one",
+      "local_public": true,
+      "module": "Consumer",
+      "native_scope": "consumer-root",
+      "proof": null,
+      "provenance": [
+        {
+          "method": "synthetic_fixture",
+          "ranges": [],
+          "source_ref": "fixture:v1"
+        }
+      ],
+      "ref": {
+        "local_id": "one",
+        "repo_key": "consumer"
+      },
+      "source_context": [],
+      "source_refs": [
+        {
+          "asset_id": "consumer-source",
+          "end_column": 19,
+          "end_line": 3,
+          "start_column": 1,
+          "start_line": 3
+        }
+      ],
+      "statement": {
+        "deps": [
+          {
+            "evidence_kind": "text_reference",
+            "provenance": [
+              {
+                "method": "synthetic_fixture",
+                "ranges": [],
+                "source_ref": "fixture:v1"
+              }
+            ],
+            "provider": {
+              "local_id": "one",
+              "repo_key": "example"
+            }
+          }
+        ],
+        "formal": {
+          "check": {
+            "provenance": [
+              {
+                "method": "synthetic_fixture",
+                "ranges": [],
+                "source_ref": "fixture:v1"
+              }
+            ],
+            "reason": null,
+            "state": "not_checked"
+          },
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": null,
+          "status": "present",
+          "text": "def one : Nat := 2"
+        },
+        "nl": {
+          "check": null,
+          "provenance": [
+            {
+              "method": "synthetic_fixture",
+              "ranges": [],
+              "source_ref": "fixture:v1"
+            }
+          ],
+          "reason": "No NL supplied by fixture",
+          "status": "missing",
+          "text": null
+        }
+      }
+    }
+  ],
+  "manifest": {
+    "assets": [
+      {
+        "asset_id": "example-source",
+        "path": "Example.lean",
+        "repo_key": "example",
+        "sha256": "c20b5732688d1b1ea852cfd1e9fe100819deab812f48f02ab87fa406720dfe8c"
+      },
+      {
+        "asset_id": "consumer-source",
+        "path": "Consumer.lean",
+        "repo_key": "consumer",
+        "sha256": "55804459e3d2dded3a6a18005206a8d0cccf16665bac1b7df2c455d3c97e361e"
+      }
+    ],
+    "dependency_locks": [
+      {
+        "dependency_repo_key": "example",
+        "provenance": [
+          {
+            "method": "synthetic_fixture",
+            "ranges": [],
+            "source_ref": "fixture:v1"
+          }
+        ],
+        "repo_key": "consumer"
+      }
+    ],
+    "repositories": [
+      {
+        "input_digest": "c20b5732688d1b1ea852cfd1e9fe100819deab812f48f02ab87fa406720dfe8c",
+        "primary_outcomes": [
+          {
+            "local_id": "one",
+            "repo_key": "example"
+          }
+        ],
+        "repo_key": "example",
+        "revision": null,
+        "root_scope": "example-root",
+        "toolchain": "leanprover/lean4:v4.24.0",
+        "unresolved_reason": null,
+        "version_status": "fixed"
+      },
+      {
+        "input_digest": "55804459e3d2dded3a6a18005206a8d0cccf16665bac1b7df2c455d3c97e361e",
+        "primary_outcomes": [
+          {
+            "local_id": "one",
+            "repo_key": "consumer"
+          }
+        ],
+        "repo_key": "consumer",
+        "revision": null,
+        "root_scope": "consumer-root",
+        "toolchain": "leanprover/lean4:v4.24.0",
+        "unresolved_reason": null,
+        "version_status": "fixed"
+      }
+    ]
+  },
+  "scopes": [
+    {
+      "kind": "lean_module",
+      "name": "Example",
+      "parent": null,
+      "provenance": [
+        {
+          "method": "synthetic_fixture",
+          "ranges": [],
+          "source_ref": "fixture:v1"
+        }
+      ],
+      "repo_key": "example",
+      "scope_id": "example-root"
+    },
+    {
+      "kind": "lean_module",
+      "name": "Consumer",
+      "parent": null,
+      "provenance": [
+        {
+          "method": "synthetic_fixture",
+          "ranges": [],
+          "source_ref": "fixture:v1"
+        }
+      ],
+      "repo_key": "consumer",
+      "scope_id": "consumer-root"
+    }
+  ],
+  "units": [
+    {
+      "members": [],
+      "representative": {
+        "local_id": "one",
+        "repo_key": "example"
+      },
+      "unit_id": "example-one"
+    },
+    {
+      "members": [],
+      "representative": {
+        "local_id": "one",
+        "repo_key": "consumer"
+      },
+      "unit_id": "consumer-one"
+    }
+  ]
+}

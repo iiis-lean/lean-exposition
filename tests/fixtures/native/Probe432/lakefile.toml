@@ -1,0 +1,6 @@
+name = "li432_fixture"
+version = "0.1.0"
+defaultTargets = ["Probe"]
+
+[[lean_lib]]
+name = "Probe"

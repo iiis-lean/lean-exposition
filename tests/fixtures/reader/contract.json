@@ -1,0 +1,314 @@
+{
+  "errors": [
+    "stale_view",
+    "validation_error",
+    "not_found",
+    "not_expandable",
+    "generation_failed",
+    "budget_exceeded",
+    "locale_unavailable"
+  ],
+  "job": {
+    "applied": "boolean",
+    "changed_anchor": "optional string",
+    "completed_children": "integer",
+    "error": "optional object",
+    "job_id": "string",
+    "latest_view": "string",
+    "result_view": "optional string",
+    "status": "queued|drafting|stitching|validating|published|failed|cancelled",
+    "total_children": "integer"
+  },
+  "overview": {
+    "edges": "projected provider→consumer: id,provider_node,consumer_node,evidence_ids",
+    "next_cursor": "view-bound token or null",
+    "nodes": "flat visible node objects: id,kind,title,parent,state,can_expand,anchor",
+    "reading_order": "frontier node ids"
+  },
+  "result": {
+    "always": [
+      "ok",
+      "view_id"
+    ],
+    "error": {
+      "code": "string",
+      "job_id": "optional string",
+      "latest_view": "optional string",
+      "message": "string"
+    }
+  },
+  "text": {
+    "anchors": "anchor_id,node_id,part,start_line,end_line,targets",
+    "end_line": "inclusive",
+    "next_cursor": "view-bound token or null",
+    "start_line": "1-based inclusive",
+    "text": "Markdown"
+  },
+  "tools": {
+    "apply_action": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "expand",
+            "collapse",
+            "reset",
+            "cancel",
+            "set_budget",
+            "switch_locale"
+          ],
+          "type": "string"
+        },
+        "budget_codepoints": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_view": {
+          "type": "string"
+        },
+        "locale": {
+          "enum": [
+            "zh",
+            "en"
+          ],
+          "type": "string"
+        },
+        "reader_id": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reader_id",
+        "expected_view",
+        "action",
+        "target"
+      ],
+      "type": "object"
+    },
+    "get_overview": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "type": "string"
+        },
+        "limit": {
+          "default": 50,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "reader_id": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "view_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reader_id"
+      ],
+      "type": "object"
+    },
+    "inspect": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "type": "string"
+        },
+        "detail": {
+          "default": "summary",
+          "enum": [
+            "summary",
+            "interfaces",
+            "members",
+            "nl",
+            "lean",
+            "sources",
+            "job"
+          ],
+          "type": "string"
+        },
+        "limit": {
+          "default": 50,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "reader_id": {
+          "type": "string"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "local_id": {
+                  "type": "string"
+                },
+                "repo_key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "repo_key",
+                "local_id"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "view_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reader_id",
+        "ref"
+      ],
+      "type": "object"
+    },
+    "locate": {
+      "additionalProperties": false,
+      "properties": {
+        "reader_id": {
+          "type": "string"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "local_id": {
+                  "type": "string"
+                },
+                "repo_key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "repo_key",
+                "local_id"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "view_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reader_id",
+        "ref"
+      ],
+      "type": "object"
+    },
+    "open_reader": {
+      "additionalProperties": false,
+      "properties": {
+        "budget_codepoints": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "instance_id": {
+          "type": "string"
+        },
+        "locale": {
+          "enum": [
+            "zh",
+            "en"
+          ],
+          "type": "string"
+        },
+        "recommendations": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "instance_id"
+      ],
+      "type": "object"
+    },
+    "read_text": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "type": "string"
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "limit": {
+          "default": 50,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "reader_id": {
+          "type": "string"
+        },
+        "start_line": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "view_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reader_id"
+      ],
+      "type": "object"
+    },
+    "recommend": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 5,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "reader_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reader_id"
+      ],
+      "type": "object"
+    }
+  },
+  "transport": {
+    "http": "POST /api/{tool}",
+    "instances": "GET /api/instances",
+    "mcp": "/mcp"
+  }
+}

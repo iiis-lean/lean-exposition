@@ -1,0 +1,528 @@
+{
+  "expand_root": {
+    "changed_anchor": "root:body",
+    "idempotent": false,
+    "instance_id": "instance-08674d4ba40699ee9fcf6140",
+    "locale": null,
+    "ok": true,
+    "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+    "view_id": "view-21f2c64971a192d350045317"
+  },
+  "instances": {
+    "instances": [
+      {
+        "content_complete": true,
+        "declaration_count": 3,
+        "instance_id": "instance-08674d4ba40699ee9fcf6140",
+        "locale": null,
+        "node_count": 6,
+        "published_node_count": 6,
+        "root_id": "root",
+        "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+        "title": "A simple successor argument",
+        "workspace_digest": "de0da1611fde09bdd06ad30a2df3b42f1df5534767c4efaf7d008859b329dc6f"
+      }
+    ]
+  },
+  "interfaces": {
+    "detail": "interfaces",
+    "instance_id": "instance-08674d4ba40699ee9fcf6140",
+    "items": [
+      {
+        "consumer_decl": {
+          "local_id": "bound",
+          "repo_key": "demo"
+        },
+        "edge_id": "edge-bound",
+        "evidence_kind": "lean_type",
+        "part": "statement",
+        "provider_decl": {
+          "local_id": "definition",
+          "repo_key": "demo"
+        },
+        "relation_kind": "internal"
+      }
+    ],
+    "locale": null,
+    "next_cursor": "WyJ2aWV3LTIxZjJjNjQ5NzFhMTkyZDM1MDA0NTMxNyIsImluc3BlY3QiLDEsIltcInJvb3RcIiwgXCJpbnRlcmZhY2VzXCJdIl0=",
+    "offset": 0,
+    "ok": true,
+    "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+    "total": 3,
+    "view_id": "view-21f2c64971a192d350045317"
+  },
+  "lean_page": {
+    "detail": "lean",
+    "instance_id": "instance-08674d4ba40699ee9fcf6140",
+    "items": [
+      {
+        "line": 1,
+        "part": "statement",
+        "reason": null,
+        "ref": {
+          "local_id": "definition",
+          "repo_key": "demo"
+        },
+        "status": "present",
+        "text": "def f (n : Nat) := n + 1"
+      }
+    ],
+    "locale": null,
+    "next_cursor": "WyJ2aWV3LTIxZjJjNjQ5NzFhMTkyZDM1MDA0NTMxNyIsImluc3BlY3QiLDEsIltcImRlZmluaXRpb25cIiwgXCJsZWFuXCJdIl0=",
+    "offset": 0,
+    "ok": true,
+    "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+    "text": "def f (n : Nat) := n + 1",
+    "total": 2,
+    "view_id": "view-21f2c64971a192d350045317"
+  },
+  "locate_hidden": {
+    "anchor": "setup:section",
+    "expand_path": [
+      "setup"
+    ],
+    "external": false,
+    "instance_id": "instance-08674d4ba40699ee9fcf6140",
+    "locale": null,
+    "node_id": "definition",
+    "ok": true,
+    "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+    "view_id": "view-21f2c64971a192d350045317",
+    "visible_ancestor": "setup"
+  },
+  "open_reader": {
+    "instance_id": "instance-08674d4ba40699ee9fcf6140",
+    "locale": null,
+    "ok": true,
+    "overview": {
+      "boundary_stubs": [],
+      "edges": [],
+      "length": {
+        "budget_codepoints": null,
+        "over_budget": false,
+        "text_codepoints": 148,
+        "title_codepoints": 27,
+        "total_codepoints": 175
+      },
+      "next_cursor": null,
+      "nodes": [
+        {
+          "anchor": "root:section",
+          "can_collapse": false,
+          "can_expand": true,
+          "description": "",
+          "id": "root",
+          "is_frontier": true,
+          "kind": "repo",
+          "parent": null,
+          "raw_kind": "repo",
+          "state": "collapsed",
+          "title": "A simple successor argument"
+        }
+      ],
+      "reading_order": [
+        "root"
+      ],
+      "total_nodes": 1,
+      "view_id": "view-677cc4f1c6c242d3a84b0caf"
+    },
+    "reader_id": "reader-810e98d2719f49fd9a7d697f059d0c8c",
+    "root_id": "root",
+    "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+    "text": {
+      "anchors": [
+        {
+          "anchor_id": "root:lead_in",
+          "end_line": 1,
+          "node_id": "root",
+          "part": "lead_in",
+          "start_line": 1,
+          "targets": [
+            {
+              "node_id": "root"
+            }
+          ]
+        },
+        {
+          "anchor_id": "root:synopsis",
+          "end_line": 3,
+          "node_id": "root",
+          "part": "synopsis",
+          "start_line": 3,
+          "targets": [
+            {
+              "node_id": "root"
+            }
+          ]
+        },
+        {
+          "anchor_id": "root:body",
+          "end_line": 4,
+          "node_id": "root",
+          "part": "body",
+          "start_line": 3,
+          "targets": [
+            {
+              "node_id": "root"
+            }
+          ]
+        },
+        {
+          "anchor_id": "root:lead_out",
+          "end_line": 5,
+          "node_id": "root",
+          "part": "lead_out",
+          "start_line": 5,
+          "targets": [
+            {
+              "node_id": "root"
+            }
+          ]
+        },
+        {
+          "anchor_id": "root:section",
+          "end_line": 6,
+          "node_id": "root",
+          "part": "section",
+          "start_line": 1,
+          "targets": [
+            {
+              "node_id": "root"
+            }
+          ]
+        }
+      ],
+      "content_complete": true,
+      "end_line": 6,
+      "length": {
+        "budget_codepoints": null,
+        "over_budget": false,
+        "text_codepoints": 148,
+        "title_codepoints": 27,
+        "total_codepoints": 175
+      },
+      "next_cursor": null,
+      "node_count": 6,
+      "published_node_count": 6,
+      "start_line": 1,
+      "text": "Consider the natural numbers.\n\nThe successor construction gives a strict increase.\n\nThus the natural numbers admit a strictly increasing successor.\n",
+      "total_lines": 6,
+      "view_id": "view-677cc4f1c6c242d3a84b0caf"
+    },
+    "view_id": "view-677cc4f1c6c242d3a84b0caf"
+  },
+  "overview_expanded": {
+    "boundary_stubs": [],
+    "edges": [
+      {
+        "consumer_node": "conclusion",
+        "evidence_count": 1,
+        "evidence_ids": [
+          "edge-result"
+        ],
+        "id": "projected-6c67aac107390217e5bc",
+        "provider_node": "setup"
+      }
+    ],
+    "instance_id": "instance-08674d4ba40699ee9fcf6140",
+    "length": {
+      "budget_codepoints": null,
+      "over_budget": false,
+      "text_codepoints": 249,
+      "title_codepoints": 67,
+      "total_codepoints": 316
+    },
+    "locale": null,
+    "next_cursor": null,
+    "nodes": [
+      {
+        "anchor": "root:section",
+        "can_collapse": true,
+        "can_expand": false,
+        "description": "",
+        "id": "root",
+        "is_frontier": false,
+        "kind": "repo",
+        "parent": null,
+        "raw_kind": "repo",
+        "state": "expanded",
+        "title": "A simple successor argument"
+      },
+      {
+        "anchor": "setup:section",
+        "can_collapse": false,
+        "can_expand": true,
+        "description": "",
+        "id": "setup",
+        "is_frontier": true,
+        "kind": "region",
+        "parent": "root",
+        "raw_kind": "region",
+        "state": "collapsed",
+        "title": "The successor and its bound"
+      },
+      {
+        "anchor": "conclusion:section",
+        "can_collapse": false,
+        "can_expand": true,
+        "description": "",
+        "id": "conclusion",
+        "is_frontier": true,
+        "kind": "scope",
+        "parent": "root",
+        "raw_kind": "scope",
+        "state": "collapsed",
+        "title": "Strict growth"
+      }
+    ],
+    "ok": true,
+    "reading_order": [
+      "setup",
+      "conclusion"
+    ],
+    "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+    "total_nodes": 3,
+    "view_id": "view-21f2c64971a192d350045317"
+  },
+  "recommend": {
+    "enabled": true,
+    "instance_id": "instance-08674d4ba40699ee9fcf6140",
+    "locale": null,
+    "ok": true,
+    "policy": "random",
+    "policy_id": "random",
+    "recommendations": [
+      {
+        "rank": 1,
+        "reason": "Random baseline; no estimated mathematical benefit.",
+        "target_id": "conclusion"
+      },
+      {
+        "rank": 2,
+        "reason": "Random baseline; no estimated mathematical benefit.",
+        "target_id": "setup"
+      }
+    ],
+    "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+    "total_candidates": 2,
+    "total_recommendations": 2,
+    "view_id": "view-21f2c64971a192d350045317"
+  },
+  "set_budget": {
+    "changed_anchor": null,
+    "idempotent": false,
+    "instance_id": "instance-08674d4ba40699ee9fcf6140",
+    "length": {
+      "budget_codepoints": 0,
+      "over_budget": true,
+      "text_codepoints": 249,
+      "title_codepoints": 67,
+      "total_codepoints": 316
+    },
+    "locale": null,
+    "ok": true,
+    "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+    "view_id": "view-7d3c95ca7eb1a15f6ff12d80"
+  },
+  "stale_action": {
+    "error": {
+      "code": "stale_view",
+      "latest_view": "view-21f2c64971a192d350045317",
+      "message": "Action was based on an old view."
+    },
+    "ok": false,
+    "view_id": "view-21f2c64971a192d350045317"
+  },
+  "text_expanded": {
+    "anchors": [
+      {
+        "anchor_id": "root:lead_in",
+        "end_line": 1,
+        "node_id": "root",
+        "part": "lead_in",
+        "start_line": 1,
+        "targets": [
+          {
+            "node_id": "root"
+          }
+        ]
+      },
+      {
+        "anchor_id": "setup:lead_in",
+        "end_line": 2,
+        "node_id": "setup",
+        "part": "lead_in",
+        "start_line": 3,
+        "targets": [
+          {
+            "node_id": "setup"
+          }
+        ]
+      },
+      {
+        "anchor_id": "setup:synopsis",
+        "end_line": 3,
+        "node_id": "setup",
+        "part": "synopsis",
+        "start_line": 3,
+        "targets": [
+          {
+            "node_id": "setup"
+          }
+        ]
+      },
+      {
+        "anchor_id": "setup:body",
+        "end_line": 4,
+        "node_id": "setup",
+        "part": "body",
+        "start_line": 3,
+        "targets": [
+          {
+            "node_id": "setup"
+          }
+        ]
+      },
+      {
+        "anchor_id": "setup:lead_out",
+        "end_line": 5,
+        "node_id": "setup",
+        "part": "lead_out",
+        "start_line": 5,
+        "targets": [
+          {
+            "node_id": "setup"
+          }
+        ]
+      },
+      {
+        "anchor_id": "setup:section",
+        "end_line": 6,
+        "node_id": "setup",
+        "part": "section",
+        "start_line": 3,
+        "targets": [
+          {
+            "node_id": "setup"
+          }
+        ]
+      },
+      {
+        "anchor_id": "conclusion:lead_in",
+        "end_line": 7,
+        "node_id": "conclusion",
+        "part": "lead_in",
+        "start_line": 7,
+        "targets": [
+          {
+            "node_id": "conclusion"
+          }
+        ]
+      },
+      {
+        "anchor_id": "conclusion:synopsis",
+        "end_line": 9,
+        "node_id": "conclusion",
+        "part": "synopsis",
+        "start_line": 9,
+        "targets": [
+          {
+            "node_id": "conclusion"
+          }
+        ]
+      },
+      {
+        "anchor_id": "conclusion:body",
+        "end_line": 10,
+        "node_id": "conclusion",
+        "part": "body",
+        "start_line": 9,
+        "targets": [
+          {
+            "node_id": "conclusion"
+          }
+        ]
+      },
+      {
+        "anchor_id": "conclusion:lead_out",
+        "end_line": 10,
+        "node_id": "conclusion",
+        "part": "lead_out",
+        "start_line": 11,
+        "targets": [
+          {
+            "node_id": "conclusion"
+          }
+        ]
+      },
+      {
+        "anchor_id": "conclusion:section",
+        "end_line": 10,
+        "node_id": "conclusion",
+        "part": "section",
+        "start_line": 7,
+        "targets": [
+          {
+            "node_id": "conclusion"
+          }
+        ]
+      },
+      {
+        "anchor_id": "root:body",
+        "end_line": 10,
+        "node_id": "root",
+        "part": "body",
+        "start_line": 3,
+        "targets": [
+          {
+            "node_id": "root"
+          }
+        ]
+      },
+      {
+        "anchor_id": "root:lead_out",
+        "end_line": 11,
+        "node_id": "root",
+        "part": "lead_out",
+        "start_line": 11,
+        "targets": [
+          {
+            "node_id": "root"
+          }
+        ]
+      },
+      {
+        "anchor_id": "root:section",
+        "end_line": 12,
+        "node_id": "root",
+        "part": "section",
+        "start_line": 1,
+        "targets": [
+          {
+            "node_id": "root"
+          }
+        ]
+      }
+    ],
+    "content_complete": true,
+    "end_line": 12,
+    "instance_id": "instance-08674d4ba40699ee9fcf6140",
+    "length": {
+      "budget_codepoints": null,
+      "over_budget": false,
+      "text_codepoints": 249,
+      "title_codepoints": 67,
+      "total_codepoints": 316
+    },
+    "locale": null,
+    "next_cursor": null,
+    "node_count": 6,
+    "ok": true,
+    "published_node_count": 6,
+    "start_line": 1,
+    "structure_id": "structure-f4ebc957a2c0a530bb3e7b1b",
+    "text": "Consider the natural numbers.\n\nDefine the successor and establish its weak bound.\n\nThe successor never decreases its input.\n\nWe now strengthen the comparison.\n\nThe increase is strict.\n\nThus the natural numbers admit a strictly increasing successor.\n",
+    "total_lines": 12,
+    "view_id": "view-21f2c64971a192d350045317"
+  }
+}

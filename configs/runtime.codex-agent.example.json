@@ -1,0 +1,13 @@
+{
+  "model": "gpt-5.6-sol",
+  "cwd": "/tmp/lean-exposition-codex/work",
+  "reasoning": "high",
+  "timeout": 900,
+  "codex_home": "/tmp/lean-exposition-codex/.codex",
+  "auth_path": "/root/.codex/auth.json",
+  "codex_bin": "/usr/bin/codex",
+  "sdk_python_root": "/root/code/codex/sdk/python",
+  "developer_instructions": null,
+  "codex_config": {},
+  "mcp_servers": []
+}

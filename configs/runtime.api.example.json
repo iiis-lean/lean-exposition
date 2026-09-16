@@ -1,0 +1,12 @@
+{
+  "model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com",
+  "credential_env": "DEEPSEEK_API_KEY",
+  "protocol": "responses",
+  "transport": "http",
+  "proxy_url": null,
+  "timeout": 180,
+  "max_output_tokens": 8192,
+  "reasoning": null,
+  "extra_body": {}
+}

@@ -1,0 +1,13 @@
+{
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "cwd": "/tmp/lean-exposition-pi/work",
+  "session_dir": "/tmp/lean-exposition-pi/sessions",
+  "reasoning": "high",
+  "timeout": 900,
+  "executable": "pi",
+  "credential_env": "DEEPSEEK_API_KEY",
+  "provider_credential_env": "DEEPSEEK_API_KEY",
+  "tools": [],
+  "system_prompt": null
+}

@@ -1,0 +1,28 @@
+{
+  "nodes": [
+    {"id":"a","title":"Definitions","kind":"unit","is_frontier":true,"order":0,"text":"A short definition."},
+    {"id":"b","title":"Local comparison","kind":"unit","is_frontier":true,"order":1,"text":"A comparison argument with several intermediate observations and a fixed conclusion."},
+    {"id":"c","title":"Auxiliary bound","kind":"unit","is_frontier":true,"order":2,"text":"An auxiliary bound."},
+    {"id":"d","title":"Monotonicity","kind":"unit","is_frontier":true,"order":3,"text":"A monotonicity statement whose proof combines the definition, comparison, and auxiliary bound."},
+    {"id":"e","title":"Limit step","kind":"unit","is_frontier":true,"order":4,"text":"The limit step uses the preceding estimates and supplies a longer passage so its visible dot is larger than the short definitions."},
+    {"id":"f","title":"Main result","kind":"unit","is_frontier":true,"order":5,"text":"The main theorem and its proof."},
+    {"id":"g","title":"Corollary","kind":"unit","is_frontier":true,"order":6,"text":"A corollary."},
+    {"id":"h","title":"Alternative route","kind":"unit","is_frontier":true,"order":7,"text":"An alternative route through the argument."},
+    {"id":"external","title":"External interfaces","kind":"external","repo_key":"external","is_frontier":true,"order":8,"text":""}
+  ],
+  "edges": [
+    {"id":"ab","provider_node":"a","consumer_node":"b","evidence_count":1},
+    {"id":"ac","provider_node":"a","consumer_node":"c","evidence_count":2},
+    {"id":"bd","provider_node":"b","consumer_node":"d","evidence_count":3},
+    {"id":"cd","provider_node":"c","consumer_node":"d","evidence_count":1},
+    {"id":"be","provider_node":"b","consumer_node":"e","evidence_count":2},
+    {"id":"ce","provider_node":"c","consumer_node":"e","evidence_count":2},
+    {"id":"de","provider_node":"d","consumer_node":"e","evidence_count":4},
+    {"id":"df","provider_node":"d","consumer_node":"f","evidence_count":2},
+    {"id":"ef","provider_node":"e","consumer_node":"f","evidence_count":5},
+    {"id":"fg","provider_node":"f","consumer_node":"g","evidence_count":1},
+    {"id":"ah","provider_node":"a","consumer_node":"h","evidence_count":1},
+    {"id":"hf","provider_node":"h","consumer_node":"f","evidence_count":2},
+    {"id":"external-d","provider_node":"external","consumer_node":"d","evidence_count":3}
+  ]
+}

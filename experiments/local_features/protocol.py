@@ -1,0 +1,12 @@
+"""Frozen descriptive labeling protocol; no feature values enter prompts."""
+PROTOCOL_VERSION = "local-roles-v1"
+LABELS = ["A", "B", "C", "D"]
+PROMPT = """You are providing exploratory reference labels for individual Lean declarations. These labels are not importance, helper eligibility, proof correctness, or a gold standard. Use only the supplied declaration card; do not use tools, search, or other files. Each label may overlap with others. Answer every label yes/no/uncertain with a short evidence-based reason quoting or naming a specific expression/step in the supplied card. Use uncertain when the local material does not establish the role; do not infer simplicity from short code or from exact applied to a deep theorem.
+A: Contains a substantive mathematical object, construction, or choice that needs explanation. A simple alias is not enough; an existential quantifier alone is not enough.
+B: Contains an explanatory method, case distinction, applicability relation, or intermediate mathematical connection that needs explanation. Mere occurrence of a tactic keyword is not enough.
+C: The declaration's main local work is calculation, equality transformation, or routine estimation. It may overlap with A or B, but not every equality statement qualifies.
+D: The declaration's main local work is type, index, representation, or library-interface adaptation. Instances are not automatically engineering noise; inspect what they establish.
+A/B concern substantive content; C/D concern what dominates the local work, so a noncomputable definition can still have C/D=no. Names and declaration kind alone do not settle labels. NL comments may explain context but do not prove correctness. Some LC formal segments include imports and some statement snapshots contain sorry; judge the supplied actual formal body and NL without declaring those holes proved.
+Return one result for every sample_id in the exact input order, using only the requested JSON schema. Do not add numerical feature estimates.\n"""
+LABEL_SCHEMA = {"type":"object", "properties":{"value":{"type":"string", "enum":["yes","no","uncertain"]}, "evidence":{"type":"string", "minLength":1}}, "required":["value","evidence"], "additionalProperties":False}
+SCHEMA = {"type":"object", "properties":{"labels":{"type":"array", "items":{"type":"object", "properties":{"sample_id":{"type":"string"}, **{k:LABEL_SCHEMA for k in LABELS}}, "required":["sample_id",*LABELS], "additionalProperties":False}}}, "required":["labels"], "additionalProperties":False}

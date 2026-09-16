@@ -1,0 +1,71 @@
+"""OpenAI-compatible API execution with explicit protocol contracts."""
+
+from .api import (
+    ApiToolExecutor,
+    FunctionTool,
+    StructuredExecutor,
+    canonical_json,
+    prompt_digest,
+    request_digest,
+    stable_prompt,
+)
+from .config import ApiConfig
+from .agents import (
+    AgentControlResult,
+    AgentError,
+    AgentExecutor,
+    AgentHandle,
+    AgentResult,
+    AgentSession,
+    AgentStatus,
+    AgentToolEvent,
+    AgentUsage,
+    CodexAgentConfig,
+    CodexAgentExecutor,
+    CodexSdkUnavailable,
+    McpServerConfig,
+    PiAgentConfig,
+    PiAgentExecutor,
+)
+from .service import Runtime
+from .types import (
+    ApiError,
+    ApiUsage,
+    ExecutionResult,
+    JobHandle,
+    RuntimeFailure,
+    ToolEvent,
+)
+
+__all__ = [
+    "AgentControlResult",
+    "AgentError",
+    "AgentExecutor",
+    "AgentHandle",
+    "AgentResult",
+    "AgentSession",
+    "AgentStatus",
+    "AgentToolEvent",
+    "AgentUsage",
+    "ApiConfig",
+    "ApiError",
+    "ApiToolExecutor",
+    "ApiUsage",
+    "CodexAgentConfig",
+    "CodexAgentExecutor",
+    "CodexSdkUnavailable",
+    "ExecutionResult",
+    "FunctionTool",
+    "JobHandle",
+    "McpServerConfig",
+    "PiAgentConfig",
+    "PiAgentExecutor",
+    "Runtime",
+    "RuntimeFailure",
+    "StructuredExecutor",
+    "ToolEvent",
+    "canonical_json",
+    "prompt_digest",
+    "request_digest",
+    "stable_prompt",
+]

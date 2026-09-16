@@ -1,0 +1,34 @@
+{
+  "input_digest": null,
+  "repo_key": "replace-with-repository-key",
+  "revision": null,
+  "sequences": [
+    {
+      "id": "main-paper",
+      "kind": "tex_document",
+      "modules": [],
+      "paths": [],
+      "role": "primary",
+      "roots": ["main.tex"],
+      "strength": "protected"
+    },
+    {
+      "id": "appendices",
+      "kind": "ordered_files",
+      "modules": [],
+      "paths": ["appendix/background.tex", "appendix/examples.tex"],
+      "role": "supporting",
+      "roots": [],
+      "strength": "tie_breaker"
+    },
+    {
+      "id": "native-modules",
+      "kind": "lean_modules",
+      "modules": ["Project.Basic", "Project.Main"],
+      "paths": [],
+      "role": "reference",
+      "roots": [],
+      "strength": "tie_breaker"
+    }
+  ]
+}
