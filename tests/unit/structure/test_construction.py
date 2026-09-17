@@ -5,9 +5,12 @@ import hashlib
 import itertools
 import unittest
 
-from test_graph import workspace, ref, P
-from lean_exposition.models import SourceAsset, SourceRange, Provenance
-from lean_exposition.structure import BuildConfig, Hierarchy, HierarchyCycleError, build_hierarchy, derive_source_order, partition_regions
+from test_graph import bundle, workspace, ref, P
+from lean_exposition.models import DeclUnit, SourceAsset, SourceRange, Provenance
+from lean_exposition.structure import (BuildConfig, Hierarchy, HierarchyCycleError,
+                                       build_hierarchy as _build_hierarchy,
+                                       derive_narrative_order as _derive_narrative_order,
+                                       derive_source_order, partition_regions)
 from lean_exposition.structure.source import scan_tex
 
 
@@ -17,6 +20,10 @@ def edges(*pairs):
 
 def units(h):
     return [n for n in h.nodes if n["kind"] == "unit"]
+
+
+def build_hierarchy(workspace, repo_key, *, unit_aggregation="native_helpers", **kwargs):
+    return _build_hierarchy(bundle(workspace, unit_aggregation), repo_key, **kwargs)
 
 
 class HelperTests(unittest.TestCase):
@@ -46,19 +53,38 @@ class HelperTests(unittest.TestCase):
         h = build_hierarchy(w, "r", keep_separate=[ref("b"), ref("d")])
         self.assertEqual(len(units(h)), 2)
 
-    def test_lc_cross_registered_files_disabled(self):
+    def test_policy_replaces_lc_provenance_and_cross_file_guessing(self):
         w = workspace("ab", edges(("a", "b")))
         w = replace(w, declarations=tuple(replace(d, module=d.lean_name, provenance=(Provenance("lc_current", "fixture"),)) for d in w.declarations))
-        self.assertEqual(len(units(build_hierarchy(w, "r"))), 2)
-        self.assertEqual(len(units(build_hierarchy(w, "r", config=BuildConfig(lc_cross_file_helper=True)))), 1)
+        self.assertEqual(len(units(build_hierarchy(w, "r", unit_aggregation="preserve"))), 2)
+        self.assertEqual(len(units(build_hierarchy(w, "r"))), 1)
+
+    def test_lc_catalog_declarations_in_one_module_remain_singletons(self):
+        w = workspace("ab", edges(("a", "b")))
+        w = replace(w, declarations=tuple(
+            replace(d, module="Shared", provenance=(Provenance("lc_current", "fixture"),))
+            for d in w.declarations
+        ))
+        self.assertEqual(len(units(build_hierarchy(w, "r", unit_aggregation="preserve"))), 2)
 
     def test_generated_ownership_before_optional_helpers(self):
         w = workspace("abc", edges(("a", "b")))
         a, b, c = w.declarations
         w = replace(w, declarations=(a, replace(b, generated_from=ref("a")), replace(c, extraction_status=replace(c.extraction_status, state="compiler_only"))))
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False, max_declarations=1))
+        h = build_hierarchy(w, "r", config=BuildConfig(max_declarations=1))
         self.assertEqual(sorted(len(n["decl_refs"]) for n in units(h)), [1, 2])
         self.assertEqual(sum(n["metadata"]["technical"] for n in units(h)), 1)
+
+    def test_compound_seed_is_never_split(self):
+        w = workspace("abc", edges(("a", "b"), ("b", "c")))
+        w = replace(w, units=(DeclUnit("a", ref("a")),
+                              DeclUnit("b", ref("b"), ("a",)),
+                              DeclUnit("c", ref("c"))))
+        preserved = build_hierarchy(w, "r", unit_aggregation="preserve")
+        self.assertEqual(sorted(len(node["decl_refs"]) for node in units(preserved)), [1, 2])
+        aggregated = build_hierarchy(w, "r")
+        self.assertTrue(all({item["local_id"] for item in node["decl_refs"]} != {"a"}
+                            for node in units(aggregated)))
 
     def test_unknown_technical_not_absorbed(self):
         w = workspace("ab", edges(("a", "b")))
@@ -67,6 +93,45 @@ class HelperTests(unittest.TestCase):
 
 
 class HierarchyTests(unittest.TestCase):
+    def test_workspace_requires_explicit_valid_sidecars(self):
+        w = workspace("ab")
+        fixed = bundle(w)
+        with self.assertRaisesRegex(ValueError, "requires explicit"):
+            _build_hierarchy(w, "r")
+        explicit = _build_hierarchy(
+            w, "r", structure_policy=fixed.structure_policy,
+            dependency_coverage=fixed.dependency_coverage)
+        self.assertEqual(explicit, _build_hierarchy(fixed, "r"))
+        with self.assertRaisesRegex(ValueError, "cannot be combined"):
+            _build_hierarchy(fixed, "r", structure_policy=fixed.structure_policy,
+                             dependency_coverage=fixed.dependency_coverage)
+        stale = replace(fixed.structure_policy, workspace_digest="0" * 64)
+        with self.assertRaisesRegex(ValueError, "stale StructurePolicy"):
+            _build_hierarchy(w, "r", structure_policy=stale,
+                             dependency_coverage=fixed.dependency_coverage)
+
+    def test_policy_and_coverage_digests_invalidate_order_and_hierarchy_identity(self):
+        w = workspace("ab")
+        unknown = bundle(w, "preserve", "unknown")
+        complete = bundle(w, "preserve", "complete")
+        first_order = _derive_narrative_order(unknown, "r")
+        next_order = _derive_narrative_order(complete, "r")
+        self.assertNotEqual(first_order.narrative_order_id, next_order.narrative_order_id)
+        first = _build_hierarchy(unknown, "r")
+        next_value = _build_hierarchy(complete, "r")
+        self.assertEqual(
+            {node["id"]: (node["kind"], node["decl_refs"], node["children"])
+             for node in first.nodes},
+            {node["id"]: (node["kind"], node["decl_refs"], node["children"])
+             for node in next_value.nodes},
+        )
+        self.assertEqual(first.edges, next_value.edges)
+        self.assertNotEqual(first.hierarchy_id, next_value.hierarchy_id)
+        self.assertEqual(first.config["structure_policy_digest"],
+                         unknown.structure_policy.digest())
+        self.assertEqual(first.config["dependency_coverage_digest"],
+                         unknown.dependency_coverage.digest())
+
     def test_scope_quotient_cycle_has_witness(self):
         w = workspace("abc", edges(("a", "b"), ("b", "c")), scopes={"a": "a", "b": "b", "c": "a"})
         with self.assertRaises(HierarchyCycleError) as caught:
@@ -75,7 +140,7 @@ class HierarchyTests(unittest.TestCase):
 
     def test_dependency_order_and_roundtrip_are_enumeration_stable(self):
         w = workspace("abc", edges(("a", "b")))
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False))
+        h = build_hierarchy(w, "r", unit_aggregation="preserve")
         root = next(n for n in h.nodes if n["id"] == h.root_id)
         by_id = {n["id"]: n for n in h.nodes}
         order = [by_id[i]["representative"]["local_id"] for i in root["children"] if by_id[i]["kind"] == "unit"]
@@ -86,7 +151,7 @@ class HierarchyTests(unittest.TestCase):
         self.assertEqual(len(h.config_digest), 64)
         # Enumeration does not affect structure ordering or coverage.
         reverse = build_hierarchy(replace(w, declarations=tuple(reversed(w.declarations))), "r",
-                                  config=BuildConfig(native_helper=False))
+                                  unit_aggregation="preserve")
         reverse_root = next(n for n in reverse.nodes if n["id"] == reverse.root_id)
         self.assertEqual(root["children"], reverse_root["children"])
 
@@ -134,9 +199,11 @@ class RegionTests(unittest.TestCase):
 class RegionWeightTests(unittest.TestCase):
     def test_override_changes_optimal_cut_without_changing_facts(self):
         w = workspace("abcdefg", edges(("b", "c"), ("b", "d")), scopes={n: "a" for n in "abcdefg"})
-        config = BuildConfig(native_helper=False, region_k=2)
-        baseline = build_hierarchy(w, "r", config=config)
-        weighted = build_hierarchy(w, "r", config=config, edge_weights={(ref("b"), ref("c")): 10})
+        config = BuildConfig(region_k=2)
+        baseline = build_hierarchy(w, "r", config=config, unit_aggregation="preserve")
+        weighted = build_hierarchy(w, "r", config=config,
+                                   edge_weights={(ref("b"), ref("c")): 10},
+                                   unit_aggregation="preserve")
         def first_size(h):
             scope = next(n for n in h.nodes if n["kind"] == "scope" and n["source_scope"] == "a")
             return len(next(n for n in h.nodes if n["id"] == scope["children"][0])["decl_refs"])

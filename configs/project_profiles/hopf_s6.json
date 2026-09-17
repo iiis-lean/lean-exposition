@@ -1,0 +1,48 @@
+{
+  "contributors": [
+    {
+      "config": {
+        "backend": "toolkit_text_ast",
+        "source_roots": [
+          "Solution.lean"
+        ]
+      },
+      "contributor_id": "hopf-solution-source",
+      "kind": "source_inventory",
+      "required": true
+    }
+  ],
+  "identity": {
+    "input_digest": "b3079396fd7972bcba8118cb2fdb0a2a8b6dcdfb0e9e2ce1fde9b808682c0c65",
+    "repo_key": "HopfProblem",
+    "revision": "9ac8a456b526527837d7082ff775213ca8bc9809",
+    "toolchain": "leanprover/lean4:v4.33.0"
+  },
+  "material_assets": [
+    {
+      "asset_id": "hopf-s6-paper",
+      "binder_id": "manual_page_alignment",
+      "config": {
+        "download_bytes": 1113315,
+        "source_url": "https://alpo.ge/s6.pdf"
+      },
+      "media_type": "application/pdf",
+      "parser_id": "pdf_pages",
+      "path": "external/s6.pdf",
+      "role": "primary",
+      "sha256": "283bba102dd1d5dc346af81b28145bdaaea6654398d5032e76e97bafb9a858f2"
+    }
+  ],
+  "order_hints": [],
+  "primary_outcomes": [
+    {
+      "module": "Solution",
+      "name": "Mathoverflow1973.mathoverflow_1973"
+    }
+  ],
+  "profile_id": "hopf-s6-inventory",
+  "scope_hints": [],
+  "stage": "inventory",
+  "target_slices": [],
+  "unit_hints": []
+}

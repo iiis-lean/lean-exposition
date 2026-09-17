@@ -2,9 +2,13 @@
 from dataclasses import replace
 import unittest
 
-from test_graph import P, ref, workspace
+from test_graph import P, bundle, ref, workspace
 from lean_exposition.models import Scope
-from lean_exposition.structure import BuildConfig, Hierarchy, build_hierarchy
+from lean_exposition.structure import BuildConfig, Hierarchy, build_hierarchy as _build_hierarchy
+
+
+def build_hierarchy(workspace, repo_key, *, unit_aggregation="native_helpers", **kwargs):
+    return _build_hierarchy(bundle(workspace, unit_aggregation), repo_key, **kwargs)
 
 
 def fixture(names, scopes, placement, pairs=()):
@@ -31,7 +35,7 @@ class ScopeCompressionTests(unittest.TestCase):
     def test_repository_absorbs_scope_chain_before_regions(self):
         w = fixture("abc", [("directory", "root"), ("module", "directory")], {n: "module" for n in "abc"})
         original = w.to_json()
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False, region_k=2))
+        h = build_hierarchy(w, "r", config=BuildConfig(region_k=2), unit_aggregation="preserve")
         index = nodes(h)
         self.assertFalse(any(n["kind"] == "scope" for n in h.nodes))
         self.assertEqual(h.resolve_node_id("directory"), h.root_id)
@@ -42,8 +46,9 @@ class ScopeCompressionTests(unittest.TestCase):
 
     def test_unique_unit_survives_and_receives_transitive_aliases(self):
         w = fixture("a", [("outer", "root"), ("inner", "outer")], {"a": "inner"})
-        old = build_hierarchy(w, "r", config=BuildConfig(native_helper=False, scope_compression="none"))
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False))
+        old = build_hierarchy(w, "r", config=BuildConfig(scope_compression="none"),
+                              unit_aggregation="preserve")
+        h = build_hierarchy(w, "r", unit_aggregation="preserve")
         index = nodes(h)
         self.assertEqual(len(h.nodes), 2)
         unit = index[index[h.root_id]["children"][0]]
@@ -60,8 +65,9 @@ class ScopeCompressionTests(unittest.TestCase):
     def test_mixed_direct_decl_and_branch_retains_meaningful_scope(self):
         w = fixture("abc", [("outer", "root"), ("branch", "outer")],
                     {"a": "outer", "b": "branch", "c": "branch"}, [("b", "a")])
-        old = build_hierarchy(w, "r", config=BuildConfig(native_helper=False, scope_compression="none"))
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False))
+        old = build_hierarchy(w, "r", config=BuildConfig(scope_compression="none"),
+                              unit_aggregation="preserve")
+        h = build_hierarchy(w, "r", unit_aggregation="preserve")
         branch = nodes(h)[h.resolve_node_id("branch")]
         self.assertEqual(branch["kind"], "scope")
         self.assertEqual(len(branch["children"]), 2)
@@ -72,7 +78,7 @@ class ScopeCompressionTests(unittest.TestCase):
 
     def test_nonroot_unary_wrapper_maps_to_unit_with_a_sibling(self):
         w = fixture("ab", [("wrapper", "root")], {"a": "root", "b": "wrapper"})
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False))
+        h = build_hierarchy(w, "r", unit_aggregation="preserve")
         target = nodes(h)[h.resolve_node_id("wrapper")]
         self.assertEqual(target["kind"], "unit")
         self.assertEqual(target["representative"]["local_id"], "b")
@@ -80,9 +86,10 @@ class ScopeCompressionTests(unittest.TestCase):
 
     def test_repeat_build_and_stable_unit_id(self):
         w = fixture("abc", [("outer", "root"), ("inner", "outer")], {n: "inner" for n in "abc"})
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False))
-        self.assertEqual(h, build_hierarchy(w, "r", config=BuildConfig(native_helper=False)))
-        old = build_hierarchy(w, "r", config=BuildConfig(native_helper=False, scope_compression="none"))
+        h = build_hierarchy(w, "r", unit_aggregation="preserve")
+        self.assertEqual(h, build_hierarchy(w, "r", unit_aggregation="preserve"))
+        old = build_hierarchy(w, "r", config=BuildConfig(scope_compression="none"),
+                              unit_aggregation="preserve")
         self.assertEqual(h.root_id, old.root_id)
         self.assertEqual({n["id"] for n in h.nodes if n["kind"] == "unit"},
                          {n["id"] for n in old.nodes if n["kind"] == "unit"})

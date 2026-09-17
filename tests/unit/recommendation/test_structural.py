@@ -4,15 +4,16 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "structure"))
-from test_graph import P, ref, workspace
+from test_graph import P, bundle, ref, workspace
 from lean_exposition.models import Scope, TextContent
-from lean_exposition.structure import BuildConfig, build_hierarchy
+from lean_exposition.structure import BuildConfig, build_hierarchy as _build_hierarchy
 from lean_exposition.features import extract_features
 from lean_exposition.recommendation import RecommendationConfig, make_structural_policy
 
 
 def setup(w, *, compress=True, targets=()):
-    h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False, scope_compression="unary" if compress else "none"))
+    h = _build_hierarchy(bundle(w, "preserve"), "r",
+                         config=BuildConfig(scope_compression="unary" if compress else "none"))
     f = extract_features(w, h)
     return h, f, make_structural_policy(w, h, f, targets=targets)
 

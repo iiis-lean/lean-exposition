@@ -8,7 +8,8 @@ def ref_key(ref):
     return (ref["repo_key"], ref["local_id"]) if isinstance(ref, dict) else (ref.repo_key, ref.local_id)
 
 
-def decl_card(workspace, ref, *, proof=False):
+def decl_card(workspace, ref, *, proof=False, text_store=None, locale=None,
+              profile="default", text_record_ids=None):
     key = ref_key(ref)
     declaration = next((d for d in workspace.declarations if ref_key(d.ref) == key), None)
     if declaration is None:
@@ -26,6 +27,18 @@ def decl_card(workspace, ref, *, proof=False):
             "extraction_status": {"state": declaration.extraction_status.state, "reason": declaration.extraction_status.reason}}
     if proof:
         card["proof"] = _content(declaration.proof) if declaration.proof else None
+    if text_store is not None and locale is not None:
+        record_id = (text_record_ids or {}).get(_record_key(declaration.ref))
+        record = (text_store.pinned(record_id, declaration.ref, locale=locale, profile=profile)
+                  if record_id is not None else
+                  text_store.active(declaration.ref, locale=locale, profile=profile))
+        if record is not None:
+            card["summary"] = record["summary"]
+            card["text_record_id"] = record["record_id"]
+            if card["statement"]["nl"]["status"] != "present" and record["statement_nl"] is not None:
+                card["statement"]["nl"] = {"text": record["statement_nl"], "status": "generated", "reason": None}
+            if proof and card.get("proof") and card["proof"]["nl"]["status"] != "present" and record["proof_nl"] is not None:
+                card["proof"]["nl"] = {"text": record["proof_nl"], "status": "generated", "reason": None}
     return card
 
 
@@ -34,13 +47,26 @@ def _content(content):
                     "reason": getattr(content, field).reason} for field in ("nl", "formal")}
 
 
-def scope_view(workspace, hierarchy, node_id, *, offset=0, limit=24):
+def _record_key(ref):
+    key = ref_key(ref)
+    return f"{key[0]}\0{key[1]}"
+
+
+def scope_view(workspace, hierarchy, node_id, *, offset=0, limit=24,
+               text_store=None, locale=None, profile="default", text_record_ids=None,
+               dependency_analysis=None, full_dependencies=False):
+    if dependency_analysis is None and not full_dependencies:
+        from lean_exposition.structure import analyze_dependencies
+        dependency_analysis = analyze_dependencies(workspace, hierarchy["repo_key"])
     nodes = {node["id"]: node for node in hierarchy["nodes"]}
     node = nodes[node_id]
     inside = {ref_key(ref) for ref in node["decl_refs"]}
     edge_ids = {(ref_key(e["provider_decl"]), ref_key(e["consumer_decl"])): e["id"] for e in hierarchy.get("edges", [])}
     incoming, outgoing, internal = [], [], []
     related = set(inside)
+    hidden_pairs = (set() if dependency_analysis is None or full_dependencies else
+                    {(ref_key(item.provider), ref_key(item.consumer))
+                     for item in dependency_analysis.decisions if not item.keep})
     for d in workspace.declarations:
         consumer = ref_key(d.ref)
         for part_name, part in (("statement", d.statement), ("proof", d.proof)):
@@ -48,6 +74,8 @@ def scope_view(workspace, hierarchy, node_id, *, offset=0, limit=24):
                 continue
             for dep in part.deps:
                 provider = ref_key(dep.provider)
+                if (provider, consumer) in hidden_pairs:
+                    continue
                 if provider not in inside and consumer not in inside:
                     continue
                 edge = {"provider_decl": asdict(dep.provider), "consumer_decl": asdict(d.ref),
@@ -67,13 +95,18 @@ def scope_view(workspace, hierarchy, node_id, *, offset=0, limit=24):
             "primary_outcomes": [asdict(ref) for r in workspace.manifest.repositories
                                  for ref in r.primary_outcomes if ref_key(ref) in inside],
             "decl_refs": [{"repo_key": r, "local_id": d} for r, d in ordered],
-            "cards": [decl_card(workspace, DeclRef(*key), proof=key in inside) for key in ordered[offset:page_end]],
+            "cards": [decl_card(workspace, DeclRef(*key), proof=key in inside,
+                                text_store=text_store, locale=locale, profile=profile,
+                                text_record_ids=text_record_ids)
+                      for key in ordered[offset:page_end]],
             "card_count": len(ordered), "card_offset": offset,
             "next_offset": page_end if page_end < len(ordered) else None,
             "omitted": ["cards outside the indicated page"] if len(ordered) > page_end or offset else []}
 
 
-def writing_view(workspace, hierarchy, node_id, *, mathematical=False):
+def writing_view(workspace, hierarchy, node_id, *, mathematical=False,
+                 text_store=None, locale=None, profile="default", text_record_ids=None,
+                 dependency_analysis=None, full_dependencies=False):
     """Compact section/naming context; complete facts remain in scope_view.
 
     The mathematical policy additionally retains proof dependencies and selected proofs.
@@ -84,9 +117,17 @@ def writing_view(workspace, hierarchy, node_id, *, mathematical=False):
     nodes = {node['id']: node for node in hierarchy['nodes']}
     node = nodes[node_id]
     if node['kind'] == 'unit':
-        view = scope_view(workspace, hierarchy, node_id, limit=None)
+        view = scope_view(workspace, hierarchy, node_id, limit=None,
+                          text_store=text_store, locale=locale, profile=profile,
+                          text_record_ids=text_record_ids,
+                          dependency_analysis=dependency_analysis,
+                          full_dependencies=full_dependencies)
         return _mathematical_projection(view, node, nodes) if mathematical else view
-    full = scope_view(workspace, hierarchy, node_id, limit=0)
+    full = scope_view(workspace, hierarchy, node_id, limit=0,
+                      text_store=text_store, locale=locale, profile=profile,
+                      text_record_ids=text_record_ids,
+                      dependency_analysis=dependency_analysis,
+                      full_dependencies=full_dependencies)
     inside = {ref_key(ref) for ref in node['decl_refs']}
     declarations = {ref_key(d.ref): d for d in workspace.declarations}
     child_owner = {ref_key(ref): child for child in node['children'] for ref in nodes[child]['decl_refs']}
@@ -137,7 +178,10 @@ def writing_view(workspace, hierarchy, node_id, *, mathematical=False):
                          {'declaration_count': len(nodes[child]['decl_refs'])} for child in node['children']],
             'incoming': unique(incoming), 'outgoing': unique(outgoing), 'internal': unique(connections),
             'primary_outcomes': full['primary_outcomes'],
-            'cards': [decl_card(workspace, DeclRef(*key), proof=mathematical and key in selected) for key in loaded],
+            'cards': [decl_card(workspace, DeclRef(*key), proof=mathematical and key in selected,
+                                text_store=text_store, locale=locale, profile=profile,
+                                text_record_ids=text_record_ids)
+                      for key in loaded],
             'selected_refs': [{'repo_key': key[0], 'local_id': key[1]} for key in sorted(selected)],
             'omitted_internal_refs': [ref for ref in node['decl_refs'] if ref_key(ref) not in selected],
             'unloaded_external_counts': missing_by_repo,

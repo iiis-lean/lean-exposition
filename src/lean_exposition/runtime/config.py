@@ -16,7 +16,7 @@ class ApiConfig:
     transport: str = "http"
     proxy_url: str | None = None
     timeout: float = 180.0
-    max_output_tokens: int = 4096
+    max_output_tokens: int | None = None
     reasoning: dict[str, Any] | None = None
     extra_body: dict[str, Any] = field(default_factory=dict)
     prompt_cache_key: str | None = None
@@ -30,8 +30,10 @@ class ApiConfig:
             raise ValueError("protocol must be responses or chat_completions")
         if self.transport != "http":
             raise ValueError("direct API execution currently supports only HTTP transport")
-        if self.timeout <= 0 or self.max_output_tokens <= 0:
-            raise ValueError("timeout and max_output_tokens must be positive")
+        if self.timeout <= 0:
+            raise ValueError("timeout must be positive")
+        if self.max_output_tokens is not None and self.max_output_tokens <= 0:
+            raise ValueError("max_output_tokens must be positive when set")
         if self.protocol == "chat_completions" and self.reasoning:
             unsupported = set(self.reasoning) - {"effort"}
             if unsupported:

@@ -508,7 +508,7 @@ async function inspectEdge(id, cursor = null) {
         el(
           "p",
           "empty",
-          tr(`${count} original declaration pair${count === 1 ? "" : "s"}`, `${count} 对原始声明关系`),
+          tr(`${count} original dependency record${count === 1 ? "" : "s"}`, `${count} 条原始依赖记录`),
         ),
       );
   }
@@ -1002,7 +1002,7 @@ function localize() {
     if (element?.firstChild?.nodeType === Node.TEXT_NODE) element.firstChild.textContent = tr(...pair);
   }
   $("budget").placeholder = tr("Unlimited", "不限");
-  document.querySelectorAll(".hdg-legend span").forEach((e,i)=>{e.lastChild.textContent=i?tr(" dependencies"," 依赖量"):tr(" content"," 内容量");});
+  document.querySelectorAll(".hdg-legend span").forEach((e,i)=>{e.lastChild.textContent=i===2?tr(" edge: evidence count"," 线宽：依赖证据数"):i?tr(" shade: dependencies"," 深浅：依赖量"):tr(" size: text amount"," 大小：正文量");});
   const tabs = {summary:["Overview","概要"],interfaces:["Links","关系"],members:["Members","成员"],nl:["Original","原文"],lean:["Lean","Lean"],sources:["Sources","来源"]};
   $("detail-tabs").querySelectorAll("button").forEach(b => b.textContent=tr(...tabs[b.dataset.detail]));
 }
@@ -1062,7 +1062,7 @@ function visibleCodepoints(node) {
   return parts.reduce((sum, part) => {
     const anchor = state.anchors.find((item) => item.anchor_id === `${node.id}:${part}`);
     if (!anchor || anchor.end_line < anchor.start_line) return sum;
-    return sum + state.lines.slice(anchor.start_line-1, anchor.end_line).join("\n").trim().length;
+    return sum + [...state.lines.slice(anchor.start_line-1, anchor.end_line).join("\n").trim()].length;
   }, 0);
 }
 function dependencyBurden(id, edges) {
@@ -1070,8 +1070,15 @@ function dependencyBurden(id, edges) {
 }
 function dependencyColor(burden, external) {
   if (external) return "#d8cec0";
-  return ["#c8ddd1","#a4c7b3","#80ad94","#578b73","#34634f"][burden===0?0:burden<=2?1:burden<=5?2:burden<=11?3:4];
+  const t = Math.min(1, Math.log2(1 + Math.max(0, burden)) / 8);
+  const light=[210,231,218], dark=[35,91,65];
+  return `rgb(${light.map((v,i)=>Math.round(v+(dark[i]-v)*t)).join(",")})`;
 }
+function contentRadius(codepoints) {
+  // Fixed across views: area grows with log content, without early saturation.
+  return Math.min(28, Math.sqrt(25 + 52 * Math.log2(1 + Math.max(0, codepoints) / 80)));
+}
+function edgeWidth(count) { return Math.min(4.5, .85 + .6 * Math.log2(Math.max(1, count))); }
 function graphRanks(nodes, edges) {
   const incoming=new Map(nodes.map(n=>[n.id,0])), ranks=new Map(nodes.map(n=>[n.id,0])), outgoing=new Map(nodes.map(n=>[n.id,[]]));
   for(const edge of edges){incoming.set(edge.consumer_node,incoming.get(edge.consumer_node)+1);outgoing.get(edge.provider_node).push(edge.consumer_node);}
@@ -1086,20 +1093,22 @@ function layoutGraph(nodes, edges) {
   for(const node of [...nodes].sort((a,b)=>(a.order??0)-(b.order??0)||a.id.localeCompare(b.id))){const rank=ranks.get(node.id)||0;if(!layers.has(rank))layers.set(rank,[]);layers.get(rank).push(node);}
   const positions=new Map();
   for(const [rank,layer] of layers) layer.forEach((node,index)=>{
-    const codepoints=visibleCodepoints(node), burden=dependencyBurden(node.id,edges), r=Math.max(5,Math.min(14,5+Math.sqrt(codepoints)/3));
+    const codepoints=visibleCodepoints(node), burden=dependencyBurden(node.id,edges), r=contentRadius(codepoints);
     const prior=old.get(node.id), parent=old.get(node.parent);
     positions.set(node.id,{x:prior?.x??parent?.x??rank*72,y:prior?.y??((parent?.y??0)+Math.sin((rank+index+1)*2.4)*95+index*65),r,codepoints,burden,rank});
   });
   const list=[...nodes].sort((a,b)=>a.id.localeCompare(b.id));
-  for(let iteration=0;iteration<110;iteration++){
+  const degrees=new Map(nodes.map(n=>[n.id,0]));
+  for(const edge of edges){degrees.set(edge.provider_node,degrees.get(edge.provider_node)+1);degrees.set(edge.consumer_node,degrees.get(edge.consumer_node)+1);}
+  for(let iteration=0;iteration<180;iteration++){
     const force=new Map(list.map(node=>[node.id,{x:0,y:0}]));
     for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){
       const a=positions.get(list[i].id),b=positions.get(list[j].id);let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||.01;
-      const desired=a.r+b.r+30, strength=d<desired?(desired-d)*.08:Math.min(2600/(d*d),1.2);
+      const desired=a.r+b.r+90, strength=d<desired?(desired-d)*.10:Math.min(9000/(d*d),3);
       dx/=d;dy/=d;force.get(list[i].id).x-=dx*strength;force.get(list[i].id).y-=dy*strength;force.get(list[j].id).x+=dx*strength;force.get(list[j].id).y+=dy*strength;
     }
-    for(const edge of edges){const a=positions.get(edge.provider_node),b=positions.get(edge.consumer_node);if(!a||!b)continue;const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,pull=(d-105)*.012;force.get(edge.provider_node).x+=dx/d*pull;force.get(edge.provider_node).y+=dy/d*pull;force.get(edge.consumer_node).x-=dx/d*pull;force.get(edge.consumer_node).y-=dy/d*pull;}
-    for(const node of list){if(graphCamera.pinned.has(node.id))continue;const p=positions.get(node.id),f=force.get(node.id);f.x+=((p.rank||0)*72-p.x)*.004;f.y+=-p.y*.002;p.x+=Math.max(-5,Math.min(5,f.x));p.y+=Math.max(-5,Math.min(5,f.y));}
+    for(const edge of edges){const a=positions.get(edge.provider_node),b=positions.get(edge.consumer_node);if(!a||!b)continue;const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,pull=(d-180)*.012/Math.sqrt(Math.max(degrees.get(edge.provider_node),degrees.get(edge.consumer_node),1));force.get(edge.provider_node).x+=dx/d*pull;force.get(edge.provider_node).y+=dy/d*pull;force.get(edge.consumer_node).x-=dx/d*pull;force.get(edge.consumer_node).y-=dy/d*pull;}
+    for(const node of list){if(graphCamera.pinned.has(node.id))continue;const p=positions.get(node.id),f=force.get(node.id);f.x+=((p.rank||0)*72-p.x)*.004;f.y+=-p.y*.0008;p.x+=Math.max(-5,Math.min(5,f.x));p.y+=Math.max(-5,Math.min(5,f.y));}
   }
   // A final deterministic collision pass gives the visible circles hard separation.
   for(let pass=0;pass<24;pass++)for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){
@@ -1129,14 +1138,14 @@ function graphBounds() {
 }
 function drawHDG() {
   const svg=$("hdg");svg.replaceChildren();
-  const defs=svgElement("defs"),marker=svgElement("marker",{id:"hdg-arrow",viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:5,markerHeight:5,orient:"auto-start-reverse"});marker.append(svgElement("path",{d:"M2 2L8 5L2 8",fill:"none",stroke:"#709482","stroke-width":1.3}));defs.append(marker);svg.append(defs);
+  const defs=svgElement("defs"),marker=svgElement("marker",{id:"hdg-arrow",viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,markerUnits:"userSpaceOnUse",orient:"auto-start-reverse"});marker.append(svgElement("path",{d:"M2 2L8 5L2 8",fill:"none",stroke:"#709482","stroke-width":1.3}));defs.append(marker);svg.append(defs);
   const world=svgElement("g",{id:"hdg-world"}),edgeLayer=svgElement("g"),nodeLayer=svgElement("g");world.append(edgeLayer,nodeLayer);svg.append(world);
   const chosen=[];
-  for(const edge of [...graphCamera.edges].sort((a,b)=>a.id.localeCompare(b.id))){const route=routeEdge(edge,chosen);chosen.push(route.samples);const path=svgElement("path",{d:`M${route.x1},${route.y1} C${route.c1x},${route.c1y} ${route.c2x},${route.c2y} ${route.x2},${route.y2}`,class:`hdg-edge ${state.selected===edge.id?"selected":""} ${(state.selected===edge.provider_node||state.selected===edge.consumer_node)?"incident":""}`,"marker-end":"url(#hdg-arrow)","data-edge":edge.id,"data-provider":edge.provider_node,"data-consumer":edge.consumer_node,tabindex:0,role:"button","aria-label":tr(`${edge.evidence_count} dependency evidence pairs`,`${edge.evidence_count} 个依赖证据对`)});path.append(svgElement("title",{},path.getAttribute("aria-label")));path.onclick=guarded(()=>inspectEdge(edge.id));path.onkeydown=event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();path.onclick();}};path.onmouseenter=()=>{highlight(edge.provider_node,true);highlight(edge.consumer_node,true)};path.onmouseleave=()=>{highlight(edge.provider_node,false);highlight(edge.consumer_node,false)};edgeLayer.append(path);}
+  for(const edge of [...graphCamera.edges].sort((a,b)=>a.id.localeCompare(b.id))){const route=routeEdge(edge,chosen);chosen.push(route.samples);const path=svgElement("path",{d:`M${route.x1},${route.y1} C${route.c1x},${route.c1y} ${route.c2x},${route.c2y} ${route.x2},${route.y2}`,class:`hdg-edge ${state.selected===edge.id?"selected":""} ${(state.selected===edge.provider_node||state.selected===edge.consumer_node)?"incident":""}`,"marker-end":"url(#hdg-arrow)","data-edge":edge.id,"data-provider":edge.provider_node,"data-consumer":edge.consumer_node,tabindex:0,role:"button","aria-label":tr(`${edge.evidence_count} dependency evidence records`,`${edge.evidence_count} 条依赖证据`)});path.style.setProperty("--edge-width",`${edgeWidth(edge.evidence_count)}px`);path.onclick=guarded(()=>inspectEdge(edge.id));path.onkeydown=event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();path.onclick();}};path.onmouseenter=()=>{highlight(edge.provider_node,true);highlight(edge.consumer_node,true)};path.onmouseleave=()=>{highlight(edge.provider_node,false);highlight(edge.consumer_node,false)};edgeLayer.append(path);}
   for(const node of graphCamera.nodes){const p=graphCamera.positions.get(node.id),external=node.kind==="external",neighbors=new Set();let incoming=0,outgoing=0;for(const edge of graphCamera.edges){if(edge.provider_node===node.id){outgoing++;neighbors.add(edge.consumer_node)}if(edge.consumer_node===node.id){incoming++;neighbors.add(edge.provider_node)}}
-    const group=svgElement("g",{"data-node":node.id,class:`hdg-node ${external?"external":""} ${state.selected===node.id?"selected":""} ${graphCamera.pinned.has(node.id)?"pinned":""}`,tabindex:0,role:"button","aria-label":`${node.title}. ${p.codepoints} ${tr("text codepoints","正文码点")}; ${neighbors.size} ${tr("neighbors","相邻节点")}; ${incoming} ${tr("incoming","入边")}; ${outgoing} ${tr("outgoing","出边")}; ${p.burden} ${tr("evidence pairs","证据对")}.`});
-    group.append(svgElement("title",{},group.getAttribute("aria-label")),svgElement("circle",{class:"visible-dot",cx:p.x,cy:p.y,r:p.r,fill:dependencyColor(p.burden,external)}),svgElement("circle",{class:"hit-dot",cx:p.x,cy:p.y,r:Math.max(18,p.r)}));
-    const caption=svgElement("text",{class:"hdg-caption",x:p.x,y:p.y+p.r+19,"text-anchor":"middle"},node.title.length>24?node.title.slice(0,23)+"…":node.title);group.append(caption);
+    const group=svgElement("g",{"data-node":node.id,class:`hdg-node ${external?"external":""} ${state.selected===node.id?"selected":""} ${graphCamera.pinned.has(node.id)?"pinned":""}`,tabindex:0,role:"button","aria-label":`${node.title}. ${p.codepoints} ${tr("text codepoints","正文码点")}; ${neighbors.size} ${tr("neighbors","相邻节点")}; ${incoming} ${tr("incoming","入边")}; ${outgoing} ${tr("outgoing","出边")}; ${p.burden} ${tr("evidence records","依赖证据")}.`});
+    group.append(svgElement("circle",{class:"visible-dot",cx:p.x,cy:p.y,r:p.r,fill:dependencyColor(p.burden,external)}),svgElement("circle",{class:"hit-dot",cx:p.x,cy:p.y,r:Math.max(18,p.r)}));
+
     group.onmouseenter=()=>{highlight(node.id,true);scheduleGraphCard(node,group);};
     group.onmouseleave=()=>{highlight(node.id,false);scheduleCardClose();};
     group.onclick=guarded(async()=>{if(!graphMoved){await select(node.id,false);await openGraphCard(node,group,true);}});
@@ -1150,7 +1159,11 @@ function renderHDG() {
   const nodes = state.nodes.filter(n => n.is_frontier || n.kind === "external");
   const ids = new Set(nodes.map(n => n.id));
   const dependencies = (state.edges || []).filter(e => ids.has(e.provider_node) && ids.has(e.consumer_node));
-  graphCamera.nodes=nodes;graphCamera.edges=dependencies;graphCamera.positions=layoutGraph(nodes,dependencies);drawHDG();if(!graphCamera.initialized){fitGraph();graphCamera.initialized=true;}
+  const membershipChanged=nodes.length!==graphCamera.nodes.length||nodes.some(n=>!graphCamera.positions.has(n.id));
+  graphCamera.nodes=nodes;graphCamera.edges=dependencies;graphCamera.positions=layoutGraph(nodes,dependencies);drawHDG();
+  const bounds=graphCamera.bounds,scale=graphCamera.scale;
+  const outside=graphCamera.x+bounds.minX*scale<0||graphCamera.y+bounds.minY*scale<0||graphCamera.x+(bounds.minX+bounds.width)*scale>$("hdg").clientWidth||graphCamera.y+(bounds.minY+bounds.height)*scale>$("hdg").clientHeight;
+  if(!graphCamera.initialized||(membershipChanged&&outside)){fitGraph();graphCamera.initialized=true;}
 }
 $("graph-fit").onclick=fitGraph;
 $("graph-reset").onclick=()=>{graphCamera.pinned.clear();graphCamera.positions.clear();graphCamera.initialized=false;renderHDG();};
@@ -1255,8 +1268,13 @@ function sourceGroups(items) {
 }
 async function openGraphCard(node,target,pinned) {
   clearTimeout(cardTimer);clearTimeout(cardCloseTimer);const sequence=++cardSequence,view=state.view;cardPinned=pinned;
-  graphCard.replaceChildren(button("×",closeGraphCard,"graph-card-close"),el("div","card-kind",kindLabel(node.raw_kind||node.kind)),el("h2","",node.title));
-  const content=el("div");graphCard.append(content);graphCard.hidden=false;
+  const header=el("header","graph-card-header");
+  const title=el("h2","",node.title);title.id="graph-card-title";
+  const close=button("×",closeGraphCard,"graph-card-close");close.setAttribute("aria-label",tr("Close details","关闭详情"));
+  header.append(title,el("div","card-kind",kindLabel(node.raw_kind||node.kind)),close);
+  graphCard.setAttribute("aria-labelledby","graph-card-title");
+  graphCard.replaceChildren(header);
+  const content=el("div","graph-card-body");graphCard.append(content);graphCard.hidden=false;
   const rect=target.getBoundingClientRect(),width=Math.min(370,innerWidth-24);
   graphCard.style.left=`${Math.max(12,Math.min(innerWidth-width-12,rect.left-width-16))}px`;
   graphCard.style.top=`${Math.max(12,Math.min(innerHeight-340,rect.top-45))}px`;

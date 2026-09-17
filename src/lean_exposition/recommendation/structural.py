@@ -2,6 +2,7 @@
 from dataclasses import asdict, dataclass
 
 from lean_exposition.features.core import FEATURE_CONFIG_DIGEST, FeatureSet, digest, ref_key
+from lean_exposition.models import DeclRef
 from lean_exposition.structure import Hierarchy
 
 
@@ -32,7 +33,8 @@ class RecommendationConfig:
         return {**value, "config_digest": digest(value)}
 
 
-def make_structural_policy(workspace, hierarchy, feature_set, *, config=None, targets=()):
+def make_structural_policy(workspace, hierarchy, feature_set, *, config=None, targets=(),
+                           dependency_analysis=None):
     """Bind immutable facts; call policy(context, candidate_ids) without content."""
     hierarchy = Hierarchy.from_dict(hierarchy.to_dict() if hasattr(hierarchy, "to_dict") else hierarchy).to_dict()
     features = FeatureSet.from_dict(feature_set.to_dict() if hasattr(feature_set, "to_dict") else feature_set).to_dict()
@@ -41,6 +43,13 @@ def make_structural_policy(workspace, hierarchy, feature_set, *, config=None, ta
             features["workspace_digest"] != workspace.digest() or
             features["config_digest"] != FEATURE_CONFIG_DIGEST):
         raise ValueError("recommendation features do not match fixed facts and structure")
+    if dependency_analysis is None:
+        from lean_exposition.structure import analyze_dependencies
+        dependency_analysis = analyze_dependencies(workspace, hierarchy["repo_key"])
+    expected_catalog = (dependency_analysis.catalog_digest
+                        if dependency_analysis is not None else None)
+    if features.get("metadata", {}).get("foundation_catalog_digest") != expected_catalog:
+        raise ValueError("recommendation dependency analysis does not match feature extraction")
     nodes = {n["id"]: n for n in hierarchy["nodes"]}
     root = hierarchy["root_id"]
     units = {id for id, node in nodes.items() if node["kind"] == "unit"}
@@ -54,7 +63,12 @@ def make_structural_policy(workspace, hierarchy, feature_set, *, config=None, ta
     visit(root)
     # Original pairs, not projected-edge multiplicity or occurrence counts.
     pairs = {}
+    hidden = (dependency_analysis.hidden_pairs if dependency_analysis is not None
+              else frozenset())
     for edge in hierarchy["edges"]:
+        edge_pair = (DeclRef(**edge["provider_decl"]), DeclRef(**edge["consumer_decl"]))
+        if edge_pair in hidden:
+            continue
         provider, consumer = edge["provider_node"], edge["consumer_node"]
         if provider in units and consumer in units and provider != consumer:
             pairs[ref_key(edge["provider_decl"]), ref_key(edge["consumer_decl"])] = (provider, consumer)

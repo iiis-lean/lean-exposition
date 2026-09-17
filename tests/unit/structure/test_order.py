@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from test_graph import P, ref, workspace
+from test_graph import P, bundle, ref, workspace
 from lean_exposition.models import Provenance, SourceAsset, SourceRange
 from lean_exposition.structure import (
     BuildConfig,
@@ -15,12 +15,20 @@ from lean_exposition.structure import (
     OrderProblem,
     SourceSequence,
     SourceSequenceSpec,
-    build_hierarchy,
+    build_hierarchy as _build_hierarchy,
     dependency_distance,
-    derive_narrative_order,
+    derive_narrative_order as _derive_narrative_order,
     derive_source_order,
     solve_order,
 )
+
+
+def build_hierarchy(workspace, repo_key, *, unit_aggregation="native_helpers", **kwargs):
+    return _build_hierarchy(bundle(workspace, unit_aggregation), repo_key, **kwargs)
+
+
+def derive_narrative_order(workspace, repo_key, *, unit_aggregation="native_helpers", **kwargs):
+    return _derive_narrative_order(bundle(workspace, unit_aggregation), repo_key, **kwargs)
 
 
 def order_problem(atoms, pairs=(), *, keys=None, basis=None, protected=()):
@@ -185,8 +193,7 @@ class SourceSequenceTests(unittest.TestCase):
 
 class NarrativeArtifactTests(unittest.TestCase):
     def test_roundtrip_duplicate_key_and_unknown_field_rejection(self):
-        artifact = derive_narrative_order(workspace("abc"), "r",
-                                          config=BuildConfig(native_helper=False))
+        artifact = derive_narrative_order(workspace("abc"), "r", unit_aggregation="preserve")
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "order.json"
             artifact.save(path)
@@ -201,18 +208,21 @@ class NarrativeArtifactTests(unittest.TestCase):
 
     def test_hierarchy_consumes_complete_artifact_and_rejects_stale_inputs(self):
         w = workspace("abc", ((ref("a"), ref("c"), "lean_value"),))
-        config = BuildConfig(native_helper=False)
-        artifact = derive_narrative_order(w, "r", config=config)
-        hierarchy = build_hierarchy(w, "r", config=config, narrative_order=artifact)
+        config = BuildConfig()
+        artifact = derive_narrative_order(w, "r", config=config, unit_aggregation="preserve")
+        hierarchy = build_hierarchy(w, "r", config=config, narrative_order=artifact,
+                                    unit_aggregation="preserve")
         self.assertEqual(hierarchy.config["narrative_order_id"], artifact.narrative_order_id)
         # Region-only settings do not invalidate a pre-Region order artifact.
-        build_hierarchy(w, "r", config=replace(config, region_k=3), narrative_order=artifact)
+        build_hierarchy(w, "r", config=replace(config, region_k=3), narrative_order=artifact,
+                        unit_aggregation="preserve")
         with self.assertRaisesRegex(ValueError, "inputs"):
             build_hierarchy(w, "r", config=replace(config, max_declarations=2),
-                            narrative_order=artifact)
+                            narrative_order=artifact, unit_aggregation="preserve")
         changed = workspace("abcd", ((ref("a"), ref("c"), "lean_value"),))
         with self.assertRaisesRegex(ValueError, "inputs"):
-            build_hierarchy(changed, "r", config=config, narrative_order=artifact)
+            build_hierarchy(changed, "r", config=config, narrative_order=artifact,
+                            unit_aggregation="preserve")
         changed_scope = replace(artifact.scopes[-1], metrics={**artifact.scopes[-1].metrics,
                                                                "dependency_distance": 999})
         fabricated = NarrativeOrder.create(
@@ -223,10 +233,10 @@ class NarrativeArtifactTests(unittest.TestCase):
             source_digest=artifact.source_digest,
             config_digest=artifact.config_digest,
             scopes=(*artifact.scopes[:-1], changed_scope),
-            diagnostics=artifact.diagnostics,
         )
         with self.assertRaisesRegex(ValueError, "metrics"):
-            build_hierarchy(w, "r", config=config, narrative_order=fabricated)
+            build_hierarchy(w, "r", config=config, narrative_order=fabricated,
+                            unit_aggregation="preserve")
 
     def test_protected_module_conflict_is_diagnosed_in_integrated_order(self):
         w = workspace("ac", ((ref("a"), ref("c"), "lean_value"),))
@@ -235,7 +245,7 @@ class NarrativeArtifactTests(unittest.TestCase):
         spec = SourceSequenceSpec("r", sequences=(
             SourceSequence("main", "lean_modules", "primary", "protected", modules=("C", "A")),
         ))
-        artifact = derive_narrative_order(w, "r", config=BuildConfig(native_helper=False),
+        artifact = derive_narrative_order(w, "r", unit_aggregation="preserve",
                                           source_spec=spec)
         self.assertTrue(any(diagnostic["code"] == "dependency_overrides_source_order"
                             for diagnostic in artifact.diagnostics))
@@ -245,13 +255,14 @@ class NarrativeArtifactTests(unittest.TestCase):
         w = workspace(names)
         w = replace(w, declarations=tuple(replace(d, module=d.ref.local_id.upper())
                                            for d in w.declarations))
-        config = BuildConfig(native_helper=False, region_k=2)
-        baseline = build_hierarchy(w, "r", config=config)
+        config = BuildConfig(region_k=2)
+        baseline = build_hierarchy(w, "r", config=config, unit_aggregation="preserve")
         spec = SourceSequenceSpec("r", sequences=(
             SourceSequence("main", "lean_modules", "primary", "protected",
                            modules=tuple(name.upper() for name in reversed(names))),
         ))
-        reordered = build_hierarchy(w, "r", config=config, source_spec=spec)
+        reordered = build_hierarchy(w, "r", config=config, source_spec=spec,
+                                    unit_aggregation="preserve")
         def unit_facts(hierarchy):
             return sorted((node["representative"]["local_id"], node["decl_refs"])
                           for node in hierarchy.nodes if node["kind"] == "unit")

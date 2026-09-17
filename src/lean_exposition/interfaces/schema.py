@@ -4,6 +4,7 @@ REF = {"anyOf": [S, {"type": "object", "properties": {"repo_key": S, "local_id":
                        "required": ["repo_key", "local_id"], "additionalProperties": False}]}
 BUDGET = {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]}
 LOCALE = {"type": "string", "enum": ["zh", "en"]}
+DEPENDENCY_VIEW = {"type": "string", "enum": ["analysis", "full"], "default": "analysis"}
 LIMIT = {"type": "integer", "minimum": 1, "maximum": 200, "default": 50}
 
 
@@ -18,6 +19,7 @@ TOOL_SCHEMAS = {
                          "cursor": S, "limit": LIMIT}, ["reader_id"]),
     "inspect": schema({"reader_id": S, "view_id": S, "ref": REF,
                        "detail": {"type": "string", "enum": ["summary", "interfaces", "members", "nl", "lean", "sources", "job"], "default": "summary"},
+                       "dependency_view": DEPENDENCY_VIEW,
                        "cursor": S, "limit": LIMIT}, ["reader_id", "ref"]),
     "locate": schema({"reader_id": S, "view_id": S, "ref": REF}, ["reader_id", "ref"]),
     "recommend": schema({"reader_id": S, "limit": {**LIMIT, "default": 5}}, ["reader_id"]),
@@ -31,6 +33,7 @@ CONTRACT = {
     "result": {"always": ["ok", "view_id"], "error": {"code": "string", "message": "string", "latest_view": "optional string", "job_id": "optional string"}},
     "errors": ["stale_view", "validation_error", "not_found", "not_expandable", "generation_failed", "budget_exceeded", "locale_unavailable"],
     "job": {"job_id": "string", "status": "queued|drafting|stitching|validating|published|failed|cancelled",
+            "generation_strategy": "sequential|concurrent",
             "applied": "boolean", "completed_children": "integer", "total_children": "integer",
             "result_view": "optional string", "latest_view": "string", "changed_anchor": "optional string", "error": "optional object"},
     "overview": {"nodes": "flat visible node objects: id,kind,title,parent,state,can_expand,anchor",

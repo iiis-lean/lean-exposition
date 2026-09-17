@@ -4,7 +4,8 @@ import subprocess
 import tempfile
 import unittest
 
-from lean_exposition.importers.lc import LCRepositoryInput, load_lc_workspace
+from lean_exposition.construction import build_repository
+from lean_exposition.importers.lc import LCRepositoryAdapter, LCRepositoryInput, _load_lc_facts, load_lc_workspace
 from lean_exposition.models.facts import ValidationError, Workspace
 
 
@@ -45,7 +46,8 @@ class LCImportTests(unittest.TestCase):
         self.write(path, base + "decl.json", {"name": "x", "node_path": "Main.Child", "module": "Child",
                    "kind": "def", "current_revision": 2, "public": True, "lifecycle": "active"})
         self.write(path, base + "revisions/1.json", {"invalid": "historical revision must not be read"})
-        self.write(path, base + "revisions/2.json", {"lean_decl_name": "N.x", "statement": {
+        self.write(path, base + "revisions/2.json", {"lean_decl_name": "N.x", "change": {
+            "summary": "Defines the fixture value."}, "statement": {
             "nl": {"text": ""}, "formal": {"code": "def x : Nat := 2"},
             "deps": [dependency] if dependency else []}, "proof": None})
         self.write(path, "Child.lean", "import Init\n-- lean-constellation: declaration-source-begin\ndef x : Nat := 2\n")
@@ -56,7 +58,7 @@ class LCImportTests(unittest.TestCase):
         path = self.fixture("repo")
         # HEAD snapshot ignores subsequent working-tree edits.
         self.write(path, "Child.lean", "uncommitted modification")
-        workspace = load_lc_workspace(LCRepositoryInput(path, "repo"))
+        workspace = load_lc_workspace(LCRepositoryInput(path, "repo")).workspace
         decl = workspace.declarations[0]
         self.assertEqual(decl.statement.formal.text, "def x : Nat := 2")
         self.assertEqual(decl.statement.nl.text, "")
@@ -72,6 +74,18 @@ class LCImportTests(unittest.TestCase):
         self.assertEqual(decl.source_refs[0].start_line, 3)
         self.assertEqual(Workspace.from_json(workspace.to_json()), workspace)
 
+    def test_adapter_bundle_is_lossless_preserves_units_and_exposes_summary(self):
+        path = self.fixture("repo")
+        legacy = _load_lc_facts(LCRepositoryInput(path, "repo"))[0]
+        bundle = load_lc_workspace(LCRepositoryInput(path, "repo"))
+        self.assertEqual(bundle.workspace.to_json(), legacy.to_json())
+        self.assertEqual(bundle.structure_policy.unit_aggregation, "preserve")
+        self.assertEqual(len(bundle.workspace.units), len(bundle.workspace.declarations))
+        self.assertEqual(bundle.source_texts[0].text, "Defines the fixture value.")
+        entry = next(item for item in bundle.dependency_coverage.entries
+                     if item.evidence_domain == "lc_declared")
+        self.assertEqual(entry.status, "complete")
+
     def test_locked_provider_is_read_instead_of_checkout_head(self):
         provider = self.fixture("provider")
         locked = self.git(provider, "rev-parse", "HEAD")
@@ -81,7 +95,7 @@ class LCImportTests(unittest.TestCase):
         consumer = self.fixture("consumer", dep)
         self.write(consumer, "lake-manifest.json", {"packages": [{"name": "provider", "rev": locked}]})
         self.commit(consumer)
-        workspace = load_lc_workspace(LCRepositoryInput(consumer, "consumer"), [LCRepositoryInput(provider, "provider")])
+        workspace = load_lc_workspace(LCRepositoryInput(consumer, "consumer"), [LCRepositoryInput(provider, "provider")]).workspace
         self.assertEqual(workspace.manifest.repositories[1].revision, locked)
         refs = {d.ref for d in workspace.declarations}
         self.assertIn(workspace.declarations[0].statement.deps[0].provider, refs)
@@ -91,7 +105,7 @@ class LCImportTests(unittest.TestCase):
     def test_missing_provider_is_honest_stub(self):
         dep = {"kind": "repo_decl", "ref": {"repo": "missing", "node": "Main", "name": "x"}}
         path = self.fixture("repo", dep)
-        workspace = load_lc_workspace(LCRepositoryInput(path, "repo"))
+        workspace = load_lc_workspace(LCRepositoryInput(path, "repo")).workspace
         self.assertEqual(workspace.manifest.repositories[-1].repo_key, "missing")
         self.assertEqual(workspace.manifest.repositories[-1].version_status, "unresolved")
 
@@ -106,7 +120,7 @@ class LCImportTests(unittest.TestCase):
         path = self.fixture("repo")
         self.write(path, ".lean_constellation/nodes/root/contracts/1.json", {"exports": [], "interfaces": []})
         self.commit(path)
-        workspace = load_lc_workspace(LCRepositoryInput(path, "repo"))
+        workspace = load_lc_workspace(LCRepositoryInput(path, "repo")).workspace
         self.assertTrue(workspace.declarations[0].local_public)
         self.assertEqual(workspace.manifest.repositories[0].primary_outcomes, ())
 

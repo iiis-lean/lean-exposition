@@ -27,6 +27,12 @@ if result.status == "succeeded":
 
 The HTTP transport disables redirects, SDK retries, and environment proxy discovery. Set `proxy_url` explicitly when the endpoint requires a proxy. Configuration contains only a credential environment-variable name, never the credential value. `extra_body` is an explicit provider escape hatch; callers own its compatibility.
 
+`max_output_tokens` defaults to `None`. In that state the runtime omits
+`max_output_tokens` from Responses requests and `max_tokens` from Chat
+Completions requests, leaving the endpoint to apply its own supported limit.
+Set a positive integer only when a particular workflow intentionally requires
+an explicit output budget.
+
 ## Results and failures
 
 `ExecutionResult` records the normalized status, validated data, raw completion text, provider status, Chat finish reason, Responses incomplete details, model and response identifiers, caller trace label, request digest, tool events, and usage. The request digest covers the prompt, schema, endpoint/model, protocol, output limit, reasoning, provider options, and cache key without including credentials. Usage includes input, output, total, cached, and reasoning tokens plus the original provider usage reports for each call in a tool loop.
@@ -81,7 +87,14 @@ interface when a workflow needs a native Agent lifecycle.
 
 The official `deepseek-flash` Responses endpoint passed one strict structured-output call and one client-history function-tool loop. The tool call returned the exact bound value; normalized usage recorded cached and reasoning tokens. Checked-in DeepSeek configuration and smoke commands use only Flash; DeepSeek Pro is not a supported project configuration.
 
-Short BeeAPI Responses canaries for Sol, Astra, and Grok timed out without usage. Those are endpoint availability observations, not model capability results; the runtime did not retry, change reasoning, or switch protocols.
+BeeAPI Grok passed strict Responses calls in the 2026-09-16 canary when the
+required proxy was supplied explicitly. On 2026-09-17 the same provider still
+passed ordinary Responses, streaming, long-output, and client-history tool
+calls, while minimal native strict-schema routes returned 404. Prompt-enforced
+fenced JSON plus local schema validation passed the current probes, but that
+portable mode is research evidence and is not yet part of
+`StructuredExecutor`. Provider support must therefore be rechecked by output
+mode rather than inferred from the model name or an older successful call.
 
 ## Verification
 

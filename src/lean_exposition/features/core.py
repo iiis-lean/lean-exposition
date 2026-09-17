@@ -80,13 +80,16 @@ class FeatureSet:
         return cls.from_dict(json.loads(Path(path).read_text()))
 
 
-def extract_features(workspace, hierarchy, *, compiled=None):
+def extract_features(workspace, hierarchy, *, compiled=None, dependency_analysis=None):
     """Pure production extraction. Compiled evidence is explicit, never auto-loaded."""
     hierarchy = Hierarchy.from_dict(hierarchy.to_dict() if hasattr(hierarchy, "to_dict") else hierarchy).to_dict()
     repo_key = hierarchy["repo_key"]
     workspace_digest = workspace.digest()
     if hierarchy.get("workspace_digest") != workspace_digest:
         raise ValueError("hierarchy does not match the fixed workspace")
+    if dependency_analysis is None:
+        from lean_exposition.structure import analyze_dependencies
+        dependency_analysis = analyze_dependencies(workspace, repo_key)
     compiled_rows = {}
     if compiled is not None:
         if compiled.get("workspace_digest") != workspace_digest or compiled.get("repo_key") != repo_key:
@@ -94,7 +97,9 @@ def extract_features(workspace, hierarchy, *, compiled=None):
         if compiled.get("config_digest") != FEATURE_CONFIG_DIGEST:
             raise ValueError("compiled feature config digest mismatch")
         compiled_rows = {row["lean_name"]: row for row in compiled["rows"]}
-    graph = DependencyGraph.from_workspace(workspace)
+    full_graph = DependencyGraph.from_workspace(workspace)
+    graph = (full_graph.analysis_view(dependency_analysis)
+             if dependency_analysis is not None else full_graph)
     all_decls = {d.ref: d for d in workspace.declarations}
     target = {r: d for r, d in all_decls.items() if r.repo_key == repo_key}
     records = {}
@@ -161,6 +166,11 @@ def extract_features(workspace, hierarchy, *, compiled=None):
             "cost_material": aggregated.get("formal_material_codepoints") if node["kind"] == "unit" else statement_size(interface_refs)}
     return FeatureSet(repo_key, hierarchy["hierarchy_id"], workspace_digest,
         FEATURE_CONFIG_DIGEST, records, nodes, {"compiled_declarations": len(compiled_rows),
+        "dependency_view": "analysis" if dependency_analysis is not None else "full",
+        "foundation_catalog_digest": (dependency_analysis.catalog_digest
+                                      if dependency_analysis is not None else None),
+        "hidden_dependency_pairs": (len(dependency_analysis.hidden_pairs)
+                                    if dependency_analysis is not None else 0),
         "rewrite_kinds": sorted(REWRITE_KINDS),
         "formal_counting": "Unicode codepoints in original stored statement/proof segments; not source union or generated EET",
         "lc_scope": "Registered formal segments may cover a registered file, not solely the representative declaration"})

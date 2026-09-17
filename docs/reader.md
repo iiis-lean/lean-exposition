@@ -15,7 +15,7 @@ HTTP and streamable HTTP MCP expose the same seven capabilities:
 | `open_reader` | `instance_id` | Create an independent reader and initial immutable view. |
 | `get_overview` | `reader_id` | Page visible containers, frontier nodes, projected edges, and external interfaces. |
 | `read_text` | `reader_id` | Page rendered Markdown lines and stable anchors. |
-| `inspect` | `reader_id`, `ref` | Read summaries, interfaces, members, NL, Lean, sources, edges, or an owned job. |
+| `inspect` | `reader_id`, `ref` | Read summaries, interfaces, members, NL, Lean, sources, edges, or an owned job. Interface inspection accepts `dependency_view: analysis|full`, defaulting to `analysis`. |
 | `locate` | `reader_id`, `ref` | Return the visible ancestor and required expansion path without changing state. |
 | `recommend` | `reader_id` | Rank legal expansion candidates with compact policy evidence. |
 | `apply_action` | `reader_id`, `expected_view`, `action`, `target` | Expand, collapse, reset, cancel a job, switch locale, or set a display budget. |
@@ -44,7 +44,7 @@ Collapse removes the target and all descendants from the current expansion set. 
 
 ## API execution and recommendations
 
-Pass `--runtime-config configs/runtime.api.example.json` to enable on-demand API generation. The file contains current `ApiConfig` fields and refers to a credential environment-variable name; it never contains the credential. Responses is the default protocol, and Chat Completions must be selected explicitly. Codex and Pi implement an optional separate Agent lifecycle; they are not required to serve or read cached content.
+Pass `--runtime-config configs/runtime.api.example.json` to enable on-demand API generation. Select the package-wide writing strategy with `--generation-strategy sequential|concurrent`; the default is `concurrent`. The strategy is part of content identity and each generation job reports the one it uses. The runtime file contains current `ApiConfig` fields and refers to a credential environment-variable name; it never contains the credential. Responses is the default protocol, and Chat Completions must be selected explicitly. Codex and Pi implement an optional separate Agent lifecycle; they are not required to serve or read cached content.
 
 The application defaults to the structural recommendation policy. It binds current Workspace, Hierarchy, and FeatureSet digests and returns cost tier, structural gains, material coverage, and target basis. Use `--recommendation-policy random` for the deterministic seeded baseline, which makes no mathematical-benefit claim. A direct `ReaderService` without an injected policy retains the random fallback for small programmatic fixtures.
 
@@ -57,5 +57,8 @@ Chinese and English packages with the same fixed Workspace and Hierarchy share `
 A display budget counts Unicode codepoints in rendered prose plus visible internal titles. It is not a reading-time or understanding estimate. Lowering a budget does not fold text automatically. An over-budget expansion leaves the view unchanged; collapse remains legal.
 
 The overview projects true provider-to-consumer edges onto the current frontier. External repositories remain grouped interfaces outside the internal tree. Explicit inspection pages exact underlying declaration pairs, source lines, provenance, and declaration material; raw details are not injected into ordinary prose.
+For a scope or Region, `inspect(detail="interfaces")` uses the filtered
+`analysis` dependency view by default. Pass `dependency_view="full"` to recover
+the complete stored declaration pairs without changing the reading view.
 
 Focused verification uses the exposition and reading unit suites, including loopback HTTP/MCP parity. The current bilingual AgreeToDisagree smoke package additionally passed package loading, cached expansion without new provider calls, terminal inspection, locale switching, collapse, and an independent-port browser run. These checks do not certify generated mathematics.

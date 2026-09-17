@@ -1,21 +1,20 @@
 # Loading declaration facts
 
-LC and native Lean adapters produce the same `Workspace` model. Shared assembly
-registers unresolved dependency repositories, creates one singleton `DeclUnit` per
-loaded declaration, and validates the result. This is the foundation for later
-graph construction; helper merging, regions, features, and exposition generation
-are separate work.
+LC and native Lean adapters produce the same `RepositoryBuildBundle`. Its
+`workspace` contains declaration facts; Workspace-bound sidecars state unit
+aggregation and dependency extraction coverage. Graph construction consumes the
+bundle so that it never has to infer adapter behavior from provenance strings.
 
 ## LC Git inputs
 
 ```python
 from lean_exposition.importers import LCRepositoryInput, load_lc_workspace
 
-workspace = load_lc_workspace(
+bundle = load_lc_workspace(
     LCRepositoryInput('/path/to/ConsecutiveDivisorCounts', 'ConsecutiveDivisorCounts'),
     providers=(LCRepositoryInput('/path/to/WeightedSieve', 'WeightedSieve'),),
 )
-serialized = workspace.to_json()
+serialized = bundle.workspace.to_json()
 ```
 
 Use repository keys matching the source's dependency references and Lake package
@@ -34,7 +33,10 @@ the repository. All of the active Main contract's `exports` become
 
 The adapter preserves statement/proof NL, formal code, declared dependencies,
 node ownership, fine declaration kinds, and source provenance. It does not load
-LC runtime state, build objects, or node dependency graphs. Dependency edges are
+LC runtime state, build objects, scan source text for declarations, or load node
+dependency graphs. Every active catalog declaration remains a separate singleton
+unit. Catalog summaries are returned as source text contributions outside the
+Workspace. Dependency edges are
 labelled `lc_declared`; they are not claimed to enumerate kernel expression
 constants. Missing proof content stays missing.
 
@@ -49,7 +51,7 @@ pip install -e '.[native]'
 ```python
 from lean_exposition.importers import load_native
 
-workspace = load_native(
+bundle = load_native(
     '/path/to/AgreeToDisagree',
     repo_key='agree_to_disagree',
     modules=('AgreeToDisagree.AgreeToDisagree',),
@@ -81,9 +83,61 @@ Raw extraction evidence is an audit artifact, not a validated reusable cache.
 Later features may extend the same source/environment passes, but no feature
 selection or extraction is performed by these adapters.
 
+## Source-only native inventory
+
+Large native repositories can first be inventoried without compiling every
+module. `scripts/source_inventory.py` invokes the current Toolkit
+`declarations.extract` operation and writes strict JSONL records. Each record
+fixes the repository path, Lean module, source digest, `chunk_index`,
+`chunk_count`, declaration observations, and command-coverage diagnostics.
+Chunks for one file must be complete and consistent before they can be merged.
+
+`lean_exposition.importers.source` streams those records and preserves exact
+source ranges, docstrings, statement/value slices, unrecognized commands, and
+unresolved declaration locators. It never claims that absent dependencies are
+an empty dependency set: source-only dependency coverage remains unknown. The
+inventory is a discovery artifact, not a Workspace. An explicit provisional
+conversion supports diagnostics and a provisional graph/order only; production
+Region, features, recommendation, EET, and Reader reject that stage.
+The persisted `StructurePolicy.production_structure` capability participates in
+artifact identity, so passing a provisional Workspace and its sidecars
+separately cannot bypass this gate.
+
+When compiled evidence is available, source observations merge by canonical
+name, module, and source range through the same construction builder. Ambiguous
+or conflicting observations fail or stay unresolved instead of being guessed.
+This source-only route is for native Lean projects. LC already supplies a
+catalog and therefore never invokes text AST extraction.
+
+## Repository profiles and materials
+
+Strict profiles in `configs/project_profiles/` compose fixed contributors,
+target slices, primary outcomes, scope/unit/order hints, and material assets.
+They contain no callbacks and no schema-version field. The current code accepts
+the current contract directly. Profile stages are capability gates:
+
+- `inventory` records source and material coverage;
+- `provisional` may expose a diagnostic graph but no production hierarchy;
+- `verified_slice` combines a bounded compiled closure with its source and
+  material evidence;
+- `formal` uses an authoritative LC catalog or compiled contributor.
+
+Materials are stored separately as content-addressed records and bindings.
+Bindings distinguish exact, candidate, ambiguous, and unresolved targets.
+Parser implementation, parser configuration, binder implementation, and binder
+configuration all participate in their identities. TeX include order preserves
+repeated occurrences and reports cycles, dynamic paths, missing files, and
+conditional ambiguity. Exact declaration bindings may project protected order
+relations; ambiguous bindings never become hard ordering constraints.
+
+Published-site dependencies are also separate evidence. For example, the FLT
+profile validates its fixed metadata, title array, compressed graph, and selected
+FNV shard, then labels recovered edges `published`; it does not reinterpret them
+as compiler dependencies.
+
 ## Presentation scope
 
-A loaded Workspace may contain multiple repositories for dependency resolution.
+A bundle's Workspace may contain multiple repositories for dependency resolution.
 Each HDG/EET presents one explicitly chosen repository. Other loaded repositories
 supply external declaration facts rather than additional trees in that document.
 Use the [repository graph view](graph-foundation.md) to enforce this boundary.

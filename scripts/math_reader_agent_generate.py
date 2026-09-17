@@ -103,7 +103,8 @@ def campaign(workspace, hierarchy, output, locale, config, *, total_seconds=1080
             raise ValueError('; '.join(diagnostics['errors']))
         return result.data
 
-    store = ContentStore(workspace, hierarchy, output / 'content.json', metadata_runtime, locale=locale)
+    store = ContentStore(workspace, hierarchy, output / 'content.json', metadata_runtime, locale=locale,
+                         generation_strategy='sequential')
     try:
         jobs = store.name_regions()
         if any(job['status'] != 'succeeded' for job in jobs.values()):

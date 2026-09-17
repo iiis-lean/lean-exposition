@@ -316,6 +316,29 @@ class DependencyGraph:
                    _freeze({scope: frozenset(refs) for scope, refs in reading.items()}),
                    _freeze(repos), _freeze(source_keys))
 
+    def analysis_view(self, analysis):
+        """Return a filtered query view while preserving the complete graph."""
+        if analysis.target_repo_key not in self.repository_coverages:
+            raise ValueError("dependency analysis target is absent from the graph")
+        pairs = {(edge.provider, edge.consumer) for edge in self.edges}
+        decisions = {(item.provider, item.consumer) for item in analysis.decisions}
+        if decisions != pairs:
+            raise ValueError("dependency analysis does not match the complete graph")
+        kept = tuple(edge for edge in self.edges
+                     if (edge.provider, edge.consumer) in analysis.kept_pairs)
+        all_refs = set(self.loaded_decls) | {edge.provider for edge in kept}
+        incoming = {ref: [] for ref in all_refs}
+        outgoing = {ref: [] for ref in all_refs}
+        for edge in kept:
+            incoming[edge.consumer].append(edge)
+            outgoing[edge.provider].append(edge)
+        return replace(
+            self, edges=kept,
+            incoming=_freeze({ref: tuple(incoming[ref]) for ref in all_refs}),
+            outgoing=_freeze({ref: tuple(outgoing[ref]) for ref in all_refs}),
+            unloaded_refs=frozenset(all_refs - self.loaded_decls),
+        )
+
     def repository_view(self, repo_key: str) -> RepositoryView:
         """Select one loaded repository for presentation, retaining reference context."""
         repo = next((repo for repo in self.workspace.manifest.repositories if repo.repo_key == repo_key), None)

@@ -54,6 +54,31 @@ edge endpoints with no loaded declaration; a known external reference need not
 be an unresolved repository version. `unloaded_primary_outcomes` separately
 reports main outcomes whose declaration bodies have not been loaded.
 
+## Full facts and the default analysis view
+
+The complete graph remains authoritative. To remove routine Lean/Mathlib
+infrastructure from presentation and feature calculations, derive a separate
+analysis decision and apply it:
+
+```python
+from lean_exposition.structure import analyze_dependencies
+
+analysis = analyze_dependencies(workspace, "ConsecutiveDivisorCounts")
+analysis_graph = graph.analysis_view(analysis)
+```
+
+The packaged foundation catalog is global and bound to an exact provider
+identity and toolchain. Target-repository edges and dependencies on another
+project are always retained. A Lean, Batteries, or Mathlib edge is hidden only
+when the matching catalog explicitly classifies that declaration and part as
+ambient; an unknown declaration or identity mismatch is kept conservatively.
+
+Scope views, production features, material-cost estimates, and structural
+recommendation use this analysis view by default. Raw/full inspection still
+returns the original edge. Narrative ordering, helper aggregation, and Region
+construction do not consume the filtered view, so filtering cannot weaken the
+project's definition-before-use constraints.
+
 ## Coverage and ownership
 
 | Query/index | Meaning |

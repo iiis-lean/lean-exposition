@@ -5,10 +5,30 @@ from lean_exposition.models.facts import (
     DeclContent, DeclRef, DeclUnit, Dependency, Provenance, RawDecl, Repository,
     Scope, SourceAsset, SourceRange, Status, TextContent, Workspace, WorkspaceManifest,
 )
+from lean_exposition.construction import (
+    COVERAGE_DOMAINS, CoverageEntry, DependencyCoverage, RepositoryBuildBundle,
+    StructurePolicy,
+)
 from lean_exposition.structure import DependencyGraph
 
 P = (Provenance("fixture", "synthetic"),)
 TEXT = TextContent("fixture", "present", P)
+
+
+def bundle(workspace, unit_aggregation="native_helpers", coverage_status="unknown"):
+    """Create explicit construction sidecars for structure-only fixtures."""
+    digest = workspace.digest()
+    entries = tuple(
+        CoverageEntry(decl.ref, part, domain, coverage_status, P)
+        for decl in workspace.declarations
+        for part in (("statement", "proof") if decl.proof is not None else ("statement",))
+        for domain in COVERAGE_DOMAINS
+    )
+    return RepositoryBuildBundle(
+        workspace,
+        StructurePolicy(digest, unit_aggregation, P, True),
+        DependencyCoverage(digest, entries),
+    )
 
 
 def ref(name, repo="r"):

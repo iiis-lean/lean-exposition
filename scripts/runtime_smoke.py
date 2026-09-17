@@ -183,7 +183,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--protocol", choices=["responses", "chat_completions"], default="responses"
     )
     api.add_argument("--reasoning-effort")
-    api.add_argument("--max-output-tokens", type=int, default=4096)
+    api.add_argument("--max-output-tokens", type=int)
     api.add_argument("--prompt-cache-key", default="lean-exposition-runtime-smoke")
     api.add_argument("--timeout", type=float, default=180)
     api.add_argument("--env-file", type=Path)

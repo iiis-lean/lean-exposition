@@ -62,6 +62,7 @@ def call_record(call):
         "request_digest": result.input_digest,
         "prefix_digest": call.prefix_digest,
         "prompt_digest": call.prompt_digest,
+        "duration_seconds": call.duration_seconds,
         "structured_output_digest": digest(result.data) if result.data is not None else None,
         "raw_text_digest": hashlib.sha256(result.raw_text.encode()).hexdigest()
         if result.raw_text is not None else None,
@@ -127,22 +128,29 @@ def reader_semantics(case, record):
     }
 
 
-def run(selection_path, output, credential_file):
+def safe_config_record(config):
+    record = asdict(config)
+    record["proxy_url"] = "<configured>" if config.proxy_url else None
+    return record
+
+
+def run(selection_path, output, credential_file, *, config=None, report_metadata=None):
     selection = json.loads(selection_path.read_text())
     load_env(credential_file)
-    config = ApiConfig(
-        model="deepseek-flash",
-        credential_env="DEEPSEEK_API_KEY",
-        base_url="https://api.deepseek.com",
-        protocol="responses",
-        timeout=180,
-        max_output_tokens=4096,
-        reasoning=None,
-        extra_body={},
-        prompt_cache_key="lean-exposition-source-order-eval-20260916",
-    )
+    if config is None:
+        config = ApiConfig(
+            model="deepseek-flash",
+            credential_env="DEEPSEEK_API_KEY",
+            base_url="https://api.deepseek.com",
+            protocol="responses",
+            timeout=180,
+            max_output_tokens=4096,
+            reasoning=None,
+            extra_body={},
+            prompt_cache_key="lean-exposition-source-order-eval-20260916",
+        )
     workflow = SourceOrderEvaluationWorkflow(StructuredExecutor(config))
-    config_record = asdict(config)
+    config_record = safe_config_record(config)
     report = {
         "selection_digest": digest(selection),
         "selection_file": selection_path.name,
@@ -160,6 +168,8 @@ def run(selection_path, output, credential_file):
             "of human or general model understanding. Reader outputs have no independent correctness oracle."
         ),
     }
+    if report_metadata:
+        report.update(report_metadata)
     output.parent.mkdir(parents=True, exist_ok=True)
 
     def checkpoint():

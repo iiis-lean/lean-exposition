@@ -7,9 +7,10 @@ import unittest
 
 from lean_exposition.app.demo import demo_fixture
 from lean_exposition.exposition import ContentStore
-from lean_exposition.models import Workspace
+from lean_exposition.models import DeclRef, Workspace
 from lean_exposition.reading import ReaderService
 from lean_exposition.runtime import ExecutionResult
+from lean_exposition.structure.dependencies import DependencyAnalysis, DependencyDecision
 
 
 class StagedEetExecutor:
@@ -226,6 +227,37 @@ class ReaderTests(unittest.TestCase):
         self.assertTrue(result['ok'])
         self.assertEqual(len(self.service.state['exposures']), 1)
         self.assertEqual(self.service.state['exposures'][0]['line_count'], 2)
+
+    def test_interface_inspection_can_restore_full_dependency_view(self):
+        decisions = (
+            DependencyDecision(DeclRef('demo', 'definition'), DeclRef('demo', 'bound'),
+                               False, 'ambient_foundation', 'reviewed_ambient'),
+            DependencyDecision(DeclRef('demo', 'definition'), DeclRef('demo', 'result'),
+                               True, 'target_internal'),
+        )
+        store = ContentStore(
+            Workspace.from_json(json.dumps(self.fixture['workspace'])),
+            self.fixture['hierarchy'], Path(self.tmp.name) / 'dependency-view.json',
+            dependency_analysis=DependencyAnalysis('demo', 'a' * 64, decisions),
+        )
+        store.publish(self.fixture['blocks'])
+        self.service.stores[store.instance_id] = store
+        self.reader = self.service.call('open_reader', {'instance_id': store.instance_id})['reader_id']
+
+        default = self.call('inspect', ref='root', detail='interfaces')
+        analysis = self.call('inspect', ref='root', detail='interfaces',
+                             dependency_view='analysis')
+        full = self.call('inspect', ref='root', detail='interfaces', dependency_view='full')
+        relation_pairs = lambda result: {
+            (item['provider_decl']['local_id'], item['consumer_decl']['local_id'])
+            for item in result['items'] if item['relation_kind'] == 'internal'
+        }
+        self.assertEqual(default['dependency_view'], 'analysis')
+        self.assertEqual(relation_pairs(default), relation_pairs(analysis))
+        self.assertEqual(relation_pairs(analysis), {('definition', 'result')})
+        self.assertEqual(relation_pairs(full), {
+            ('definition', 'bound'), ('definition', 'result'),
+        })
 
     def test_reader_cannot_read_other_views_or_jobs(self):
         other = self.service.call('open_reader', {'instance_id': self.store.instance_id})

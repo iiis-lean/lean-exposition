@@ -24,10 +24,11 @@ def load_credential_file(path):
                 os.environ[key.strip()] = value.strip().strip('\"\'')
 
 
-def preflight(workspace, hierarchy):
+def preflight(workspace, hierarchy, generation_strategy):
     """Source-only exact sizes; generated ancestor prose has a separately reported reserve."""
     with tempfile.TemporaryDirectory(prefix='math-preflight-') as temporary:
-        store = ContentStore(workspace, hierarchy, Path(temporary) / 'content.json', locale='zh')
+        store = ContentStore(workspace, hierarchy, Path(temporary) / 'content.json', locale='zh',
+                             generation_strategy=generation_strategy)
         rows = []
         for node in hierarchy['nodes']:
             material = writing_view(workspace, hierarchy, node['id'], mathematical=True)
@@ -98,6 +99,7 @@ def completeness(store):
     terminals = {node['id'] for node in store.nodes.values() if node['kind'] == 'unit'}
     missing_titles = sorted(node for node in terminals if not manifest['metadata'].get(node, {}).get('title', '').strip())
     return {'instance_id': store.instance_id, 'structure_id': store.structure_id, 'locale': store.locale,
+            'generation_strategy': store.generation_strategy,
             'content_digest': store.content_digest, 'repo_key': store.hierarchy['repo_key'],
             'hierarchy_id': store.hierarchy['hierarchy_id'],
             'workspace_digest': store.workspace.digest(),
@@ -134,13 +136,14 @@ def main():
     parser.add_argument('--preflight', action='store_true')
     parser.add_argument('--max-groups', type=int)
     parser.add_argument('--max-input-characters', type=int, default=360000)
+    parser.add_argument('--generation-strategy', choices=('sequential', 'concurrent'), default='concurrent')
     args = parser.parse_args()
     workspace = Workspace.from_json(Path(args.workspace).read_text())
     hierarchy = json.loads(Path(args.hierarchy).read_text())
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     if args.preflight:
-        report = preflight(workspace, hierarchy)
+        report = preflight(workspace, hierarchy, args.generation_strategy)
         atomic_json(output / 'preflight.json', report)
         print(json.dumps({key: value for key, value in report.items() if key != 'nodes'}))
         return
@@ -157,7 +160,8 @@ def main():
     recorded = RecordedRuntime(config, output / 'calls')
     store = ContentStore(workspace, hierarchy, output / 'content.json', recorded,
                          executor=recorded, locale=args.locale,
-                         max_input_characters=args.max_input_characters)
+                         max_input_characters=args.max_input_characters,
+                         generation_strategy=args.generation_strategy)
     groups = 0
     try:
         if not store.state['latest_manifest']:

@@ -1,0 +1,128 @@
+{
+  "contributors": [
+    {
+      "config": {
+        "dependency_semantics": "published proof-module import graph",
+        "format": "official FLT JavaScript bundle",
+        "parser": "published_bundle",
+        "selected_declarations": [
+          "fermat_last_theorem"
+        ],
+        "selected_shards": [
+          "html/data/shard/134.js"
+        ]
+      },
+      "contributor_id": "flt-published-site",
+      "kind": "published",
+      "required": true
+    }
+  ],
+  "identity": {
+    "input_digest": "982e556a0c6439e04564c54c5782dd5ad8918395700453e369a46abc620e0dec",
+    "repo_key": "anthropic_fermats_last_theorem",
+    "revision": "aa2d8b34692b16c70f699536de0d8e75b9a3e9ef",
+    "toolchain": "leanprover/lean4:v4.33.1"
+  },
+  "material_assets": [
+    {
+      "asset_id": "formalization-yaml",
+      "binder_id": "exact_name",
+      "config": {},
+      "media_type": "application/yaml",
+      "parser_id": "formalization_yaml",
+      "path": "formalization.yaml",
+      "role": "primary",
+      "sha256": "d055533a3bd366b7060d72fefe40b03c7616031aad7373bde92d86f1ac2dee77"
+    },
+    {
+      "asset_id": "proof-path",
+      "binder_id": "exact_name",
+      "config": {},
+      "media_type": "text/markdown",
+      "parser_id": "proof_path_markdown",
+      "path": "PROOF-PATH.md",
+      "role": "primary",
+      "sha256": "ada9b1b2f69184b9a9334d51ed9f2e2e241d16df364d9e53df418339748c6705"
+    },
+    {
+      "asset_id": "published-theorem-shell",
+      "binder_id": "published_site_bundle",
+      "config": {
+        "role": "application shell; facts are in fixed published_bundle assets"
+      },
+      "media_type": "text/html",
+      "parser_id": "plain",
+      "path": "html/thm.html",
+      "role": "supporting",
+      "sha256": "0809cb39617b3c37203cae552ea4d553175114bbc490f3eeb4a81d90c6ec3478"
+    },
+    {
+      "asset_id": "published-meta",
+      "binder_id": "published_site_bundle",
+      "config": {
+        "javascript_global": "FLT_META"
+      },
+      "media_type": "application/javascript",
+      "parser_id": "published_bundle",
+      "path": "html/data/meta.js",
+      "role": "supporting",
+      "sha256": "f4748deac7794c5ba5b36267a8acb4d623a954f2dc4a6c9ace18e2fd3e4f044d"
+    },
+    {
+      "asset_id": "published-edges",
+      "binder_id": "published_site_bundle",
+      "config": {
+        "evidence_kind": "published",
+        "javascript_global": "FLT_EDGES",
+        "semantics": "proof-module import lines"
+      },
+      "media_type": "application/javascript",
+      "parser_id": "published_bundle",
+      "path": "html/data/edges.js",
+      "role": "supporting",
+      "sha256": "bc8952a21616c3d4294b829547d951423e452ad7626f439526ccf6b21f625f26"
+    },
+    {
+      "asset_id": "published-titles",
+      "binder_id": "published_site_bundle",
+      "config": {
+        "javascript_global": "FLT_TITLES"
+      },
+      "media_type": "application/javascript",
+      "parser_id": "published_bundle",
+      "path": "html/data/titles.js",
+      "role": "supporting",
+      "sha256": "3e5d5465350b1d73d76548962a0dc542771ed79e2cf65a3a09be57e630439d8f"
+    },
+    {
+      "asset_id": "published-shard-134",
+      "binder_id": "published_site_bundle",
+      "config": {
+        "callback": "FLT_SHARD_CB",
+        "selected_declaration": "fermat_last_theorem",
+        "shard_id": "134"
+      },
+      "media_type": "application/javascript",
+      "parser_id": "published_bundle",
+      "path": "html/data/shard/134.js",
+      "role": "supporting",
+      "sha256": "8e89f4e3369c9e9aaa166078f7356bc22cfb3e6e3727770131474e1976bc2672"
+    }
+  ],
+  "order_hints": [],
+  "primary_outcomes": [
+    {
+      "module": "Theorems.Thm_fermat_last_theorem",
+      "name": "fermat_last_theorem"
+    },
+    {
+      "module": "FinalCheck",
+      "name": "flt_mathlib"
+    }
+  ],
+  "profile_id": "anthropic-fermat-last-theorem-published",
+  "scope_hints": [],
+  "stage": "provisional",
+  "target_slices": [],
+  "unit_hints": []
+}

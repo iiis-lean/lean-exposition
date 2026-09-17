@@ -10,7 +10,11 @@ from lean_exposition.models.facts import (
     DeclContent, DeclRef, Dependency, DependencyLock, Provenance, RawDecl,
     Repository, Scope, SourceRange, Status, TextContent, ValidationError, Workspace,
 )
-from .common import assemble_workspace, asset_from_bytes, qualified_id
+from lean_exposition.construction import (
+    CoverageContribution, RepositoryContext, SourceTextContribution,
+    build_repository,
+)
+from .common import adapter_result_from_workspace, assemble_workspace, asset_from_bytes, qualified_id
 
 
 @dataclass(frozen=True)
@@ -55,7 +59,7 @@ def _ref(repo_key, value):
     return DeclRef(value.get("repo") or repo_key, value["node"] + "/" + value["name"])
 
 
-def load_lc_workspace(main: LCRepositoryInput, providers=()) -> Workspace:
+def _load_lc_facts(main: LCRepositoryInput, providers=()):
     """Freeze main HEAD and read each declaration's current revision only.
 
     Provider inputs identify local object stores. A consumer Lake lock selects the
@@ -89,7 +93,7 @@ def load_lc_workspace(main: LCRepositoryInput, providers=()) -> Workspace:
         snapshots[provider.repo_key] = _Snapshot(provider, locked)
         pending.remove(provider)
 
-    repositories, declarations, scopes, locks = [], [], [], []
+    repositories, declarations, scopes, locks, source_texts = [], [], [], [], []
     external = {}
     for key, snapshot in snapshots.items():
         toolchain = snapshot.read("lean-toolchain").decode().strip()
@@ -192,8 +196,9 @@ def load_lc_workspace(main: LCRepositoryInput, providers=()) -> Workspace:
                         json.dumps(dep, ensure_ascii=False, sort_keys=True)),)))
                 return DeclContent(text("nl", "text"), text("formal", "code"), tuple(deps))
 
+            decl_ref = DeclRef(key, meta["node_path"] + "/" + meta["name"])
             declarations.append(RawDecl(
-                DeclRef(key, meta["node_path"] + "/" + meta["name"]), current["lean_decl_name"],
+                decl_ref, current["lean_decl_name"],
                 meta["module"], qualified_id(key, meta["node_path"]), meta["kind"],
                 content(current["statement"], "statement"), Status("imported", provenance),
                 snapshot.provenance(path) + provenance,
@@ -202,6 +207,13 @@ def load_lc_workspace(main: LCRepositoryInput, providers=()) -> Workspace:
                 source_refs=tuple(source_refs), source_context=tuple(source_context),
                 local_public=meta.get("public", False),
             ))
+            summary = (current.get("change") or {}).get("summary")
+            if isinstance(summary, str) and summary:
+                source_texts.append(SourceTextContribution(
+                    decl_ref, "summary", "en", summary,
+                    snapshot.provenance(revision_path, "change.summary"),
+                    snapshot.assets[revision_path].sha256,
+                ))
     loaded_refs = {declaration.ref for declaration in declarations}
     for repository in repositories:
         for outcome in repository.primary_outcomes:
@@ -214,6 +226,35 @@ def load_lc_workspace(main: LCRepositoryInput, providers=()) -> Workspace:
                     if dependency.provider.repo_key in snapshots and dependency.provider not in loaded_refs:
                         raise ValidationError(f"Dependency in supplied repository does not resolve: {dependency.provider}")
     repositories.extend(external.values())
-    return assemble_workspace(repositories=repositories, declarations=declarations, scopes=scopes,
-                              assets=[asset for snapshot in snapshots.values() for asset in snapshot.assets.values()],
-                              dependency_locks=locks)
+    workspace = assemble_workspace(repositories=repositories, declarations=declarations, scopes=scopes,
+                                   assets=[asset for snapshot in snapshots.values() for asset in snapshot.assets.values()],
+                                   dependency_locks=locks)
+    return workspace, tuple(source_texts)
+
+
+class LCRepositoryAdapter:
+    """Current LC catalog adapter; it never invokes source text AST discovery."""
+
+    def __init__(self, main: LCRepositoryInput, providers=()):
+        self.main = main
+        self.providers = tuple(providers)
+
+    def collect(self, context: RepositoryContext | None = None):
+        workspace, source_texts = _load_lc_facts(self.main, self.providers)
+        coverage = []
+        for decl in workspace.declarations:
+            for part_name, part in (("statement", decl.statement), ("proof", decl.proof)):
+                if part is None:
+                    continue
+                coverage.append(CoverageContribution(
+                    decl.ref, part_name, "lc_declared", "complete", decl.provenance,
+                ))
+        return adapter_result_from_workspace(
+            workspace, unit_aggregation="preserve", authority="lc_catalog",
+            method="lc_catalog", coverage=coverage, source_texts=source_texts,
+        )
+
+
+def load_lc_workspace(main: LCRepositoryInput, providers=()):
+    """Load current LC catalog facts into the canonical construction bundle."""
+    return build_repository(LCRepositoryAdapter(main, providers).collect())

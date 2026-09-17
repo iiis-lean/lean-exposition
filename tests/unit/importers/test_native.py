@@ -5,7 +5,8 @@ import unittest
 from unittest.mock import patch
 import subprocess
 
-from lean_exposition.importers.native import normalize_native, slice_source, source_range
+from lean_exposition.construction import build_repository
+from lean_exposition.importers.native import NativeRepositoryAdapter, normalize_native, slice_source, source_range
 
 
 class NativeTests(unittest.TestCase):
@@ -45,6 +46,16 @@ class NativeTests(unittest.TestCase):
                 self.assertIsNone(nested.manifest.repositories[0].revision)
                 self.assertEqual(git.call_count, 1)
             workspace = normalize_native(root, repo_key='p', modules=('M',), payload=payload)
+            with patch('lean_exposition.importers.native._load_native_workspace', return_value=workspace):
+                bundle = build_repository(NativeRepositoryAdapter(
+                    root, repo_key='p', modules=('M',)).collect())
+            self.assertEqual(bundle.workspace.to_json(), workspace.to_json())
+            self.assertEqual(bundle.structure_policy.unit_aggregation, 'native_helpers')
+            coverage = {(item.ref.local_id, item.part, item.evidence_domain): item.status
+                        for item in bundle.dependency_coverage.entries}
+            self.assertEqual(coverage[('t', 'statement', 'lean_type')], 'complete')
+            self.assertEqual(coverage[('t', 'proof', 'lean_value')], 'complete')
+            self.assertEqual(coverage[('_private.M.0.x', 'statement', 'lean_value')], 'complete')
             theorem = next(d for d in workspace.declarations if d.lean_name == 't')
             definition = next(d for d in workspace.declarations if d.kind == 'definition')
             self.assertEqual(theorem.proof.formal.text, 'by trivial')

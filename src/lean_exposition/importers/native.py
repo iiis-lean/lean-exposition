@@ -10,7 +10,8 @@ from lean_exposition.models.facts import (
     DeclContent, DeclRef, Dependency, DependencyLock, Provenance, RawDecl,
     Repository, Scope, SourceRange, Status, TextContent,
 )
-from .common import assemble_workspace, asset_from_bytes, qualified_id
+from lean_exposition.construction import CoverageContribution, RepositoryContext, build_repository
+from .common import adapter_result_from_workspace, assemble_workspace, asset_from_bytes, qualified_id
 
 
 def source_range(asset_id, span):
@@ -35,10 +36,10 @@ def slice_source(text, location):
     return text[start:end]
 
 
-def load_native(project: str | Path, *, repo_key: str, modules: tuple[str, ...],
-                primary_outcomes: tuple[str, ...] = (), timeout: int = 300,
-                repl_rev: str | None = None, local_repl_path: str | Path | None = None,
-                evidence_dir: str | Path | None = None):
+def _load_native_workspace(project: str | Path, *, repo_key: str, modules: tuple[str, ...],
+                           primary_outcomes: tuple[str, ...] = (), timeout: int = 300,
+                           repl_rev: str | None = None, local_repl_path: str | Path | None = None,
+                           evidence_dir: str | Path | None = None):
     """Load explicit built modules (include desired local import closure explicitly).
 
     Source commands are canonicalized against compiler names, including private
@@ -51,6 +52,53 @@ def load_native(project: str | Path, *, repo_key: str, modules: tuple[str, ...],
                               evidence_dir=evidence_dir)
     return normalize_native(root, repo_key=repo_key, modules=modules, payload=payload,
                             primary_outcomes=primary_outcomes)
+
+
+class NativeRepositoryAdapter:
+    """Compiled-native adapter retaining the existing exact extraction path."""
+
+    def __init__(self, project: str | Path, *, repo_key: str, modules: tuple[str, ...],
+                 primary_outcomes: tuple[str, ...] = (), timeout: int = 300,
+                 repl_rev: str | None = None, local_repl_path: str | Path | None = None,
+                 evidence_dir: str | Path | None = None):
+        self.project = project
+        self.repo_key = repo_key
+        self.modules = tuple(modules)
+        self.primary_outcomes = tuple(primary_outcomes)
+        self.timeout = timeout
+        self.repl_rev = repl_rev
+        self.local_repl_path = local_repl_path
+        self.evidence_dir = evidence_dir
+
+    def collect(self, context: RepositoryContext | None = None):
+        workspace = _load_native_workspace(
+            self.project, repo_key=self.repo_key, modules=self.modules,
+            primary_outcomes=self.primary_outcomes, timeout=self.timeout,
+            repl_rev=self.repl_rev, local_repl_path=self.local_repl_path,
+            evidence_dir=self.evidence_dir,
+        )
+        coverage = []
+        for decl in workspace.declarations:
+            coverage.append(CoverageContribution(
+                decl.ref, "statement", "lean_type", "complete", decl.provenance,
+            ))
+            if decl.proof is None:
+                coverage.append(CoverageContribution(
+                    decl.ref, "statement", "lean_value", "complete", decl.provenance,
+                ))
+            else:
+                coverage.append(CoverageContribution(
+                    decl.ref, "proof", "lean_value", "complete", decl.provenance,
+                ))
+        return adapter_result_from_workspace(
+            workspace, unit_aggregation="native_helpers", authority="lean_environment",
+            method="compiled_native", coverage=coverage,
+        )
+
+
+def load_native(*args, **kwargs):
+    """Load compiled Lean facts into the canonical construction bundle."""
+    return build_repository(NativeRepositoryAdapter(*args, **kwargs).collect())
 
 
 def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()):

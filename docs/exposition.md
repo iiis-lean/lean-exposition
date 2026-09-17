@@ -1,6 +1,6 @@
 # Immutable exposition content
 
-`ContentStore(workspace, hierarchy, path, executor=..., locale=...)` binds a validated Workspace and complete Hierarchy snapshot. The API-first production executor is `StructuredExecutor(ApiConfig(...))`; credentials remain outside the content file. Writer operations are construction APIs and are not exposed through Reader tools.
+`ContentStore(workspace, hierarchy, path, executor=..., locale=..., generation_strategy=...)` binds a validated Workspace and complete Hierarchy snapshot. `generation_strategy` is `concurrent` by default and may be set to `sequential`. The API-first production executor is `StructuredExecutor(ApiConfig(...))`; credentials remain outside the content file. Writer operations are construction APIs and are not exposed through Reader tools.
 
 ## Identity and manifests
 
@@ -8,7 +8,7 @@ The store derives four related identities:
 
 - `workspace_digest` is the canonical identity of current source facts.
 - `structure_id` hashes the Workspace digest and complete Hierarchy digest.
-- `content_digest` hashes the locale, current prompts and JSON Schemas, EET stitch and validation instructions, and `max_input_characters`.
+- `content_digest` hashes the locale, generation strategy, current prompts and JSON Schemas, EET stitch and validation instructions, and `max_input_characters`.
 - `instance_id` hashes the fixed structure, locale, and content digest.
 
 Saved content must match all current identities. A mismatched content digest fails with an instruction to regenerate the package.
@@ -21,11 +21,13 @@ Sections contain fixed `lead_in`, `synopsis`, and `lead_out` segments. Theorems 
 
 Anchors identify one segment and explicit declaration, node, or edge targets. Targets must belong to that entry's bound writing context. `decl_card`, `scope_view`, and `writing_view` expose compact source material while preserving the ability to query complete declarations, relations, and source pages. Missing external bodies and compiler-only source gaps remain explicit; the writer must not invent a proof.
 
-Canonical writing context includes stable ancestor introductions and preceding sibling outcomes. Ancestor synopses disappear on expansion and are not premises. A parent ending is a goal for its children, not an already established result. The prompt is checked against the configured character budget before any model call and is never silently truncated.
+Canonical writing context includes stable ancestor introductions and preceding sibling outcomes. Every sibling also receives one shared writing convention containing the fixed child order, parent setting and goal, shared source interfaces, and the superseded parent synopsis. This convention is placed in a byte-stable group prompt prefix so sibling calls can share the same cacheable prefix. The synopsis may preserve terminology, notation, and intended coverage only; its conclusions are never premises. A parent ending is a goal for its children, not an already established result. The prompt is checked against the configured character budget before any model call and is never silently truncated.
 
 ## API sibling workflow
 
-`generate_root()` handles the one-root group. `generate_children(parent_id)` freezes the ordered direct children and base manifest, then runs the current EET workflow:
+`generate_root()` handles the one-root group. `generate_children(parent_id)` freezes the ordered direct children and base manifest, then runs the strategy bound to the content package. The strategy is part of content identity, so one file never mixes sequential and concurrent cache entries.
+
+In `concurrent` mode:
 
 1. Draft every model-backed sibling concurrently; fixed source-missing entries are prepared without a model call.
 2. For groups with more than one child, make one stitching call. It must return every adjacent pair exactly once, preserve sibling order, and may change only the left `lead_out` and right `lead_in` when those fields exist.
@@ -33,7 +35,9 @@ Canonical writing context includes stable ancestor introductions and preceding s
 4. If local checks pass, make one model validation call for the complete ordered group.
 5. Publish all siblings once against the frozen `base_manifest_id` using compare-and-swap.
 
-Draft, stitch, local-check, validation, usage, and cache evidence are retained. Any failed draft, illegal stitch, local rejection, model rejection, stale base, or executor error prevents group publication. The previously published manifest remains current.
+In `sequential` mode the same source preparation, local validation, group validation, cancellation, evidence, and atomic publication contract applies. Siblings are drafted in reading order; each later request receives the compact outcomes of earlier siblings. The separate stitching call is skipped because transitions are written with the accepted prefix already available.
+
+Draft, stitch when applicable, local-check, validation, usage, cache, and actual strategy evidence are retained. Any failed draft, illegal stitch, local rejection, model rejection, stale base, or executor error prevents group publication. The previously published manifest remains current.
 
 Generation reports `queued`, `drafting`, `stitching`, and `validating` progress. `PublicationControl` serializes cancellation with the single manifest commit decision. If cancellation wins before commit, no generated block is published; if commit has already completed, cancellation cannot relabel that publication.
 

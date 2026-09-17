@@ -79,9 +79,10 @@ def project_weights(workspace, repo_key, atoms, nodes):
 
 
 def select_case(label, order_dir):
-    workspace, repo_key, source = load_case(label)
+    bundle, repo_key, source = load_case(label)
+    workspace = bundle.workspace
     artifact = NarrativeOrder.load(order_dir / f"{label}-narrative-order.json")
-    hierarchy = build_hierarchy(workspace, repo_key, config=BuildConfig(), source=source,
+    hierarchy = build_hierarchy(bundle, repo_key, config=BuildConfig(), source=source,
                                 narrative_order=artifact)
     nodes = {node["id"]: node for node in hierarchy.nodes}
     declarations = {(decl.ref.repo_key, decl.ref.local_id): decl for decl in workspace.declarations}

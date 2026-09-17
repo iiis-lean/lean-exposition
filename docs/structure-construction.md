@@ -1,16 +1,21 @@
 # Structure construction
 
 `lean_exposition.structure.build_hierarchy` builds one repository reading tree
-from immutable Workspace facts:
+from an immutable `RepositoryBuildBundle`:
 
 ```python
 from lean_exposition.structure import BuildConfig, build_hierarchy
 
-hierarchy = build_hierarchy(workspace, repo_key, config=BuildConfig())
+hierarchy = build_hierarchy(bundle, repo_key, config=BuildConfig())
 hierarchy.save("hierarchy.json")
 ```
 
-The constructor resolves generated ownership, optionally aggregates exclusive
+The bundle carries the Workspace, explicit unit policy, and dependency-coverage
+sidecar. Passing a bare Workspace requires both sidecars explicitly; structure
+construction never infers adapter behavior from provenance. The persisted
+`production_structure` policy flag must also authorize Region construction.
+The constructor
+resolves generated ownership, optionally aggregates exclusive
 helpers, compresses unary display scopes, derives a deterministic sibling order,
 and partitions continuous intervals of that order into Regions. It does not
 mutate declaration, scope, dependency, provenance, or source facts.
@@ -58,7 +63,10 @@ explicit primary material, explicit supporting material, document occurrence,
 author source position, then module and stable identity fallbacks. A declaration
 with a known `generated_from` owner can inherit the owner's anchor.
 
-For native projects, real declaration dependencies remain hard constraints. An
+For native projects, real project declaration dependencies remain hard
+constraints, including dependencies used only by proofs. Filtering ambient
+Lean/Mathlib infrastructure is an analysis-view operation and does not weaken
+the definition-before-use order. An
 explicit module sequence supplies a tie-break or protected sequence. Without one,
 module/path/stable identity only provide deterministic fallback and do not claim
 an author-defined module narrative.
@@ -75,7 +83,7 @@ Use `derive_narrative_order` to create the fixed pre-Region artifact separately:
 from lean_exposition.structure import derive_narrative_order
 
 order = derive_narrative_order(
-    workspace,
+    bundle,
     repo_key,
     config=BuildConfig(),
     source=source,
@@ -84,7 +92,7 @@ order = derive_narrative_order(
 order.save("narrative-order.json")
 
 hierarchy = build_hierarchy(
-    workspace,
+    bundle,
     repo_key,
     config=BuildConfig(),
     source=source,
@@ -117,8 +125,15 @@ sum(edge_weight * (consumer_position - provider_position)).
 ```
 
 Protected narrative edges constrain legality but contribute zero to this
-objective. If a protected source relation conflicts with a real dependency, the
-real dependency wins and the artifact records
+objective. They may come from an explicit source sequence or from exact
+material-to-declaration bindings. Manual relations are required to be acyclic.
+For independently produced protected evidence, the solver accepts a canonical
+maximal acyclic subset and records every rejected relation ID and reason, so
+enumeration order cannot change the result. Candidate, ambiguous, and unresolved
+material bindings never create a protected edge.
+
+If a protected source relation conflicts with a real dependency, the real
+dependency wins and the artifact records
 `dependency_overrides_source_order`. Ties use source displacement and stable
 identities; there is no randomness.
 
@@ -141,8 +156,11 @@ removed scope-node IDs directly to surviving node IDs.
 
 ## Helper aggregation and Regions
 
-Known `generated_from` chains resolve first within one repository and native
-scope. Optional helper absorption requires one consumer, the same scope,
+Every LC catalog declaration enters this stage as a singleton seed under the
+`preserve` policy and is never merged. Native projects may use the
+`native_helpers` policy. Known `generated_from` chains then resolve within one
+repository and native scope. Optional helper absorption requires one consumer,
+the same scope,
 primary-outcome/interface/`keep_separate` protection, and configured declaration
 and codepoint capacity. Shared, unused, cross-boundary, and unknown technical
 declarations remain separate. All raw dependency pairs remain exported even when

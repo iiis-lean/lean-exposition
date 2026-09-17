@@ -100,7 +100,10 @@ def build(directory):
             blocks[id]=dict(lead_in=zintro if zh else intro,synopsis=zsyn if zh else syn,lead_out=({'setup':('Together these maps recover the original vector.','这两个映射之和恢复原向量。'),'geometry':('The two directions are perpendicular.','两个方向彼此垂直。'),'split':('No squared length is lost in the decomposition.','分解前后的平方范数总和不变。'),'optimal':('The mean gives the unique best approximation.','均值给出唯一的最佳逼近。')}[id][1 if zh else 0]),anchors=[]);titles[id]=zname if zh else en
         for id,en,zname,deps,stmt,zstmt,proof,zproof,code in ROWS:
             blocks[id]=dict(statement=zstmt if zh else stmt,proof=zproof if zh else proof,anchors=[]) if id not in ('projection','residual') else dict(content=(zstmt+'\n\n'+zproof) if zh else (stmt+'\n\n'+proof),anchors=[]);titles[id]=zname if zh else en
-        store=ContentStore(ws,hierarchy,directory/f'content.{locale}.json',locale=locale)
+        store=ContentStore(
+            ws, hierarchy, directory/f'content.{locale}.json', locale=locale,
+            generation_strategy='concurrent',
+        )
         store.state['metadata']={id:dict(title=title,short_description=next((r[7] if zh else r[6] for r in REGIONS if r[0]==id),'')) for id,title in titles.items()}
         store.publish(blocks)
         packages.append(dict(workspace='workspace.json',hierarchy='hierarchy.json',content=f'content.{locale}.json'))

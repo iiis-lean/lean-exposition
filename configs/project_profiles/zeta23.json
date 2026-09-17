@@ -1,0 +1,235 @@
+{
+  "contributors": [
+    {
+      "config": {
+        "backend": "toolkit_text_ast",
+        "source_roots": [
+          "Challenge.lean",
+          "Solution.lean",
+          "Zeta23"
+        ]
+      },
+      "contributor_id": "zeta23-source-inventory",
+      "kind": "source_inventory",
+      "required": true
+    },
+    {
+      "config": {
+        "modules": [
+          "Zeta23.Analytic.RectangleLogDeriv",
+          "Zeta23.Analytic.Stirling",
+          "Zeta23.Assembly",
+          "Zeta23.Assembly.Certificate",
+          "Zeta23.Assembly.CertificateC3",
+          "Zeta23.Assembly.Inputs",
+          "Zeta23.Assembly.SeamMult",
+          "Zeta23.Chebyshev",
+          "Zeta23.Defs",
+          "Zeta23.Defs.Counting",
+          "Zeta23.Defs.LeafIntegrals",
+          "Zeta23.Defs.Profile",
+          "Zeta23.ExplicitFormula",
+          "Zeta23.ExplicitFormula.Bridge",
+          "Zeta23.Final",
+          "Zeta23.FinalMult",
+          "Zeta23.FromPNTPlus.Auxiliary",
+          "Zeta23.FromPNTPlus.EulerMaclaurin",
+          "Zeta23.FromPNTPlus.Fourier",
+          "Zeta23.FromPNTPlus.Mathlib.Analysis.SpecialFunctions.Log.Basic",
+          "Zeta23.FromPNTPlus.Mertens",
+          "Zeta23.FromPNTPlus.Rectangle",
+          "Zeta23.FromPNTPlus.ResidueCalcOnRectangles",
+          "Zeta23.FromPNTPlus.Sobolev",
+          "Zeta23.FromPNTPlus.StrongPNTPrefix",
+          "Zeta23.FromPNTPlus.Tactic.AdditiveCombination",
+          "Zeta23.FromPNTPlus.ZetaBounds",
+          "Zeta23.FromPNTPlus.ZetaConj",
+          "Zeta23.GammaFacts",
+          "Zeta23.GammaFacts.Complete",
+          "Zeta23.GammaFacts.IntMu",
+          "Zeta23.GammaFacts.Mu",
+          "Zeta23.GammaFacts.Series",
+          "Zeta23.GammaFacts.StirlingVert",
+          "Zeta23.Hypotheses",
+          "Zeta23.Hypotheses.GzGp",
+          "Zeta23.LinAlg",
+          "Zeta23.LinAlg.HermitianPosPart",
+          "Zeta23.LinAlg.Inertia",
+          "Zeta23.LinAlg.PosIndex",
+          "Zeta23.LinAlg.RankTrace",
+          "Zeta23.LinAlg.Sylvester",
+          "Zeta23.LinAlg.VonNeumann",
+          "Zeta23.LinAlg.Weyl",
+          "Zeta23.MV",
+          "Zeta23.MV.Duality",
+          "Zeta23.MV.Eigen",
+          "Zeta23.MV.EigenIdentity",
+          "Zeta23.MV.Final",
+          "Zeta23.MV.Quadratic",
+          "Zeta23.MV.Spacing",
+          "Zeta23.Main",
+          "Zeta23.PiFacts",
+          "Zeta23.Poisson",
+          "Zeta23.Poisson.PaperFT",
+          "Zeta23.Prelude.InstancePriorities",
+          "Zeta23.PrimeSideA",
+          "Zeta23.PrimeSideA.Basic",
+          "Zeta23.PrimeSideA.Bridge",
+          "Zeta23.PrimeSideA.CrossMuP",
+          "Zeta23.PrimeSideA.CrossMuPCore",
+          "Zeta23.PrimeSideA.Defs",
+          "Zeta23.PrimeSideA.Ends",
+          "Zeta23.PrimeSideA.EndsCore",
+          "Zeta23.PrimeSideA.EndsE1",
+          "Zeta23.PrimeSideA.EndsE2",
+          "Zeta23.PrimeSideA.EndsNu",
+          "Zeta23.PrimeSideA.EndsWeighted",
+          "Zeta23.PrimeSideA.MuMu",
+          "Zeta23.PrimeSideB",
+          "Zeta23.PrimeSideB.Concrete",
+          "Zeta23.PrimeSideB.Final",
+          "Zeta23.PrimeSideB.PP",
+          "Zeta23.PrimeSideB.PPKernel",
+          "Zeta23.PrimeSideB.PPOffDiag",
+          "Zeta23.PrimeSideB.Traces",
+          "Zeta23.PrimeSideTemp",
+          "Zeta23.RvM.Backlund",
+          "Zeta23.RvM.BacklundDefs",
+          "Zeta23.RvM.CountByIntegral",
+          "Zeta23.RvM.Defs",
+          "Zeta23.RvM.Fold",
+          "Zeta23.RvM.GammaSide",
+          "Zeta23.RvM.Halving",
+          "Zeta23.RvM.LocalCount",
+          "Zeta23.RvM.MainTerm",
+          "Zeta23.RvM.NcountWindow",
+          "Zeta23.RvM.ReZeroCount",
+          "Zeta23.RvM.Statement",
+          "Zeta23.RvM.ZetaGrowth",
+          "Zeta23.Statement",
+          "Zeta23.Statement.Seam",
+          "Zeta23.Statement.SeamClosed",
+          "Zeta23.Tail",
+          "Zeta23.Tail.Basic",
+          "Zeta23.Tail.Count",
+          "Zeta23.Tail.Grid",
+          "Zeta23.Tail.Package",
+          "Zeta23.Tail.RankOne",
+          "Zeta23.Taper",
+          "Zeta23.Taper.Basic",
+          "Zeta23.Taper.Decay",
+          "Zeta23.Taper.Fourier",
+          "Zeta23.Taper.Norms",
+          "Zeta23.Taper.Params",
+          "Zeta23.Taper.Strip",
+          "Zeta23.ThmD.AssemblyD",
+          "Zeta23.ThmD.BridgeD",
+          "Zeta23.ThmD.Concrete",
+          "Zeta23.ThmD.Functional",
+          "Zeta23.ThmD.Limit",
+          "Zeta23.ThmD.PP",
+          "Zeta23.ThmD.PsiC",
+          "Zeta23.ThmD.Traces",
+          "Zeta23.ThmD.Window",
+          "Zeta23.ThmD.WindowCore",
+          "Zeta23.ThmD.WindowLocalHyps",
+          "Zeta23.TracesBoundsE",
+          "Zeta23.WeilEF.Contour",
+          "Zeta23.WeilEF.FullLine",
+          "Zeta23.WeilEF.FullLineAssembly",
+          "Zeta23.WeilEF.GammaRBracket",
+          "Zeta23.WeilEF.GoodHeights",
+          "Zeta23.WeilEF.Horizontal",
+          "Zeta23.WeilEF.Landau",
+          "Zeta23.WeilEF.Main",
+          "Zeta23.WeilEF.VerticalLine",
+          "Zeta23.WeilEF.XiLogDeriv",
+          "Zeta23.WeilEF.ZeroSumLimit",
+          "Zeta23.WeilEF.ZeroSummability",
+          "Zeta23.ZeroSide",
+          "Zeta23.ZeroSide.Final",
+          "Zeta23.ZeroSide.Mult",
+          "Zeta23.ZeroSide.RankTraceMult",
+          "Zeta23.ZetaReflect"
+        ],
+        "primary_outcome": "Zeta23.thmB₀_mult",
+        "repl_repository": "https://github.com/leanprover-community/repl",
+        "repl_revision": "8948401ab4924499421c94b7facdfca5ff27d81d",
+        "root_module": "Zeta23.FinalMult"
+      },
+      "contributor_id": "zeta23-finalmult-compiled",
+      "kind": "compiled",
+      "required": true
+    }
+  ],
+  "identity": {
+    "input_digest": "18bac5a2baf357ebe14ce9bd877a19c763778a2b0e250eb0b49af5a1f91ae2df",
+    "repo_key": "zeta23",
+    "revision": "fbdc36bbf17d20af3fd0447c6d1a8a02773c9844",
+    "toolchain": "leanprover/lean4:v4.33.0-rc2"
+  },
+  "material_assets": [
+    {
+      "asset_id": "[\"zeta23\",\"formalization.yaml\"]",
+      "binder_id": "formalization-primary-to-internal-provider",
+      "config": {
+        "declared_statement": "two_thirds_simple_on_critical_line",
+        "internal_provider": "Zeta23.thmB₀_mult",
+        "mapping_evidence": "alignment.statements note and Solution.lean delegation"
+      },
+      "media_type": "application/yaml",
+      "parser_id": "formalization_yaml",
+      "path": "formalization.yaml",
+      "role": "primary",
+      "sha256": "07d6fb33253544c7c8356d68132f6f6ea6563da1cb12626d5089d769f971e927"
+    }
+  ],
+  "order_hints": [],
+  "primary_outcomes": [],
+  "profile_id": "zeta23-two-thirds-simple",
+  "scope_hints": [
+    {
+      "kind": "library",
+      "name": "Zeta23",
+      "parent": null,
+      "scope_id": "zeta23-library",
+      "source_prefixes": [
+        "Zeta23/"
+      ]
+    }
+  ],
+  "stage": "verified_slice",
+  "target_slices": [
+    {
+      "compiled_roots": [
+        {
+          "module": "Zeta23.FinalMult",
+          "name": "Zeta23.thmB₀_mult"
+        }
+      ],
+      "contributor_ids": [
+        "zeta23-source-inventory",
+        "zeta23-finalmult-compiled"
+      ],
+      "material_asset_ids": [
+        "[\"zeta23\",\"formalization.yaml\"]"
+      ],
+      "order_hint_ids": [],
+      "primary_outcomes": [
+        {
+          "module": "Zeta23.FinalMult",
+          "name": "Zeta23.thmB₀_mult"
+        }
+      ],
+      "scope_hint_ids": [
+        "zeta23-library"
+      ],
+      "slice_id": "zeta-two-thirds-simple",
+      "source_roots": [
+        "Zeta23/FinalMult.lean"
+      ],
+      "unit_hint_ids": []
+    }
+  ],
+  "unit_hints": []
+}

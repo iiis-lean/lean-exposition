@@ -286,7 +286,6 @@ def _create_response(client, config, prompt_or_history, schema, *, tools=()):
         kwargs: dict[str, Any] = {
             "model": config.model,
             "input": prompt_or_history,
-            "max_output_tokens": config.max_output_tokens,
             "text": {
                 "format": {
                     "type": "json_schema",
@@ -297,6 +296,8 @@ def _create_response(client, config, prompt_or_history, schema, *, tools=()):
             },
             **cache,
         }
+        if config.max_output_tokens is not None:
+            kwargs["max_output_tokens"] = config.max_output_tokens
         if config.reasoning is not None:
             kwargs["reasoning"] = config.reasoning
         if tools:
@@ -321,7 +322,6 @@ def _create_response(client, config, prompt_or_history, schema, *, tools=()):
     kwargs = {
         "model": config.model,
         "messages": messages,
-        "max_tokens": config.max_output_tokens,
         "response_format": {
             "type": "json_schema",
             "json_schema": {
@@ -332,6 +332,8 @@ def _create_response(client, config, prompt_or_history, schema, *, tools=()):
         },
         **cache,
     }
+    if config.max_output_tokens is not None:
+        kwargs["max_tokens"] = config.max_output_tokens
     if config.reasoning is not None:
         kwargs["reasoning_effort"] = config.reasoning["effort"]
     if tools:

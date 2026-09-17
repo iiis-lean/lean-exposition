@@ -37,40 +37,44 @@ EXPECTED_PAIRS = {
 def load_case(label):
     if label == "uniform":
         path = LC_ROOT / "UniformMissingTraceFamily"
-        workspace = load_lc_workspace(LCRepositoryInput(
+        bundle = load_lc_workspace(LCRepositoryInput(
             path, "UniformMissingTraceFamily", "de46f82cae08cd2b7e5cc08d45a800ad952dba53"))
+        workspace = bundle.workspace
         repo_key = "UniformMissingTraceFamily"
         source = source_order_from_lc_git(workspace, repo_key, path)
     elif label == "erdos946":
         path = LC_ROOT / "ConsecutiveDivisorCounts"
         provider = LC_ROOT / "WeightedSieve"
-        workspace = load_lc_workspace(
+        bundle = load_lc_workspace(
             LCRepositoryInput(path, "ConsecutiveDivisorCounts",
                               "2bcca869a7d9d0a79320784e7bf27b871f8f8cd0"),
             (LCRepositoryInput(provider, "WeightedSieve"),),
         )
+        workspace = bundle.workspace
         repo_key = "ConsecutiveDivisorCounts"
         source = source_order_from_lc_git(workspace, repo_key, path)
     elif label == "sensitivity":
         path = ROOT / "data/research/native/sensitivity/source"
         modules = ("Sensitivity.Defs", "Sensitivity.Multilinear", "Sensitivity.Subcube",
                    "Sensitivity.Parity", "Sensitivity.HuangBridge", "Sensitivity.Main")
-        workspace = load_native(path, repo_key=label, modules=modules,
-                                primary_outcomes=("Sensitivity.sensitivity_ge_sqrt_degree",))
+        bundle = load_native(path, repo_key=label, modules=modules,
+                             primary_outcomes=("Sensitivity.sensitivity_ge_sqrt_degree",))
+        workspace = bundle.workspace
         repo_key = label
         source = native_source(workspace, repo_key, path)
     elif label == "agree_to_disagree":
         path = ROOT / "data/research/native/agree_to_disagree/source"
-        workspace = load_native(
+        bundle = load_native(
             path, repo_key=label, modules=("AgreeToDisagree.AgreeToDisagree",),
             primary_outcomes=("AgreeToDisagree.agreeToDisagree",
                               "AgreeToDisagree.agreeToDisagree'"),
         )
+        workspace = bundle.workspace
         repo_key = label
         source = native_source(workspace, repo_key, path)
     else:
         raise ValueError(label)
-    return workspace, repo_key, source
+    return bundle, repo_key, source
 
 
 def native_source(workspace, repo_key, path):
@@ -125,13 +129,14 @@ def digest(value):
 
 
 def analyze(label, output):
-    workspace, repo_key, source = load_case(label)
+    bundle, repo_key, source = load_case(label)
+    workspace = bundle.workspace
     config = BuildConfig()
-    order = derive_narrative_order(workspace, repo_key, config=config, source=source)
+    order = derive_narrative_order(bundle, repo_key, config=config, source=source)
     order_path = output / f"{label}-narrative-order.json"
     order.save(order_path)
     assert NarrativeOrder.load(order_path) == order
-    hierarchy = build_hierarchy(workspace, repo_key, config=config, source=source,
+    hierarchy = build_hierarchy(bundle, repo_key, config=config, source=source,
                                 narrative_order=order)
     assert Hierarchy.from_dict(hierarchy.to_dict()) == hierarchy
 
@@ -155,6 +160,13 @@ def analyze(label, output):
                for ref in repository.primary_outcomes if ref in target)
 
     reversed_workspace = replace(workspace, declarations=tuple(reversed(workspace.declarations)))
+    reversed_digest = reversed_workspace.digest()
+    reversed_bundle = replace(
+        bundle,
+        workspace=reversed_workspace,
+        structure_policy=replace(bundle.structure_policy, workspace_digest=reversed_digest),
+        dependency_coverage=replace(bundle.dependency_coverage, workspace_digest=reversed_digest),
+    )
     reversed_source = derive_source_order(
         reversed_workspace, repo_key,
         asset_texts=source.assets,
@@ -164,7 +176,7 @@ def analyze(label, output):
     if reversed_source is None:
         # LC source records are already canonical and independent of declaration enumeration.
         reversed_source = replace(source, records=dict(reversed(tuple(source.records.items()))))
-    reversed_order = derive_narrative_order(reversed_workspace, repo_key, config=config,
+    reversed_order = derive_narrative_order(reversed_bundle, repo_key, config=config,
                                              source=reversed_source)
     order_semantics = [scope.to_dict() for scope in order.scopes]
     reversed_semantics = [scope.to_dict() for scope in reversed_order.scopes]

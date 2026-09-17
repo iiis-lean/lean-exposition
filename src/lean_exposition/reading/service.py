@@ -12,7 +12,7 @@ import uuid
 
 import jsonschema
 
-from lean_exposition.exposition import ContentError, render, decl_card, scope_view
+from lean_exposition.exposition import ContentError, render
 from lean_exposition.exposition.content import atomic_json, digest
 from lean_exposition.exposition.writing import PublicationControl
 from lean_exposition.exposition.views import ref_key
@@ -67,6 +67,7 @@ class ReaderService:
             root = store.nodes[store.hierarchy["root_id"]]
             instances.append({"instance_id": store.instance_id, "root_id": root["id"], "locale": store.locale,
                               "structure_id": store.structure_id,
+                              "generation_strategy": store.generation_strategy,
                               "title": manifest["metadata"].get(root["id"], {}).get("title", root["title"]),
                               "workspace_digest": store.workspace.digest(),
                               "declaration_count": len({ref_key(ref) for ref in root["decl_refs"]}),
@@ -199,7 +200,7 @@ class ReaderService:
             groups.setdefault(group_id, {"repo_key": repo, "refs": []})["refs"].append(external)
         group_for = {external["id"]: id for id, group in groups.items() for external in group["refs"]}
         used_external = set()
-        for edge in store.hierarchy.get("edges", []):
+        for edge in store.dependency_edges():
             provider, consumer = endpoint(edge["provider_node"]), endpoint(edge["consumer_node"])
             if provider == consumer:
                 continue
@@ -337,7 +338,8 @@ class ReaderService:
         return {"view_id": view["view_id"], "node_id": node_id, "visible_ancestor": current,
                 "anchor": anchor_id, "expand_path": path, "external": False}
 
-    def _inspect(self, reader_id, ref, detail="summary", view_id=None, cursor=None, limit=50):
+    def _inspect(self, reader_id, ref, detail="summary", view_id=None,
+                 dependency_view="analysis", cursor=None, limit=50):
         reader, store, view, rendered = self._view(reader_id, view_id)
         if detail == "job":
             job = self.state["jobs"].get(ref) if isinstance(ref, str) else None
@@ -366,15 +368,18 @@ class ReaderService:
                     "kind": node["kind"] if node else "external", "raw_kind": self._raw_kind(store, node) if node else "external",
                     "description": store.manifest(view["manifest_id"])["metadata"].get(node_id, {}).get("short_description", ""), "member_count": len(refs),
                     "location": self._locate(reader_id, ref, view["view_id"])}
-        context = json.dumps([ref, detail], sort_keys=True)
+        context = json.dumps([ref, detail, dependency_view], sort_keys=True)
         offset = self._offset(cursor, view["view_id"], "inspect", context)
         if detail == "interfaces" and not group:
             if node is None:
-                card = decl_card(store.workspace, declaration_ref)
+                card = store._decl_view(declaration_ref)
                 items = [{"relation_kind": "external_declaration", "ref": declaration_ref,
                           "loaded": card["loaded"], "name": card.get("name")}]
             else:
-                value = scope_view(store.workspace, store.hierarchy, node_id, limit=0)
+                value = store._scope_material(
+                    node_id, limit=0,
+                    full_dependencies=dependency_view == "full",
+                )
                 items = [{"relation_kind": kind, **edge} for kind in ("incoming", "outgoing", "internal") for edge in value[kind]]
                 items += [{"relation_kind": "primary_outcome", "ref": ref} for ref in value["primary_outcomes"]]
         elif detail == "members" or (detail == "interfaces" and group):
@@ -382,7 +387,7 @@ class ReaderService:
         else:
             items = []
             for declaration_ref in refs:
-                card = decl_card(store.workspace, declaration_ref, proof=True)
+                card = store._decl_view(declaration_ref, proof=True)
                 if detail in {"nl", "lean"}:
                     field = "nl" if detail == "nl" else "formal"
                     for part in ("statement", "proof"):
@@ -403,6 +408,8 @@ class ReaderService:
         page = items[offset:offset + limit]
         result = {"view_id": view["view_id"], "detail": detail, "items": page, "total": len(items),
                   "offset": offset, "next_cursor": self._cursor(view["view_id"], "inspect", offset + limit, context) if offset + limit < len(items) else None}
+        if detail == "interfaces":
+            result["dependency_view"] = dependency_view
         if detail in {"nl", "lean"}:
             result["text"] = "\n".join(item["text"] if item["text"] is not None else "[" + (item["reason"] or "Missing source") + "]" for item in page)
         if detail in {"nl", "lean", "sources"}:
@@ -458,7 +465,7 @@ class ReaderService:
     def _job_view(job, reader):
         return {k: deepcopy(v) for k, v in {**job, "latest_view": reader["current_view"]}.items()
                 if k in {"job_id", "status", "applied", "result_view", "changed_anchor", "error", "latest_view",
-                         "completed_children", "total_children"}}
+                         "completed_children", "total_children", "generation_strategy"}}
 
     def _apply_action(self, reader_id, expected_view, action, target, budget_codepoints=None, locale=None):
         reader, store, view, rendered = self._view(reader_id)
@@ -528,6 +535,7 @@ class ReaderService:
                 job_id = "job-" + uuid.uuid4().hex
                 job = {"job_id": job_id, "reader_id": reader_id, "target": target, "expected_view": expected_view,
                        "status": "queued", "applied": False, "completed_children": 0,
+                       "generation_strategy": store.generation_strategy,
                        "total_children": len(store.nodes[target]["children"])}
                 self.state["jobs"][job_id] = job
                 self.generation_controls[job_id] = PublicationControl()

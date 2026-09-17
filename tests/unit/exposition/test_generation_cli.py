@@ -15,7 +15,7 @@ class GenerationEvidenceTests(unittest.TestCase):
         self.assertEqual(config.base_url, 'https://api.deepseek.com')
         self.assertEqual(config.model, 'deepseek-flash')
         self.assertEqual(config.protocol, 'responses')
-        self.assertEqual(config.max_output_tokens, 32768)
+        self.assertIsNone(config.max_output_tokens)
 
     def test_resume_retains_unfinished_request_number(self):
         path = Path(__file__).resolve().parents[3] / 'scripts' / 'math_reader_generate.py'

@@ -7,6 +7,8 @@ import uuid
 
 from .views import decl_card, ref_key, scope_view, writing_view
 
+GENERATION_STRATEGIES = ("sequential", "concurrent")
+
 
 class PublicationControl:
     """Serialize cancellation with the one manifest commit decision."""
@@ -118,6 +120,10 @@ def mathematical_instructions(locale):
         "actual result delivered here. Avoid generic navigation promises or repeated wrappers. "
         "Canonical ancestor introductions and preceding fixed outcomes are available context. Ancestor synopses disappear "
         "on expansion and are not premises. Parent lead_out is a future goal, never an available result for its children. "
+        "Follow the shared writing_convention exactly. Its superseded parent synopsis is supplied only to preserve established "
+        "terminology, notation and intended coverage; never cite its conclusions as premises. Do not introduce a second alias "
+        "for an object or symbol already fixed by that convention. In sequential generation, preceding_sibling_outcomes are "
+        "already established results and should be used without repeating their derivations. "
         "Coordinate child responsibilities using the child plan and stable boundaries; supply any needed definitions "
         "that appeared only in the parent synopsis. A theorem statement must preserve the full mathematical assertion; "
         "its proof explains supported reasoning. A definition entry preserves its defining meaning. "
@@ -140,6 +146,15 @@ def mathematical_prompt(locale, material, context):
     )
 
 
+def mathematical_draft_instructions(locale, writing_convention):
+    """Keep group-wide writing context in one byte-stable provider prefix."""
+    return (
+        mathematical_instructions(locale)
+        + "\n\nSHARED WRITING CONVENTION\n"
+        + json.dumps(writing_convention or {}, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    )
+
+
 def _bounded(value, max_string=10000):
     """Explicit clipping, never silently substitute a guessed mathematical body."""
     if isinstance(value, str) and len(value) > max_string:
@@ -156,10 +171,11 @@ class WritingJobs:
         from .content import ContentError
         return ContentError(message)
 
-    def create_writing_job(self, parent_id=None, *, base_manifest_id=None):
+    def create_writing_job(self, parent_id=None, *, base_manifest_id=None, generation_strategy=None):
         """Bind a root or ordered sibling group to one immutable base manifest."""
         if self.locale is None:
             raise self._writing_error("Writing jobs require an explicit locale and a new content package.")
+        generation_strategy = self.resolve_generation_strategy(generation_strategy)
         with self.lock:
             base = self.state["latest_manifest"] if base_manifest_id is None else base_manifest_id
             if base != self.state["latest_manifest"]:
@@ -179,11 +195,14 @@ class WritingJobs:
                     raise self._writing_error("Sibling group is already published, wholly or partially.")
             jobs = self.state.setdefault("writing_jobs", {})
             for job in jobs.values():
-                if job["parent_id"] == parent_id and job["base_manifest_id"] == base and job["status"] == "active":
+                if (job["parent_id"] == parent_id and job["base_manifest_id"] == base
+                        and job.get("generation_strategy", "sequential") == generation_strategy
+                        and job["status"] == "active"):
                     return job["job_id"]
             job_id = "writing-" + uuid.uuid4().hex
             jobs[job_id] = {"job_id": job_id, "instance_id": self.instance_id, "locale": self.locale,
                            "parent_id": parent_id, "base_manifest_id": base, "children": list(children),
+                           "generation_strategy": generation_strategy,
                            "accepted": {}, "step": 0, "draft": None, "draft_id": None, "status": "active"}
             self._save()
             return job_id
@@ -219,6 +238,51 @@ class WritingJobs:
                 "future_goal": blocks.get(parents.get(node_id), {}).get("lead_out"),
                 "parent_synopsis_is_not_a_premise": True}
 
+    @staticmethod
+    def _shared_interface(cards):
+        statement = cards.get("statement") or {}
+        return {
+            "ref": cards.get("ref"),
+            "name": cards.get("name"),
+            "statement": statement,
+            "proof_available": cards.get("proof_available"),
+        }
+
+    def _writing_convention(self, parent, children, materials):
+        child_plan = [
+            {
+                "node_id": child,
+                "title": self.nodes[child]["title"],
+                "decl_refs": self.nodes[child]["decl_refs"],
+            }
+            for child in children
+        ]
+        occurrences = {}
+        cards = {}
+        for child, material in materials.items():
+            for card in material.get("cards", []):
+                ref = card.get("ref")
+                if not isinstance(ref, dict) or "repo_key" not in ref or "local_id" not in ref:
+                    continue
+                key = (ref["repo_key"], ref["local_id"])
+                occurrences.setdefault(key, set()).add(child)
+                cards.setdefault(key, card)
+        shared = [
+            self._shared_interface(cards[key])
+            for key in sorted(occurrences)
+            if len(occurrences[key]) > 1
+        ]
+        return _bounded({
+            "established_parent_setting": parent.get("lead_in") if parent else None,
+            "superseded_parent_synopsis_for_terminology": parent.get("synopsis") if parent else None,
+            "superseded_parent_synopsis_policy": (
+                "Reuse its established terminology, notation and coverage only; its conclusions are not premises."
+            ),
+            "future_parent_goal": parent.get("lead_out") if parent else None,
+            "ordered_child_plan": child_plan,
+            "shared_source_interfaces": shared,
+        }, 12000)
+
     def _job_preview(self, job, draft=None):
         from .content import PARTS
         parent = self.manifest(job["base_manifest_id"])["blocks"][job["parent_id"]] if job["parent_id"] else None
@@ -247,9 +311,14 @@ class WritingJobs:
             blocks = self.manifest(job["base_manifest_id"])["blocks"] if job["base_manifest_id"] else {}
             blocks.update(job["accepted"])
             context = self._canonical_context(node_id, blocks)
+            parent = blocks.get(job["parent_id"]) if job["parent_id"] else None
+            materials = {child: self._writing_material(child, mathematical=True,
+                                                       text_record_ids=job.get("decl_text_records"))
+                         for child in job["children"]}
             context.update(allowed_node_anchors=sorted(self._allowed(node_id)[1]), child_index=job["step"], ordered_children=job["children"],
                            child_plan=[{"node_id": child, "title": self.nodes[child]["title"],
                                         "declaration_count": len(self.nodes[child]["decl_refs"])} for child in job["children"]],
+                           writing_convention=self._writing_convention(parent, job["children"], materials),
                            preview=self._job_preview(job, job["draft"]))
             context = _bounded(context, 1200)
             if len(json.dumps(context, ensure_ascii=False)) > 12000:
@@ -263,7 +332,7 @@ class WritingJobs:
                     "preview": self._job_preview(job, job["draft"])}
 
     def _agent_material(self, node_id):
-        material = _bounded(writing_view(self.workspace, self.hierarchy, node_id, mathematical=True), 2000)
+        material = _bounded(self._writing_material(node_id, mathematical=True), 2000)
         if len(json.dumps(material, ensure_ascii=False)) <= 36000:
             return material
         return {"node": material["node"], "source_query_required": True,
@@ -340,12 +409,13 @@ class WritingJobs:
             # but cannot cross into unrelated repositories or arbitrary inputs.
             related = set()
             for target in allowed_nodes:
-                view = scope_view(self.workspace, self.hierarchy, target, limit=0)
+                view = self._scope_material(target, limit=0)
                 related.update(ref_key(ref) for ref in view["decl_refs"])
             if query == "decl":
                 if not isinstance(decl_ref, dict) or set(decl_ref) != {"repo_key", "local_id"} or ref_key(decl_ref) not in related:
                     raise self._writing_error("Declaration is outside this writing job.")
-                value = decl_card(self.workspace, decl_ref, proof=True)
+                value = self._decl_view(decl_ref, proof=True,
+                                        text_record_ids=job.get("decl_text_records"))
             elif query == "dependency_path":
                 if not all(isinstance(ref, dict) and set(ref) == {"repo_key", "local_id"} and ref_key(ref) in related
                            for ref in (provider_ref, consumer_ref)):
@@ -356,7 +426,10 @@ class WritingJobs:
                 if target not in allowed_nodes:
                     raise self._writing_error("Node is outside this writing job.")
                 if query == "scope":
-                    value = scope_view(self.workspace, self.hierarchy, target, limit=None)
+                    value = self._scope_material(
+                        target, limit=None,
+                        text_record_ids=job.get("decl_text_records"),
+                    )
                     value["availability"] = "Source interfaces only; future ancestor conclusions are not current premises."
                 else:
                     blocks = self.manifest(job["base_manifest_id"])["blocks"] if job["base_manifest_id"] else {}
@@ -412,7 +485,7 @@ class WritingJobs:
                     if self.locale == "zh" else
                     "This auxiliary entry belongs to the formal development. Its original proof text is absent from the fixed source. "
                     "Recorded identity, dependencies, and source information can be inspected in declaration details; no missing proof is reconstructed here.")
-            short_id = (decl_card(self.workspace, node["decl_refs"][0]).get("name") or "entry").rsplit(".", 1)[-1][:32]
+            short_id = (self._decl_view(node["decl_refs"][0]).get("name") or "entry").rsplit(".", 1)[-1][:32]
             title = ("辅助条目 · " if self.locale == "zh" else "Auxiliary entry · ") + short_id
             return self.validate_submission(node_id, {"title": title, "content": text, "anchors": [{"part": "content", "targets": [{"decl_ref": ref} for ref in node["decl_refs"]]}]})
         return None
@@ -424,20 +497,24 @@ class WritingJobs:
             return fixed
         if self.runtime is None:
             raise self._writing_error("No content runtime configured.")
-        material = material or writing_view(self.workspace, self.hierarchy, node_id, mathematical=True)
+        material = material or self._writing_material(node_id, mathematical=True)
         context = {**context, "allowed_node_anchors": sorted(self._allowed(node_id)[1])}
         prompt = mathematical_prompt(self.locale, material, context)
         if len(prompt) > self.max_input_characters:
             raise self._writing_error(f"Prefetched mathematical material exceeds {self.max_input_characters} characters; split the scope or explicitly supply a smaller source-supported writing task. No model call was made.")
         return self.validate_submission(node_id, self.runtime(prompt, submission_schema(self.kind(node_id), include_title=True)))
 
-    def run_writing_job(self, parent_id, *, cancelled=lambda: False, progress=None, publication_control=None):
-        """Run the API workflow, or retain the interactive callable fallback."""
+    def run_writing_job(self, parent_id, *, generation_strategy=None, cancelled=lambda: False, progress=None, publication_control=None):
+        """Run one explicit API generation strategy, with a callable fallback."""
+        strategy = self.resolve_generation_strategy(generation_strategy)
         if self.model_executor is not None:
-            return self._run_concurrent_writing_job(
-                parent_id, cancelled=cancelled, progress=progress,
+            return self._run_model_writing_job(
+                parent_id, generation_strategy=strategy,
+                cancelled=cancelled, progress=progress,
                 publication_control=publication_control,
             )
+        if strategy != "sequential":
+            raise self._writing_error("Concurrent generation requires a structured model executor.")
         return self._run_sequential_writing_job(parent_id, cancelled=cancelled)
 
     def _run_sequential_writing_job(self, parent_id, *, cancelled=lambda: False):
@@ -446,7 +523,7 @@ class WritingJobs:
             if self.state["latest_manifest"]:
                 if parent_id is None or all(child in self.manifest()["blocks"] for child in self.nodes[parent_id]["children"]):
                     return self.state["latest_manifest"]
-            job_id = self.create_writing_job(parent_id)
+            job_id = self.create_writing_job(parent_id, generation_strategy="sequential")
             while True:
                 if cancelled():
                     self.cancel_writing_job(job_id)
@@ -461,6 +538,13 @@ class WritingJobs:
                     context.update(ordered_children=job["children"], child_index=job["step"],
                                    child_plan=[{"node_id": child, "title": self.nodes[child]["title"],
                                                 "decl_refs": self.nodes[child]["decl_refs"]} for child in job["children"]],
+                                   writing_convention=self._writing_convention(
+                                       blocks.get(parent_id) if parent_id else None,
+                                       job["children"],
+                                       {child: self._writing_material(child, mathematical=True,
+                                                                      text_record_ids=job.get("decl_text_records"))
+                                        for child in job["children"]},
+                                   ),
                                    preview=self._job_preview(job, job["draft"]))
                     block = self._generate_mathematical(step["node_id"], context)
                     payload = {key: value for key, value in block.items() if key not in {"node_id", "kind"}}
@@ -475,15 +559,16 @@ class WritingJobs:
                 if result["status"] == "published":
                     return result["manifest_id"]
 
-    def _run_concurrent_writing_job(
+    def _run_model_writing_job(
         self,
         parent_id,
         *,
+        generation_strategy,
         cancelled=lambda: False,
         progress=None,
         publication_control=None,
     ):
-        """Generate one sibling group concurrently and publish it with one CAS."""
+        """Generate one sibling group with the selected strategy and one CAS."""
         from lean_exposition.workflows import EetDraftRequest, EetWorkflow
         from .content import submission_schema
 
@@ -495,7 +580,7 @@ class WritingJobs:
                     for child in self.nodes[parent_id]["children"]
                 ):
                     return self.state["latest_manifest"]
-            job_id = self.create_writing_job(parent_id)
+            job_id = self.create_writing_job(parent_id, generation_strategy=generation_strategy)
             with self.lock:
                 job = self._job(job_id, active=True)
                 base = job["base_manifest_id"]
@@ -509,15 +594,62 @@ class WritingJobs:
                     stitching=None,
                     validation=None,
                     failure=None,
+                    generation_strategy=generation_strategy,
                 )
                 self._save()
             if progress:
                 progress("queued", 0, len(children))
 
+            preliminary_materials = {
+                child: self._writing_material(child, mathematical=True)
+                for child in children
+            }
+            text_record_ids = {}
+            if self.decl_text_store is not None:
+                from .texts import ensure_decl_texts
+                from lean_exposition.models import DeclRef
+
+                refs = []
+                seen = set()
+                for material in preliminary_materials.values():
+                    for card in material.get("cards", []):
+                        if not card.get("loaded"):
+                            continue
+                        key = ref_key(card["ref"])
+                        if key not in seen:
+                            seen.add(key)
+                            refs.append(DeclRef(*key))
+                try:
+                    text_outcome = ensure_decl_texts(
+                        self.workspace, self.decl_text_store, refs,
+                        locale=self.locale, executor=self.model_executor,
+                        profile=self.text_profile,
+                    )
+                except Exception as exc:
+                    self._fail_pipeline_job(
+                        job_id, "declaration_texts",
+                        "Declaration text preparation raised " + type(exc).__name__ + ".",
+                    )
+                    raise self._writing_error(
+                        "Declaration text preparation failed; no exposition content was published."
+                    ) from exc
+                text_record_ids = text_outcome["record_ids"]
+                with self.lock:
+                    job = self._job(job_id)
+                    job["decl_text_records"] = dict(text_record_ids)
+                    job["decl_text_failures"] = list(text_outcome["failed"])
+                    self._save()
+
             base_blocks = self.manifest(base)["blocks"] if base else {}
             parent = base_blocks.get(parent_id) if parent_id else None
             prepared = {}
             requests = []
+            materials = {
+                child: self._writing_material(
+                    child, mathematical=True, text_record_ids=text_record_ids,
+                )
+                for child in children
+            } if self.decl_text_store is not None else preliminary_materials
             child_plan = [
                 {
                     "node_id": child,
@@ -526,6 +658,7 @@ class WritingJobs:
                 }
                 for child in children
             ]
+            writing_convention = self._writing_convention(parent, children, materials)
             for index, child in enumerate(children):
                 fixed = self._fixed_mathematical(child)
                 if fixed is not None:
@@ -540,13 +673,16 @@ class WritingJobs:
                     ordered_children=children,
                     child_index=index,
                     child_plan=child_plan,
-                    group_generation="siblings_are_drafted_independently_then_adjacent_boundaries_are_stitched",
+                    writing_convention=writing_convention,
+                    group_generation=(
+                        "siblings_are_drafted_independently_then_adjacent_boundaries_are_stitched"
+                        if generation_strategy == "concurrent"
+                        else "siblings_are_drafted_in_order_with_preceding_outcomes"
+                    ),
                     first_child_receives_parent_lead_in=index == 0,
                     last_child_leads_to_parent_lead_out=index == len(children) - 1,
                 )
-                material = writing_view(
-                    self.workspace, self.hierarchy, child, mathematical=True
-                )
+                material = materials[child]
                 prompt = mathematical_prompt(self.locale, material, context)
                 if len(prompt) > self.max_input_characters:
                     self._fail_pipeline_job(
@@ -565,6 +701,7 @@ class WritingJobs:
                         material,
                         context,
                         submission_schema(self.kind(child), include_title=True),
+                        self.max_input_characters,
                     )
                 )
 
@@ -606,6 +743,8 @@ class WritingJobs:
                     prepared=prepared,
                     parent_lead_in=parent.get("lead_in") if parent else None,
                     parent_lead_out=parent.get("lead_out") if parent else None,
+                    writing_convention=writing_convention,
+                    strategy=generation_strategy,
                     local_validator=local_validator,
                     cancelled=cancelled,
                     progress=update,
@@ -617,7 +756,7 @@ class WritingJobs:
                     "Workflow execution raised " + type(exc).__name__ + ".",
                 )
                 raise self._writing_error(
-                    "Concurrent exposition generation failed; provider call records were retained without publication."
+                    "Exposition generation failed; provider call records were retained without publication."
                 ) from exc
             with self.lock:
                 job = self._job(job_id)
@@ -655,7 +794,7 @@ class WritingJobs:
                     "; ".join(details) or "A model call or validation stage failed.",
                 )
                 raise self._writing_error(
-                    "Concurrent exposition generation failed validation; drafts and evidence were retained without publication."
+                    "Exposition generation failed validation; drafts and evidence were retained without publication."
                 )
             if cancelled():
                 with self.lock:

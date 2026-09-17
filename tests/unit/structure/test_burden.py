@@ -1,9 +1,13 @@
 from dataclasses import replace
 import unittest
-from test_graph import workspace
+from test_graph import bundle, workspace
 from lean_exposition.features import extract_features
-from lean_exposition.structure import build_hierarchy
+from lean_exposition.structure import build_hierarchy as _build_hierarchy
 from lean_exposition.structure.regions import partition_regions
+
+
+def build_hierarchy(workspace, repo_key, **kwargs):
+    return _build_hierarchy(bundle(workspace), repo_key, **kwargs)
 
 
 def leaves(tree):
@@ -45,6 +49,15 @@ class BurdenTests(unittest.TestCase):
         self.assertEqual(default.edges, alternative.edges)
         self.assertNotEqual(default.hierarchy_id, alternative.hierarchy_id)
         self.assertEqual(extract_features(w, alternative).hierarchy_id, alternative.hierarchy_id)
+        unrelated = f.to_dict()
+        unrelated["config_digest"] = "f" * 64
+        unrelated["hierarchy_id"] = "unrelated"
+        unrelated["nodes"] = {"unrelated": {"value": 100}}
+        unrelated["metadata"] = {"changed": True}
+        self.assertEqual(alternative.to_dict(),
+                         build_hierarchy(w, 'r', region_burden_features=unrelated).to_dict())
+        self.assertNotIn("feature_digest", alternative.config["region_burden"])
+        self.assertNotIn("feature_config_digest", alternative.config["region_burden"])
         with self.assertRaises(ValueError):
             build_hierarchy(w, 'r', region_burden_features=replace(f, workspace_digest='stale'))
 

@@ -1,5 +1,10 @@
 # Bounded API blind review and Reader comparison
 
+> Historical run: its 4,096-token output limit prevented every blind review
+> from returning structured output. The corrected Grok run preserves this
+> evidence and is reported separately in
+> [`GROK_RESULTS.md`](GROK_RESULTS.md).
+
 Date: 2026-09-16. The frozen selection and complete redacted call evidence are
 in [`selection.json`](../../data/research/source_order/api_eval_20260916/selection.json)
 and [`report.json`](../../data/research/source_order/api_eval_20260916/report.json).

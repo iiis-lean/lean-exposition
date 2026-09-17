@@ -12,6 +12,7 @@ dependencies = []
 
 [project.optional-dependencies]
 native = ["lean-interact==0.11.1"]
+materials = ["PyYAML>=6,<7"]
 runtime = ["openai==2.15.0", "httpx==0.28.1", "jsonschema==4.26.0"]
 reader = ["fastapi==0.125.0", "uvicorn==0.34.3", "mcp==1.26.0", "jsonschema==4.26.0"]
 
@@ -25,4 +26,5 @@ include = ["lean_exposition*"]
 [tool.setuptools.package-data]
 "lean_exposition.lean" = ["*.lean"]
 "lean_exposition.features" = ["type_probe.lean"]
+"lean_exposition.structure" = ["foundation_catalog.json"]
 "lean_exposition.app" = ["static/*", "static/**/*"]

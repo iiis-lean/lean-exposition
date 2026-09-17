@@ -5,7 +5,7 @@
   "protocol": "responses",
   "transport": "http",
   "timeout": 180,
-  "max_output_tokens": 32768,
+  "max_output_tokens": null,
   "reasoning": null,
   "extra_body": {},
   "prompt_cache_key": null

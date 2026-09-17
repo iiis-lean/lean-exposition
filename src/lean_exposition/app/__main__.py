@@ -22,6 +22,8 @@ def main():
     parser.add_argument("--recommendation-policy", choices=("structural", "random"), default="structural")
     parser.add_argument("--packages", type=Path, help="JSON array of workspace/hierarchy/content paths for a multilingual library")
     parser.add_argument("--runtime-config", type=Path, help="ApiConfig JSON; credentials are referenced only by environment variable name")
+    parser.add_argument("--generation-strategy", choices=("sequential", "concurrent"), default="concurrent",
+                        help="Sibling writing strategy for uncached API generation")
     args = parser.parse_args()
     generation_executor = None
     feature_paths = {}
@@ -38,7 +40,8 @@ def main():
             paths = {key: args.packages.parent / package[key] for key in ("workspace", "hierarchy", "content")}
             stores.append(ContentStore(Workspace.from_json(paths["workspace"].read_text()),
                                        json.loads(paths["hierarchy"].read_text()), paths["content"],
-                                       executor=generation_executor))
+                                       executor=generation_executor,
+                                       generation_strategy=args.generation_strategy))
             if package.get("features"):
                 feature_paths[stores[-1].instance_id] = args.packages.parent / package["features"]
     elif any((args.workspace, args.hierarchy, args.content)):
@@ -46,7 +49,8 @@ def main():
             parser.error("--workspace, --hierarchy and --content must be supplied together")
         store = ContentStore(Workspace.from_json(args.workspace.read_text()),
                              json.loads(args.hierarchy.read_text()), args.content,
-                             executor=generation_executor)
+                             executor=generation_executor,
+                             generation_strategy=args.generation_strategy)
     else:
         store = create_demo(args.state_dir)
         store.model_executor = generation_executor

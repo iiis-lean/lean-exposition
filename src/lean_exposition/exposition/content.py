@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import asdict
 import hashlib
 import json
 from pathlib import Path
@@ -10,7 +11,7 @@ import threading
 import jsonschema
 
 from .views import decl_card, ref_key, scope_view, writing_view
-from .writing import WritingJobs, mathematical_prompt
+from .writing import GENERATION_STRATEGIES, WritingJobs, mathematical_draft_instructions, mathematical_prompt
 
 
 class ContentError(ValueError):
@@ -82,7 +83,8 @@ def exposition_prompt(material, context):
     )
 
 
-def content_digest(locale, max_input_characters):
+def content_digest(locale, max_input_characters, generation_strategy, text_profile=None,
+                   dependency_analysis_digest=None):
     """Identify the exact current prompt, schema, locale and writing configuration."""
     from lean_exposition.workflows.eet import (
         STITCH_SCHEMA,
@@ -104,12 +106,19 @@ def content_digest(locale, max_input_characters):
         "schemas": schemas,
         "metadata_schema": METADATA_SCHEMA,
         "group_workflow": {
+            "draft_instructions": mathematical_draft_instructions(locale, {}) if locale else None,
             "stitch_instructions": stitch_instructions(locale) if locale else None,
             "stitch_schema": STITCH_SCHEMA if locale else None,
             "validation_instructions": VALIDATION_INSTRUCTIONS if locale else None,
             "validation_schema": VALIDATION_SCHEMA if locale else None,
         },
-        "config": {"max_input_characters": max_input_characters},
+        "config": {
+            "max_input_characters": max_input_characters,
+            "generation_strategy": generation_strategy,
+            **({"text_profile": text_profile} if text_profile is not None else {}),
+            **({"dependency_analysis_digest": dependency_analysis_digest}
+               if dependency_analysis_digest is not None else {}),
+        },
     })
 
 
@@ -119,12 +128,28 @@ class ContentStore(WritingJobs):
     The injected runtime is callable(prompt, schema). Writer methods are Python
     construction APIs; none are exposed as reader tools.
     """
-    def __init__(self, workspace, hierarchy, path, runtime=None, *, executor=None, locale=None, max_input_characters=360000):
+    def __init__(self, workspace, hierarchy, path, runtime=None, *, executor=None, locale=None,
+                 max_input_characters=360000, generation_strategy=None,
+                 decl_text_store=None, text_profile="default",
+                 dependency_analysis=None):
         workspace.validate()
         self.workspace = workspace
         self.hierarchy = deepcopy(hierarchy.to_dict() if hasattr(hierarchy, "to_dict") else hierarchy)
         self.nodes = {n["id"]: n for n in self.hierarchy["nodes"]}
         self.model_executor = executor or (runtime if hasattr(runtime, "execute") else None)
+        if decl_text_store is not None and decl_text_store.workspace.digest() != workspace.digest():
+            raise ContentError("Declaration text store belongs to a different Workspace.")
+        self.decl_text_store = decl_text_store
+        self.text_profile = text_profile
+        if dependency_analysis is None:
+            from lean_exposition.structure import analyze_dependencies
+            dependency_analysis = analyze_dependencies(workspace, self.hierarchy["repo_key"])
+        self.dependency_analysis = dependency_analysis
+        dependency_analysis_digest = None
+        if dependency_analysis is not None:
+            from lean_exposition.structure import DependencyGraph
+            DependencyGraph.from_workspace(workspace).analysis_view(dependency_analysis)
+            dependency_analysis_digest = digest(asdict(dependency_analysis))
         if runtime is None and self.model_executor is not None:
             runtime = getattr(self.model_executor, "run_json", None)
         elif hasattr(runtime, "run_json"):
@@ -153,11 +178,29 @@ class ContentStore(WritingJobs):
         self.locale = saved.get("locale") if saved else locale
         if saved and locale is not None and locale != self.locale:
             raise ContentError("Content file belongs to a different locale.")
-        self.content_digest = content_digest(self.locale, self.max_input_characters)
+        saved_strategy = saved.get("generation_strategy") if saved else None
+        if generation_strategy is None:
+            generation_strategy = saved_strategy or (
+                "concurrent" if self.model_executor is not None else "sequential"
+            )
+        if generation_strategy not in GENERATION_STRATEGIES:
+            raise ContentError("Generation strategy must be sequential or concurrent.")
+        if saved_strategy is not None and generation_strategy != saved_strategy:
+            raise ContentError("Content file belongs to a different generation strategy.")
+        self.generation_strategy = generation_strategy
+        self.content_digest = content_digest(
+            self.locale, self.max_input_characters, self.generation_strategy,
+            self.text_profile if self.decl_text_store is not None else None,
+            dependency_analysis_digest,
+        )
         self.instance_id = "instance-" + digest({
             "workspace_digest": workspace_digest,
             "hierarchy_digest": hierarchy_digest,
             "locale": self.locale,
+            "generation_strategy": self.generation_strategy,
+            **({"text_profile": self.text_profile} if self.decl_text_store is not None else {}),
+            **({"dependency_analysis_digest": dependency_analysis_digest}
+               if dependency_analysis_digest is not None else {}),
             "content_digest": self.content_digest,
         })[:24]
         self.state = saved or {
@@ -166,6 +209,7 @@ class ContentStore(WritingJobs):
             "workspace_digest": workspace_digest,
             "hierarchy_digest": hierarchy_digest,
             "locale": self.locale,
+            "generation_strategy": self.generation_strategy,
             "content_digest": self.content_digest,
             "latest_manifest": None,
             "manifests": {},
@@ -185,6 +229,53 @@ class ContentStore(WritingJobs):
         else:
             self._save()
 
+    def resolve_generation_strategy(self, generation_strategy=None):
+        strategy = self.generation_strategy if generation_strategy is None else generation_strategy
+        if strategy not in GENERATION_STRATEGIES:
+            raise ContentError("Generation strategy must be sequential or concurrent.")
+        if strategy != self.generation_strategy:
+            raise ContentError(
+                "Generation strategy is part of content identity; open a store configured for that strategy."
+            )
+        return strategy
+
+    def _decl_view(self, ref, *, proof=False, text_record_ids=None):
+        return decl_card(
+            self.workspace, ref, proof=proof, text_store=self.decl_text_store,
+            locale=self.locale, profile=self.text_profile,
+            text_record_ids=text_record_ids,
+        )
+
+    def _scope_material(self, node_id, *, offset=0, limit=24, text_record_ids=None,
+                        full_dependencies=False):
+        return scope_view(
+            self.workspace, self.hierarchy, node_id, offset=offset, limit=limit,
+            text_store=self.decl_text_store, locale=self.locale,
+            profile=self.text_profile, text_record_ids=text_record_ids,
+            dependency_analysis=self.dependency_analysis,
+            full_dependencies=full_dependencies,
+        )
+
+    def _writing_material(self, node_id, *, mathematical=False, text_record_ids=None):
+        return writing_view(
+            self.workspace, self.hierarchy, node_id, mathematical=mathematical,
+            text_store=self.decl_text_store, locale=self.locale,
+            profile=self.text_profile, text_record_ids=text_record_ids,
+            dependency_analysis=self.dependency_analysis,
+        )
+
+    def dependency_edges(self, *, full=False):
+        edges = self.hierarchy.get("edges", [])
+        if full or self.dependency_analysis is None:
+            return edges
+        hidden = {(item.provider.repo_key, item.provider.local_id,
+                   item.consumer.repo_key, item.consumer.local_id)
+                  for item in self.dependency_analysis.decisions if not item.keep}
+        return [edge for edge in edges if (
+            edge["provider_decl"]["repo_key"], edge["provider_decl"]["local_id"],
+            edge["consumer_decl"]["repo_key"], edge["consumer_decl"]["local_id"],
+        ) not in hidden]
+
     def _save(self):
         atomic_json(self.path, self.state)
 
@@ -202,11 +293,11 @@ class ContentStore(WritingJobs):
         if node.get("metadata", {}).get("technical") and node.get("metadata", {}).get("source_missing"):
             return "content"
         representative = node.get("representative")
-        card = decl_card(self.workspace, representative) if representative else {}
+        card = self._decl_view(representative) if representative else {}
         return "theorem" if card.get("theorem_like") else "content"
 
     def _allowed(self, node_id):
-        view = scope_view(self.workspace, self.hierarchy, node_id, limit=1)
+        view = self._scope_material(node_id, limit=1)
         refs = {ref_key(ref) for ref in view["decl_refs"]}
         nodes = {node_id, *self.nodes[node_id]["children"]}
         if self.locale:
@@ -287,11 +378,23 @@ class ContentStore(WritingJobs):
                 "instance_id": self.instance_id,
                 "structure_id": self.structure_id,
                 "locale": self.locale,
+                "generation_strategy": self.generation_strategy,
                 "content_digest": self.content_digest,
                 "blocks": blocks,
                 "metadata": metadata,
                 "complete": set(blocks) == set(self.nodes),
             }
+            if self.decl_text_store is not None:
+                pinned = (self.manifest().get("decl_text_records", {})
+                          if self.state["latest_manifest"] else {})
+                if _complete_job is not None:
+                    pinned.update(self.state["writing_jobs"][_complete_job].get("decl_text_records", {}))
+                else:
+                    pinned.update(self.decl_text_store.pin(
+                        [decl.ref for decl in self.workspace.declarations],
+                        locale=self.locale, profile=self.text_profile,
+                    ))
+                manifest["decl_text_records"] = pinned
             inherited_review = self.manifest().get("review_evidence") if self.state["latest_manifest"] else None
             evidence = review_evidence if review_evidence is not None else inherited_review
             if evidence is not None:
@@ -316,7 +419,7 @@ class ContentStore(WritingJobs):
         if self.locale:
             return self._generate_mathematical(node_id, context)
         node = self.nodes[node_id]
-        cards = [decl_card(self.workspace, ref, proof=True) for ref in node["decl_refs"]]
+        cards = [self._decl_view(ref, proof=True) for ref in node["decl_refs"]]
         technical = node.get("metadata", {}).get("technical", False) and node.get("metadata", {}).get("source_missing", False)
         if technical and self.kind(node_id) == "content":
             return self.validate_submission(node_id, {"content": "Original source was not located.\n\n" +
@@ -325,13 +428,14 @@ class ContentStore(WritingJobs):
                 "anchors": []})
         if self.runtime is None:
             raise ContentError("No content runtime configured.")
-        view = writing_view(self.workspace, self.hierarchy, node_id)
+        view = self._writing_material(node_id)
         prompt = exposition_prompt(view, context)
         return self.validate_submission(node_id, self.runtime(prompt, submission_schema(self.kind(node_id))))
 
-    def generate_root(self, *, cancelled=lambda: False, progress=None, publication_control=None):
+    def generate_root(self, *, generation_strategy=None, cancelled=lambda: False, progress=None, publication_control=None):
         if self.locale:
-            return self.run_writing_job(None, cancelled=cancelled, progress=progress,
+            return self.run_writing_job(None, generation_strategy=generation_strategy,
+                                        cancelled=cancelled, progress=progress,
                                         publication_control=publication_control)
         root = self.hierarchy["root_id"]
         with self._generation_lock(root):
@@ -341,10 +445,11 @@ class ContentStore(WritingJobs):
             block = self._generate(root, {"role": "root", "fixed_parent": None})
             return self.publish({root: block})
 
-    def generate_children(self, node_id, *, cancelled=lambda: False, progress=None, publication_control=None):
-        """Generate siblings in order, retaining accepted drafts on failure for retry."""
+    def generate_children(self, node_id, *, generation_strategy=None, cancelled=lambda: False, progress=None, publication_control=None):
+        """Generate one sibling group with the content package's fixed strategy."""
         if self.locale:
-            return self.run_writing_job(node_id, cancelled=cancelled, progress=progress,
+            return self.run_writing_job(node_id, generation_strategy=generation_strategy,
+                                        cancelled=cancelled, progress=progress,
                                         publication_control=publication_control)
         with self._generation_lock(node_id):
             manifest = self.manifest()
@@ -411,7 +516,7 @@ class ContentStore(WritingJobs):
                 if self.runtime is None:
                     raise ContentError("No metadata runtime configured.")
                 prompt = ("Write display metadata in " + ("Chinese" if self.locale == "zh" else "English") + ". ") + "Name this fixed mathematical region. Title/description are display metadata, not a synopsis or importance score. Name only results and objects delivered inside this node; outgoing consumers are future uses, not this scope outcomes. Prefer concise mathematical terminology over Lean or source-scope identifiers. Return JSON.\n" + json.dumps(
-                    {"scope_view": writing_view(self.workspace, self.hierarchy, node_id, mathematical=bool(self.locale)),
+                    {"scope_view": self._writing_material(node_id, mathematical=bool(self.locale)),
                      "child_metadata": {c: self.state["metadata"].get(c) for c in self.nodes[node_id]["children"]}}, ensure_ascii=False)
                 payload = self.runtime(prompt, METADATA_SCHEMA)
                 jsonschema.validate(payload, METADATA_SCHEMA)

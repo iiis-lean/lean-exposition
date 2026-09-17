@@ -163,6 +163,19 @@ async def run():
                 positions_two = await page.evaluate(
                     "Object.fromEntries([...graphCamera.positions].map(([id,p])=>[id,[+p.x.toFixed(3),+p.y.toFixed(3)]]))")
                 assert positions_one == positions_two
+                assert await page.locator('.hdg-node title, .hdg-caption, .hdg-edge title').count()==0
+                await page.evaluate("state.selected=null; highlight('a',true)")
+                contrast=await page.locator('.hdg-edge').evaluate_all("els=>({active:els.filter(e=>e.classList.contains('incident')).map(e=>+getComputedStyle(e).opacity),background:els.filter(e=>!e.classList.contains('incident')).map(e=>+getComputedStyle(e).opacity)})")
+                assert min(contrast['active'])>max(contrast['background']),contrast
+                await page.evaluate("highlight('a',false)")
+
+                assert await page.evaluate("contentRadius(800) < contentRadius(8000) && contentRadius(8000) < contentRadius(80000)")
+                assert await page.evaluate("dependencyColor(12,false) !== dependencyColor(48,false)")
+                assert await page.evaluate("edgeWidth(1) < edgeWidth(4) && edgeWidth(4) < edgeWidth(16)")
+                assert await page.locator('.hdg-edge').evaluate_all("els=>els.every(e=>getComputedStyle(e).markerEnd !== 'none')")
+                weighted = await page.locator('.hdg-edge').evaluate_all("els=>els.map(e=>parseFloat(getComputedStyle(e).strokeWidth))")
+                assert max(weighted)>min(weighted),weighted
+
                 assert not await page.evaluate("""() => {
                     const ps=[...graphCamera.positions.values()];
                     return ps.some((a,i)=>ps.slice(i+1).some(b=>Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r));
@@ -244,6 +257,7 @@ async def run_projection():
                     await page.locator(f'.rail-label [data-target="{id}"]').click()
                     await page.wait_for_function("!state.busy")
                 assert await page.locator('#document .katex').count() > 5
+                assert await page.locator('.hdg-node .visible-dot').evaluate_all("els=>{const frame=document.querySelector('#hdg').getBoundingClientRect();return els.every(e=>{const r=e.getBoundingClientRect();return r.left>=frame.left&&r.right<=frame.right&&r.top>=frame.top&&r.bottom<=frame.bottom;});}")
                 assert not await page.locator('#budget-form').is_visible()
                 assert await page.locator('.recommendation-metrics, .hdg-toggle, #document .part-label').count()==0
                 geometry=await page.locator('.section-shell').evaluate_all("""els=>els.map(e=>{
@@ -262,6 +276,7 @@ async def run_projection():
                 await page.wait_for_function("document.querySelector('.graph-card .interface-map .incoming') && document.querySelector('.graph-card .interface-map .outgoing')")
                 assert await page.evaluate("state.view")==before
                 assert await page.locator('.graph-card .interface-map .internal').count()==2
+                assert await page.locator('.graph-card-header h2').inner_text()=='Decomposition and energy'
                 assert await page.locator('.graph-card .interface-map path').count()>3
                 await page.screenshot(path=str(output/'projection-region-card.png'),full_page=True)
                 await page.keyboard.press('Escape')

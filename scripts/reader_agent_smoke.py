@@ -212,7 +212,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--protocol", choices=["responses", "chat_completions"], default="responses"
     )
     parser.add_argument("--reasoning-effort")
-    parser.add_argument("--max-output-tokens", type=int, default=8192)
+    parser.add_argument("--max-output-tokens", type=int)
     parser.add_argument("--prompt-cache-key", default="lean-exposition-reader-smoke")
     parser.add_argument("--timeout", type=float, default=180)
     return parser

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 from typing import Any, Callable, Iterable, Protocol
 
 from lean_exposition.runtime import (
@@ -39,6 +40,7 @@ class WorkflowCall:
     execution: ExecutionResult
     prefix_digest: str
     prompt_digest: str
+    duration_seconds: float = 0.0
 
     @property
     def cached_tokens(self) -> int:
@@ -54,12 +56,15 @@ def structured_call(
     stage: str,
 ) -> WorkflowCall:
     prompt = stable_prompt(prefix, dynamic)
+    started = time.monotonic()
     result = executor.execute(prompt, schema, trace_label=stage)
+    duration = time.monotonic() - started
     return WorkflowCall(
         stage=stage,
         execution=result,
         prefix_digest=prompt_digest(prefix.rstrip()),
         prompt_digest=prompt_digest(prompt),
+        duration_seconds=duration,
     )
 
 
@@ -75,6 +80,7 @@ def tool_call(
     stage: str,
 ) -> WorkflowCall:
     prompt = stable_prompt(prefix, dynamic)
+    started = time.monotonic()
     result = executor.execute(
         prompt,
         schema,
@@ -83,11 +89,13 @@ def tool_call(
         max_steps=max_steps,
         trace_label=stage,
     )
+    duration = time.monotonic() - started
     return WorkflowCall(
         stage=stage,
         execution=result,
         prefix_digest=prompt_digest(prefix.rstrip()),
         prompt_digest=prompt_digest(prompt),
+        duration_seconds=duration,
     )
 
 

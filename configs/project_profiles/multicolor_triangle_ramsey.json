@@ -1,0 +1,118 @@
+{
+  "contributors": [
+    {
+      "config": {
+        "catalog_root": ".lean_constellation",
+        "mode": "current_revision",
+        "text_ast": false,
+        "unit_aggregation": "preserve"
+      },
+      "contributor_id": "lc-current-catalog",
+      "kind": "lc_catalog",
+      "required": true
+    }
+  ],
+  "identity": {
+    "input_digest": null,
+    "repo_key": "MulticolorTriangleRamsey",
+    "revision": "ef70c6bd6f71bbbdd39052867bf280726858db3e",
+    "toolchain": "leanprover/lean4:v4.32.0"
+  },
+  "material_assets": [
+    {
+      "asset_id": "[\"MulticolorTriangleRamsey\",\".lean_constellation/source/macros.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {"document_root": false, "tex_path": "macros.tex"},
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/macros.tex",
+      "role": "primary",
+      "sha256": "247693b4a62aa48ed01bf8c26e2efa025868fdcd01b6c80f86f338f8405410dd"
+    },
+    {
+      "asset_id": "[\"MulticolorTriangleRamsey\",\".lean_constellation/source/main.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {"document_root": true, "tex_path": "main.tex"},
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/main.tex",
+      "role": "primary",
+      "sha256": "0e7ed2c8d9e8727115beee3a42912e0289f4b6c019cd865960da45ed98d7a20f"
+    },
+    {
+      "asset_id": "[\"MulticolorTriangleRamsey\",\".lean_constellation/source/sections/196.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {"document_root": false, "tex_path": "sections/196.tex"},
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/sections/196.tex",
+      "role": "primary",
+      "sha256": "63fa8f004021734f6af6cb854643f74297c718736670954647b9e789fc16fcc5"
+    },
+    {
+      "asset_id": "[\"MulticolorTriangleRamsey\",\".lean_constellation/source/sections/197.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {"document_root": false, "tex_path": "sections/197.tex"},
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/sections/197.tex",
+      "role": "primary",
+      "sha256": "ef46bfa36b6756cc401bdab9764e755c22cbf14de73ff34625e14bb2428d3fef"
+    },
+    {
+      "asset_id": "[\"MulticolorTriangleRamsey\",\".lean_constellation/source/sections/198.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {"document_root": false, "tex_path": "sections/198.tex"},
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/sections/198.tex",
+      "role": "primary",
+      "sha256": "bad6b335e8d5292b09dae7e4e2275154e0d83773329c50b3453d08abb72249c4"
+    },
+    {
+      "asset_id": "[\"MulticolorTriangleRamsey\",\".lean_constellation/source/sections/199.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {"document_root": false, "tex_path": "sections/199.tex"},
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/sections/199.tex",
+      "role": "primary",
+      "sha256": "b791e04f16b0a4e961bf078e11cebf8ccef287bc641800d50d36f92412ef07b0"
+    },
+    {
+      "asset_id": "[\"MulticolorTriangleRamsey\",\".lean_constellation/source/sections/200.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {"document_root": false, "tex_path": "sections/200.tex"},
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/sections/200.tex",
+      "role": "primary",
+      "sha256": "0efad316ac9f73d4cf2feeba666525cc3c32726ed06a0a2a394065c71b029bf2"
+    },
+    {
+      "asset_id": "[\"MulticolorTriangleRamsey\",\".lean_constellation/source/sections/201.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {"document_root": false, "tex_path": "sections/201.tex"},
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/sections/201.tex",
+      "role": "primary",
+      "sha256": "db065259ae7223cc0b2c92eafb03f7cc4152129e804ccaa8b210b49a43fb4ef8"
+    }
+  ],
+  "order_hints": [],
+  "primary_outcomes": [
+    {"module": "MulticolorTriangleRamsey.Main.Foundations.CoreRamsey.Defs.ForcesMonochromaticTriangle", "name": "ForcesMonochromaticTriangle"},
+    {"module": "MulticolorTriangleRamsey.Main.Foundations.CoreRamsey.Defs.TriangleFree", "name": "TriangleFree"},
+    {"module": "MulticolorTriangleRamsey.Main.Foundations.CoreRamsey.Defs.triangleRamseyNumber", "name": "triangleRamseyNumber"},
+    {"module": "MulticolorTriangleRamsey.Main.Quantitative.AsymptoticConsequences.Theorems.erdos_183", "name": "ErdosProblems.MulticolourTriangleRamsey.erdos_183"},
+    {"module": "MulticolorTriangleRamsey.Main.Quantitative.AsymptoticConsequences.Theorems.erdos_problem_183_explicit", "name": "ErdosProblems.MulticolourTriangleRamsey.erdos_problem_183_explicit"},
+    {"module": "MulticolorTriangleRamsey.Main.Quantitative.AsymptoticConsequences.Theorems.triangleRamseyNumber_log_isTheta", "name": "ErdosProblems.MulticolourTriangleRamsey.triangleRamseyNumber_log_isTheta"},
+    {"module": "MulticolorTriangleRamsey.Main.Quantitative.AsymptoticConsequences.Theorems.triangleRamseyNumber_log_sharp_coefficients", "name": "ErdosProblems.MulticolourTriangleRamsey.triangleRamseyNumber_log_sharp_coefficients"}
+  ],
+  "profile_id": "multicolor-triangle-ramsey-lc",
+  "scope_hints": [],
+  "stage": "formal",
+  "target_slices": [],
+  "unit_hints": []
+}

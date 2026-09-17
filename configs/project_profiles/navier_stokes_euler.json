@@ -1,0 +1,156 @@
+{
+  "contributors": [
+    {
+      "config": {
+        "backend": "toolkit_text_ast",
+        "source_roots": [
+          "NavierStokes.lean",
+          "NavierStokes"
+        ]
+      },
+      "contributor_id": "ns-source",
+      "kind": "source_inventory",
+      "required": true
+    },
+    {
+      "config": {
+        "backend": "toolkit_text_ast",
+        "source_roots": [
+          "Euler.lean",
+          "Euler"
+        ]
+      },
+      "contributor_id": "euler-source",
+      "kind": "source_inventory",
+      "required": true
+    }
+  ],
+  "identity": {
+    "input_digest": "e03d9ad66cb0c7b4a5a83e7841bfa40a5f697a1d40974555cce5349730e94e61",
+    "repo_key": "NavierStokesAndEuler",
+    "revision": "f9e8bc5b38b6e212696e8a30e3e91517af887bbd",
+    "toolchain": "leanprover/lean4:v4.34.0-rc2"
+  },
+  "material_assets": [
+    {
+      "asset_id": "ns-formalization",
+      "binder_id": "exact_name",
+      "config": {
+        "allowed_declarations": [
+          "NavierStokes.Comparator.navier_stokes_breakdown_R3",
+          "NavierStokes.Comparator.navier_stokes_breakdown_periodic"
+        ]
+      },
+      "media_type": "text/yaml",
+      "parser_id": "formalization_yaml",
+      "path": "formalization.yaml",
+      "role": "supporting",
+      "sha256": "d9866d5c1fdc16832f098e5f2affa96baf0b156a5f34b9be015d793e1abe2fdd"
+    },
+    {
+      "asset_id": "euler-formalization",
+      "binder_id": "exact_name",
+      "config": {
+        "allowed_declarations": [
+          "Euler.euler_breakdown_R3",
+          "Euler.exists_compact_smooth_euler_singularity"
+        ]
+      },
+      "media_type": "text/yaml",
+      "parser_id": "formalization_yaml",
+      "path": "formalization.yaml",
+      "role": "supporting",
+      "sha256": "d9866d5c1fdc16832f098e5f2affa96baf0b156a5f34b9be015d793e1abe2fdd"
+    },
+    {
+      "asset_id": "navier-stokes-paper",
+      "binder_id": "formalization_alignment",
+      "config": {
+        "download_bytes": 2959204,
+        "source_url": "https://cdn.openai.com/pdf/32d9f210-8b73-45e0-91bc-82a30aef8a9a/navier-stokes.pdf"
+      },
+      "media_type": "application/pdf",
+      "parser_id": "pdf_pages",
+      "path": "external/navier-stokes.pdf",
+      "role": "primary",
+      "sha256": "0e779481c4da40bd28d1e642e1d8ca57447d129610df28dfa5a11e9af8ae228f"
+    },
+    {
+      "asset_id": "euler-paper",
+      "binder_id": "formalization_alignment",
+      "config": {
+        "download_bytes": 535142,
+        "source_url": "https://cdn.openai.com/pdf/315b36cd-ec98-4023-8342-93345194ece1/euler.pdf"
+      },
+      "media_type": "application/pdf",
+      "parser_id": "pdf_pages",
+      "path": "external/euler.pdf",
+      "role": "primary",
+      "sha256": "a0c234518e6c489e16996805023eb2e75c00b7c03455f7a3a5be2c124954bfdd"
+    }
+  ],
+  "order_hints": [],
+  "primary_outcomes": [],
+  "profile_id": "navier-stokes-euler-inventory",
+  "scope_hints": [],
+  "stage": "inventory",
+  "target_slices": [
+    {
+      "compiled_roots": [],
+      "contributor_ids": [
+        "ns-source"
+      ],
+      "material_asset_ids": [
+        "ns-formalization",
+        "navier-stokes-paper"
+      ],
+      "order_hint_ids": [],
+      "primary_outcomes": [
+        {
+          "module": "NavierStokes.ComparatorSolution",
+          "name": "NavierStokes.Comparator.navier_stokes_breakdown_R3"
+        },
+        {
+          "module": "NavierStokes.ComparatorSolution",
+          "name": "NavierStokes.Comparator.navier_stokes_breakdown_periodic"
+        }
+      ],
+      "scope_hint_ids": [],
+      "slice_id": "navier-stokes",
+      "source_roots": [
+        "NavierStokes.lean",
+        "NavierStokes"
+      ],
+      "unit_hint_ids": []
+    },
+    {
+      "compiled_roots": [],
+      "contributor_ids": [
+        "euler-source"
+      ],
+      "material_asset_ids": [
+        "euler-formalization",
+        "euler-paper"
+      ],
+      "order_hint_ids": [],
+      "primary_outcomes": [
+        {
+          "module": "Euler.Solution",
+          "name": "Euler.euler_breakdown_R3"
+        },
+        {
+          "module": "Euler.Solution",
+          "name": "Euler.exists_compact_smooth_euler_singularity"
+        }
+      ],
+      "scope_hint_ids": [],
+      "slice_id": "euler",
+      "source_roots": [
+        "Euler.lean",
+        "Euler"
+      ],
+      "unit_hint_ids": []
+    }
+  ],
+  "unit_hints": []
+}

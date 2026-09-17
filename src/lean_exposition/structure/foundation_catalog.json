@@ -1,0 +1,2471 @@
+{
+  "providers": [
+    {
+      "entries": [
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Add",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "And",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "And.casesOn",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "And.intro",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "And.left",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "And.right",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "EmptyCollection.emptyCollection",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.casesOn",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.mp",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.mpr",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.ndrec",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.propIntro",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.rec",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.refl",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.symm",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.trans",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Equivalence.refl",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Exists",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Exists.casesOn",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Exists.intro",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Function.Injective",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "GT.gt",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HAdd.hAdd",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HDiv.hDiv",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HEq",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HEq.refl",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HMul.hMul",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HasSubset.Subset",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Iff",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Iff.intro",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Iff.mp",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Iff.mpr",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Inhabited",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Inhabited.mk",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Inter.inter",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "LE.le",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "LT.lt",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Lean.injEq_helper",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Max.max",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Membership.mem",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Nat",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Not",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "OfNat.ofNat",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Or",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Or.casesOn",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Setoid.iseqv",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Setoid.r",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SizeOf",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SizeOf.mk",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SizeOf.sizeOf",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Subtype",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Subtype.casesOn",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Subtype.forall._simp_1",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Subtype.mk",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Subtype.mk.injEq",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Subtype.property",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Subtype.val",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "True",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Zero.toOfNat0",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "congr",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "congrArg",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "eq_comm",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "eq_of_heq",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "eq_true",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "forall_congr",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "funext",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "id",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "iff_self",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "implies_congr",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "instAddNat",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "instHAdd",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "instHDiv",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "instHMul",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "instOfNatNat",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "instSizeOfNat",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "of_eq_true",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "propext",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        }
+      ],
+      "generator_config_digest": "ae2ac1fb47c60d8203a5cce5327b7f41a8feac33305d1eee633754344a864fbe",
+      "generator_implementation_digest": "6a282511ca1bd4962acbf6938d9d7679d9cf61fff1349fcefa4dce4ae1e43e72",
+      "identity": {
+        "input_digest": "26df5f74b79af0cd9e298b6583993699a54938d047ba1919428da80d3ae80c6e",
+        "provider_name": "lean",
+        "revision": null,
+        "toolchain": "leanprover/lean4:v4.28.0"
+      }
+    },
+    {
+      "entries": [
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "And",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "And.intro",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.ndrec",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.propIntro",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Eq.refl",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HAdd.hAdd",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HEq",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HEq.refl",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Inhabited",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Inhabited.default",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Inhabited.mk",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Lean.injEq_helper",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Nat",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "OfNat.ofNat",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SizeOf",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SizeOf.mk",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SizeOf.sizeOf",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "eq_of_heq",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "heq_of_eq",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "id",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "instAddNat",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "instHAdd",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "instOfNatNat",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "rfl",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        }
+      ],
+      "generator_config_digest": "ae2ac1fb47c60d8203a5cce5327b7f41a8feac33305d1eee633754344a864fbe",
+      "generator_implementation_digest": "6a282511ca1bd4962acbf6938d9d7679d9cf61fff1349fcefa4dce4ae1e43e72",
+      "identity": {
+        "input_digest": "cc346fd7850a83fb7af3902dfc378f74d8eb8c59c6d34322488269ebfe7615b1",
+        "provider_name": "lean",
+        "revision": null,
+        "toolchain": "leanprover/lean4:v4.32.0"
+      }
+    },
+    {
+      "entries": [
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "AddCommMonoid",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "BoundedOrder.toOrderBot",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CommSemiring.toSemiring",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteAtomicBooleanAlgebra.toCompleteBooleanAlgebra",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteBooleanAlgebra.toCompleteDistribLattice",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteBooleanAlgebra.toCompleteLattice",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteDistribLattice.toFrame",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteLattice.instOmegaCompletePartialOrder",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteLattice.toCompletePartialOrder",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteLattice.toCompleteSemilatticeInf",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteLattice.toCompleteSemilatticeSup",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteLattice.toConditionallyCompleteLattice",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompletePartialOrder.toSupSet",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteSemilatticeInf.toPartialOrder",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "CompleteSemilatticeSup.toSupSet",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "ConditionallyCompleteLattice.toLattice",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Countable",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "DFunLike.coe",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Disjoint",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Disjoint.mono",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Distrib.toMul",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "DistribLattice.toLattice",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "DivInvMonoid.toDiv",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "ENNReal",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "ExistsUnique",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Function.onFun",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HasSubset.Subset.trans",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "HeytingAlgebra.toOrderBot",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "LE.le.trans_eq",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "LT.lt.ne'",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Lattice.toSemilatticeInf",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Lattice.toSemilatticeSup",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "MeasurableSet",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "MeasurableSpace",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "MeasureTheory.Measure",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "NonAssocSemiring.toNonUnitalNonAssocSemiring",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "NonUnitalNonAssocSemiring.toDistrib",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "OmegaCompletePartialOrder.toPartialOrder",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Order.Frame.toHeytingAlgebra",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Pairwise",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "PartialOrder.toPreorder",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Preorder.toLE",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Preorder.toLT",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SemilatticeInf.toPartialOrder",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SemilatticeSup.toMax",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Semiring.toNonAssocSemiring",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.Elem",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.Nonempty",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.Pairwise.mono",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.Pairwise.mono'",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.disjoint_iff",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.ext",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.iUnion",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.instBoundedOrder",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.instCompleteAtomicBooleanAlgebra",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.instDistribLattice",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.instEmptyCollection",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.instHasSubset",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.instInter",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.instIsTransSubset",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.instLE",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.instMembership",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.inter_eq_right",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.inter_iUnion",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.inter_iUnion₂",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.inter_subset_inter_right",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.inter_subset_left",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.inter_subset_right",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.inter_univ",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.mem_biUnion",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.mem_iUnion₂",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.mem_univ._simp_1",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.not_disjoint_iff",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.sUnion",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.sUnion_eq_iUnion",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.subset_empty_iff._simp_1",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.univ",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SetLike",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SetLike.coe",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SetLike.instMembership",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "SetLike.mk",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "Setoid.IsPartition",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Subtype.val_injective",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "SummationFilter",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "iSup",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "inf_le_right",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "le_iSup",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "le_sup_left",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "le_sup_right",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "setOf",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        }
+      ],
+      "generator_config_digest": "ae2ac1fb47c60d8203a5cce5327b7f41a8feac33305d1eee633754344a864fbe",
+      "generator_implementation_digest": "6a282511ca1bd4962acbf6938d9d7679d9cf61fff1349fcefa4dce4ae1e43e72",
+      "identity": {
+        "input_digest": null,
+        "provider_name": "mathlib",
+        "revision": "8f9d9cff6bd728b17a24e163c9402775d9e6a365",
+        "toolchain": "leanprover/lean4:v4.28.0"
+      }
+    },
+    {
+      "entries": [
+        {
+          "classification": "reviewed_keep",
+          "local_id": "ArithmeticFunction.cardFactors",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Equiv.addRight",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Equiv.injective",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Equiv.ofBijective",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Equiv.prod_comp",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Fin.castLEEmb",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Fin.natAddEmb",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.Ioc",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.card",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.card_filter_le",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.card_image_of_injOn",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.card_image_of_injective",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.card_insert_of_notMem",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.card_le_card",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.card_le_card_of_injOn",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.card_univ",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.disjoint_left",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.disjoint_map",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.erase",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.ext",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.filter",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.filter_subset",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.image",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.insert_subset",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.inter_subset_left",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.mem_biUnion",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.mem_erase",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.mem_filter",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.mem_image",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.mem_inter",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.mem_singleton",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.mem_union",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.nonempty_iff_ne_empty",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.prod",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.prod_congr",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.range",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.sum",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.sum_congr",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.sum_le_sum",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Finset.univ",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Fintype.card_fin",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Function.injective_iff_pairwise_ne",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Function.update",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Function.update_of_ne",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Function.update_self",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "IsUnit",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "Nat.Prime",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "Nat.choose",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "Nat.factorization",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "Real.log",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "Real.rpow",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "Set.InjOn",
+          "parts": [
+            "statement"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "Squarefree",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_keep",
+          "local_id": "ZMod",
+          "parts": [
+            "proof",
+            "statement"
+          ],
+          "reason": "Mathematical object or theorem explicitly retained in analysis views.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "add_left_cancel",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "div_le_div_of_nonneg_left",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "dvd_add",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "dvd_sub",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "le_mul_of_le_of_one_le",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "mul_le_mul_left",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "mul_le_mul_right",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "mul_lt_mul_of_pos_right",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "mul_ne_zero",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "one_div_le_one_div_of_le",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "pow_dvd_pow_of_dvd_of_le",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        },
+        {
+          "classification": "reviewed_ambient",
+          "local_id": "pow_ne_zero",
+          "parts": [
+            "proof"
+          ],
+          "reason": "Globally reviewed universal logic, typeclass, container, or elementary rewrite infrastructure.",
+          "source": "reviewed:global-foundation-2026-09-17"
+        }
+      ],
+      "generator_config_digest": "ae2ac1fb47c60d8203a5cce5327b7f41a8feac33305d1eee633754344a864fbe",
+      "generator_implementation_digest": "6a282511ca1bd4962acbf6938d9d7679d9cf61fff1349fcefa4dce4ae1e43e72",
+      "identity": {
+        "input_digest": null,
+        "provider_name": "mathlib",
+        "revision": "81a5d257c8e410db227a6665ed08f64fea08e997",
+        "toolchain": "leanprover/lean4:v4.32.0"
+      }
+    }
+  ]
+}

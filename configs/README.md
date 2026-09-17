@@ -9,6 +9,21 @@ Shareable configuration examples live here. Keep credentials and real local sett
 - `math-reader.api.example.json` and `math-reader.agent.example.json` configure
   reader generation clients.
 - `runtime.api.example.json` configures the shared structured API executor.
+- `project_profiles/` contains strict declarative profiles for fixed real
+  repositories. A profile selects contributors, target slices, primary outcomes,
+  materials, and order hints. Its `stage` is a capability gate (`inventory`,
+  `provisional`, `verified_slice`, or `formal`), not a schema version. Profiles do
+  not themselves build a Workspace or claim a stronger stage than their inputs.
+
+LC profiles use `lc_catalog`; they do not select source inventory and preserve
+catalog declarations as singleton units. Native profiles may use source inventory
+for repository-wide discovery and a compiled contributor for a bounded verified
+slice. Multi-target repositories use disjoint target slices so their roots and
+materials cannot mix.
+The shipped global foundation catalog lives beside the structure package as
+`src/lean_exposition/structure/foundation_catalog.json`. It hides reviewed
+Lean and Mathlib infrastructure from analysis views; identity mismatches and
+unknown declarations are kept conservatively.
 
 ## Runtime smoke commands
 
@@ -32,6 +47,13 @@ name of its credential environment variable explicitly. `--env-file` is
 optional; values already present in the process environment take precedence.
 Saved records include only the environment variable name and normalized,
 redacted runtime errors.
+
+The generic API runtime does not send an output-token limit unless
+`max_output_tokens` is set to a positive integer. Current product examples use
+`null`, and the smoke CLI leaves the field unset unless an explicit diagnostic
+supplies `--max-output-tokens`. Product workflows use timeout, local parsing,
+schema validation, and bounded retries rather than guessing a shared budget for
+reasoning and visible output.
 
 `scripts/reader_agent_smoke.py` is the API Reader canary. It uses
 `ApiToolExecutor` through `reader_workflow` and exposes only the seven fixed

@@ -10,6 +10,10 @@ import re
 import subprocess
 from pathlib import Path
 
+from lean_exposition.construction.materials import MaterialBinding, MaterialBundle, MaterialRecord
+from lean_exposition.models import Provenance, SourceAsset, SourceRange
+from .order import OrderEvidenceBundle, OrderSequence, OrderSubject, PRODUCER_AUTHORITY
+
 SOURCE_ORDER_IMPLEMENTATION = {
     "include_base": "root_document_directory",
     "occurrence_policy": "explicit_primary_supporting_then_document_source_reference",
@@ -23,6 +27,15 @@ def canonical_digest(value):
 
 
 SOURCE_ORDER_IMPLEMENTATION_DIGEST = canonical_digest(SOURCE_ORDER_IMPLEMENTATION)
+
+TEX_MATERIAL_IMPLEMENTATION = {
+    "include_base": "root_document_directory",
+    "include_expansion": "literal_input_include_depth_first",
+    "occurrences": "distinct_logical_include_occurrences",
+    "records": "nonempty_physical_lines_with_heading_environment_label_metadata",
+}
+TEX_MATERIAL_IMPLEMENTATION_DIGEST = canonical_digest(TEX_MATERIAL_IMPLEMENTATION)
+EMPTY_BINDER_IMPLEMENTATION_DIGEST = canonical_digest({"binder": "explicit_bindings_only"})
 
 
 def normalized(path):
@@ -178,14 +191,15 @@ class SourceOrder:
         return {"codepoints": size, "measurement": "source_range_union"}
 
 
-def scan_tex(files, roots):
-    """Map each physical line to all logical document appearances."""
+def _scan_tex_events(files, roots):
+    """Return logical line occurrences while preserving repeated includes."""
     files = {normalized(p): t for p, t in files.items()}
-    occurrences, diagnostics = {}, []
+    events, diagnostics = [], []
     for root in roots:
         root = normalized(root)
         position = 0
         base_dir = posixpath.dirname(root)
+        invocation_count = {}
         def visit(path, stack):
             nonlocal position
             if path in stack:
@@ -194,6 +208,8 @@ def scan_tex(files, roots):
             if path not in files:
                 diagnostics.append({"code": "missing_include", "path": path})
                 return
+            invocation_count[path] = invocation_count.get(path, 0) + 1
+            occurrence_id = f"{root}:{path}:{invocation_count[path]}"
             verbatim = False
             for number, raw in enumerate(files[path].splitlines(), 1):
                 line = re.split(r"(?<!\\)%", raw, maxsplit=1)[0]
@@ -204,7 +220,9 @@ def scan_tex(files, roots):
                     diagnostics.append({"code": "ambiguous_include_line", "path": path, "line": number,
                                         "reason": "No fragment-level origin mapping across input commands"})
                 else:
-                    occurrences.setdefault((path, number), []).append((root, position))
+                    events.append({"root": root, "path": path, "line": number,
+                                   "position": position, "occurrence_id": occurrence_id,
+                                   "text": raw, "verbatim": verbatim})
                 position += 1
                 if not verbatim:
                     if re.search(r"\\(?:includeonly|if\w*|else|fi)\b", line):
@@ -225,7 +243,185 @@ def scan_tex(files, roots):
                 if re.search(r"\\end\{(?:verbatim\*?|lstlisting|minted)\}", line):
                     verbatim = False
         visit(root, [])
+    return events, diagnostics
+
+
+def scan_tex(files, roots):
+    """Map each physical line to all logical document appearances."""
+    events, diagnostics = _scan_tex_events(files, roots)
+    occurrences = {}
+    for event in events:
+        occurrences.setdefault((event["path"], event["line"]), []).append(
+            (event["root"], event["position"]))
     return occurrences, diagnostics
+
+
+@dataclass(frozen=True)
+class TexMaterialResult:
+    materials: MaterialBundle
+    order_evidence: OrderEvidenceBundle
+
+
+def derive_tex_materials(*, repo_key, assets, files, roots, strength="tie_breaker",
+                         role="primary", producer="automatic_tex", parser_config=None,
+                         bindings=(), binder_implementation_digest=EMPTY_BINDER_IMPLEMENTATION_DIGEST,
+                         binder_config=None):
+    """Parse fixed TeX assets into occurrence records and partial-order evidence.
+
+    The parser is intentionally static.  Unsupported TeX constructs remain
+    diagnostics, and the same physical line included twice becomes two records.
+    """
+    if strength not in {"protected", "tie_breaker"}:
+        raise ValueError("invalid TeX material order strength")
+    if role not in {"primary", "supporting", "reference"}:
+        raise ValueError("invalid TeX material role")
+    if producer not in PRODUCER_AUTHORITY:
+        raise ValueError("invalid TeX order producer")
+    if producer == "lc_tex_document" and strength == "protected" and role != "primary":
+        raise ValueError("protected LC TeX order must be a primary document")
+    files = {normalized(path): text for path, text in files.items()}
+    roots = tuple(normalized(root) for root in roots)
+    assets = tuple(assets)
+    asset_by_path = _match_tex_assets(repo_key, assets, files)
+    for path, text in files.items():
+        asset_by_path[path].verify(text.encode())
+    effective_config = {
+        "roots": roots, "strength": strength, "role": role, "producer": producer,
+        "options": dict(parser_config or {}),
+    }
+    parser_config_digest = hashlib.sha256(json.dumps(
+        effective_config, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False).encode()).hexdigest()
+    events, diagnostics = _scan_tex_events(files, roots)
+    records = []
+    document_members = {root: [] for root in roots}
+    heading_stacks = {root: [] for root in roots}
+    environment_stacks = {root: [] for root in roots}
+    heading_pattern = re.compile(
+        r"\\(?P<kind>part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\{(?P<title>[^}]*)\}")
+    label_pattern = re.compile(r"\\label\{([^}]*)\}")
+    begin_pattern = re.compile(r"\\begin\{([^}]*)\}")
+    end_pattern = re.compile(r"\\end\{([^}]*)\}")
+    levels = {name: index for index, name in enumerate(
+        ("part", "chapter", "section", "subsection", "subsubsection", "paragraph", "subparagraph"))}
+    for event in events:
+        raw = event["text"]
+        logical = re.split(r"(?<!\\)%", raw, maxsplit=1)[0].strip()
+        if not logical:
+            continue
+        heading_match = None if event["verbatim"] else heading_pattern.search(logical)
+        label_match = None if event["verbatim"] else label_pattern.search(logical)
+        begin_match = begin_pattern.search(logical)
+        end_match = end_pattern.search(logical)
+        if event["verbatim"]:
+            allowed = {"verbatim", "verbatim*", "lstlisting", "minted"}
+            if begin_match and begin_match.group(1) not in allowed:
+                begin_match = None
+            if end_match and end_match.group(1) not in allowed:
+                end_match = None
+        root = event["root"]
+        heading_stack = heading_stacks[root]
+        heading = heading_match.group("title") if heading_match else None
+        parent_id = heading_stack[-1][1] if heading_stack else None
+        if heading_match:
+            level = levels[heading_match.group("kind")]
+            while heading_stack and heading_stack[-1][0] >= level:
+                heading_stack.pop()
+            parent_id = heading_stack[-1][1] if heading_stack else None
+        if begin_match:
+            environment_stacks[root].append(begin_match.group(1))
+        asset = asset_by_path[event["path"]]
+        location = SourceRange(asset.asset_id, event["line"], 1, event["line"], len(raw) + 1)
+        occurrence_id = f"{event['occurrence_id']}:line:{event['line']}"
+        provenance = (Provenance("tex_material", f"{event['path']}#{event['line']}", (location,)),)
+        record = MaterialRecord.create(
+            asset=asset, occurrence_id=occurrence_id,
+            parser_implementation_digest=TEX_MATERIAL_IMPLEMENTATION_DIGEST,
+            parser_config_digest=parser_config_digest, source_range=location,
+            heading=heading, label=label_match.group(1) if label_match else None,
+            parent_record_id=parent_id, text=raw,
+            payload={"tex": {"root": root, "path": event["path"],
+                              "logical_position": event["position"],
+                              "environment": environment_stacks[root][-1]
+                              if environment_stacks[root] else None,
+                              "role": role}},
+            provenance=provenance,
+        )
+        records.append(record)
+        document_members[root].append(OrderSubject("material_record", record.record_id))
+        if heading_match:
+            heading_stack.append((levels[heading_match.group("kind")], record.record_id))
+        if end_match and environment_stacks[root] and environment_stacks[root][-1] == end_match.group(1):
+            environment_stacks[root].pop()
+    materials = MaterialBundle.create(
+        repo_key=repo_key, assets=assets, records=tuple(records), bindings=tuple(bindings),
+        parser_implementation_digest=TEX_MATERIAL_IMPLEMENTATION_DIGEST,
+        parser_config=effective_config, binder_implementation_digest=binder_implementation_digest,
+        binder_config=dict(binder_config or {}), diagnostics=tuple(diagnostics),
+    )
+    sequences = []
+    record_by_id = {record.record_id: record for record in materials.records}
+    for index, root in enumerate(roots):
+        members = tuple(document_members[root])
+        if len(members) < 2:
+            continue
+        first = record_by_id[members[0].identifier]
+        sequences.append(OrderSequence(
+            f"tex-document:{root}", members, strength, f"TeX document order for {root}",
+            producer, index * max(1, len(events)), first.provenance,
+        ))
+    evidence = OrderEvidenceBundle.create(material_digest=materials.material_digest(),
+                                          binding_digest=materials.binding_digest(),
+                                          sequences=tuple(sequences),
+                                          diagnostics=tuple(diagnostics))
+    return TexMaterialResult(materials, evidence)
+
+
+def _match_tex_assets(repo_key, assets, files):
+    result = {}
+    for asset in assets:
+        if asset.repo_key != repo_key:
+            raise ValueError("TeX material asset repository mismatch")
+    for path in files:
+        candidates = [asset for asset in assets
+                      if normalized(asset.path) == path or normalized(asset.path).endswith("/" + path)]
+        if len(candidates) != 1:
+            raise ValueError(f"TeX file needs one fixed SourceAsset: {path}")
+        result[path] = candidates[0]
+    return result
+
+
+def derive_sequence_order_evidence(source_spec, *, material_digest, binding_digest, subjects):
+    """Turn ordered-file/module conveniences into the common evidence contract.
+
+    ``subjects`` is keyed by sequence ID and is produced by the adapter after
+    resolving configured files or modules to exact order subjects.
+    """
+    if not isinstance(source_spec, SourceSequenceSpec):
+        source_spec = SourceSequenceSpec.from_dict(source_spec)
+    unknown = set(subjects) - {sequence.id for sequence in source_spec.sequences}
+    if unknown:
+        raise ValueError(f"subjects supplied for unknown source sequences: {sorted(unknown)}")
+    sequences = []
+    spec_digest = source_spec.digest()
+    producers = {"tex_document": "lc_tex_document", "ordered_files": "ordered_files",
+                 "lean_modules": "lean_modules"}
+    for index, sequence in enumerate(source_spec.sequences):
+        members = tuple(subjects.get(sequence.id, ()))
+        if len(members) < 2:
+            continue
+        if (sequence.kind == "tex_document" and sequence.strength == "protected" and
+                sequence.role != "primary"):
+            raise ValueError("protected LC TeX order must be a primary document")
+        sequences.append(OrderSequence(
+            sequence.id, members, sequence.strength,
+            f"{sequence.role} {sequence.kind} sequence", producers[sequence.kind],
+            index * max(1, len(members)),
+            (Provenance("source_sequence_spec", f"{source_spec.repo_key}:{spec_digest}:{sequence.id}"),),
+        ))
+    return OrderEvidenceBundle.create(material_digest=material_digest,
+                                      binding_digest=binding_digest,
+                                      sequences=tuple(sequences))
 
 
 def derive_source_order(workspace, repo_key, *, asset_texts=None, corpus_files=None, corpus_prefix="",

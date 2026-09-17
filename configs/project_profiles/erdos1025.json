@@ -1,0 +1,77 @@
+{
+  "contributors": [
+    {
+      "config": {
+        "catalog_root": ".lean_constellation",
+        "mode": "current_revision",
+        "text_ast": false,
+        "unit_aggregation": "preserve"
+      },
+      "contributor_id": "lc-current-catalog",
+      "kind": "lc_catalog",
+      "required": true
+    }
+  ],
+  "identity": {
+    "input_digest": null,
+    "repo_key": "Erdos1025",
+    "revision": "d12396b85d7839ef96beadbef9525150a33a0df5",
+    "toolchain": "leanprover/lean4:v4.32.0"
+  },
+  "material_assets": [
+    {
+      "asset_id": "[\"Erdos1025\",\".lean_constellation/source/main.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {
+        "document_root": true,
+        "tex_path": "main.tex"
+      },
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/main.tex",
+      "role": "primary",
+      "sha256": "e50a622029cfb807c945a4c5afaf8e59ade8e1f5249bc214ccfb597fa0509029"
+    },
+    {
+      "asset_id": "[\"Erdos1025\",\".lean_constellation/source/paper/essays2withchanges.tex\"]",
+      "binder_id": "lc_origin_ranges",
+      "config": {
+        "document_root": false,
+        "tex_path": "paper/essays2withchanges.tex"
+      },
+      "media_type": "application/x-tex",
+      "parser_id": "tex",
+      "path": ".lean_constellation/source/paper/essays2withchanges.tex",
+      "role": "primary",
+      "sha256": "25dc7dfb544e2b8668ac36d22271f8cec6419eb26736a38c01b517ff0fcf9491"
+    }
+  ],
+  "order_hints": [],
+  "primary_outcomes": [
+    {
+      "module": "Erdos1025.Main.PairMaps.Defs.Pair",
+      "name": "Erdos1025.Pair"
+    },
+    {
+      "module": "Erdos1025.Main.PairMaps.Defs.IsAdmissible",
+      "name": "Erdos1025.IsAdmissible"
+    },
+    {
+      "module": "Erdos1025.Main.PairMaps.Defs.IsFree",
+      "name": "Erdos1025.IsFree"
+    },
+    {
+      "module": "Erdos1025.Main.GridWitness.ArbitraryNUpperBound.Theorems.upper_bound",
+      "name": "Erdos1025.upper_bound"
+    },
+    {
+      "module": "Erdos1025.Main.SpencerIndependence.SquareRootLowerBound.Theorems.lower_bound",
+      "name": "Erdos1025.lower_bound"
+    }
+  ],
+  "profile_id": "erdos1025-lc",
+  "scope_hints": [],
+  "stage": "formal",
+  "target_slices": [],
+  "unit_hints": []
+}

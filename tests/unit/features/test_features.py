@@ -4,17 +4,21 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "structure"))
-from test_graph import P, ref, workspace
+from test_graph import P, bundle, ref, workspace
 from lean_exposition.features import FeatureSet, extract_features
 from lean_exposition.features.core import FEATURE_CONFIG_DIGEST, ref_key
 from lean_exposition.models import TextContent
-from lean_exposition.structure import BuildConfig, build_hierarchy
+from lean_exposition.structure import BuildConfig, build_hierarchy as _build_hierarchy
+
+
+def build_hierarchy(workspace, repo_key, **kwargs):
+    return _build_hierarchy(bundle(workspace, "preserve"), repo_key, **kwargs)
 
 
 class FeatureTests(unittest.TestCase):
     def test_missing_compiled_is_not_zero_and_does_not_poison_formal_cost(self):
         w = workspace("ab")
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False))
+        h = build_hierarchy(w, "r", config=BuildConfig())
         f = extract_features(w, h)
         row = f.declarations[ref_key(ref("a"))]
         self.assertIsNone(row["metrics"]["type_expr_nodes"]["value"])
@@ -25,7 +29,7 @@ class FeatureTests(unittest.TestCase):
     def test_pair_occurrences_are_deduplicated(self):
         deps = [(ref("a"), ref("b"), "lean_type"), (ref("a"), ref("b"), "lean_value")]
         w = workspace("ab", deps)
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False)).to_dict()
+        h = build_hierarchy(w, "r", config=BuildConfig()).to_dict()
         f = extract_features(w, h)
         self.assertEqual(f.nodes[h["root_id"]]["decl_count"], 2)
         self.assertEqual(f.nodes[h["root_id"]]["interface"]["internal_pairs"], 1)
@@ -36,7 +40,7 @@ class FeatureTests(unittest.TestCase):
         d = w.declarations[0]
         missing = TextContent(None, "missing", P, reason="unavailable")
         w = replace(w, declarations=(replace(d, statement=replace(d.statement, formal=missing, nl=missing)), w.declarations[1]))
-        h = build_hierarchy(w, "r", config=BuildConfig(native_helper=False))
+        h = build_hierarchy(w, "r", config=BuildConfig())
         f = extract_features(w, h)
         material = f.nodes[h.root_id]["metrics"]["formal_material_codepoints"]
         self.assertIsNone(material["value"])

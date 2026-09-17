@@ -169,7 +169,11 @@ class LocaleTests(unittest.TestCase):
 
     def test_instance_count_uses_reading_root_not_loaded_context(self):
         from dataclasses import replace
-        from lean_exposition.models.facts import DeclRef, Repository, Scope
+        from lean_exposition.construction import (
+            COVERAGE_DOMAINS, CoverageEntry, DependencyCoverage,
+            RepositoryBuildBundle, StructurePolicy,
+        )
+        from lean_exposition.models.facts import DeclRef, DeclUnit, Repository, Scope
         from lean_exposition.exposition import ContentStore
         from lean_exposition.structure import build_hierarchy
         workspace = self.stores[0].workspace
@@ -181,8 +185,19 @@ class LocaleTests(unittest.TestCase):
         context_workspace = replace(
             workspace,
             manifest=replace(workspace.manifest, repositories=(*workspace.manifest.repositories, context_repo)),
-            declarations=(*workspace.declarations, extra), scopes=(*workspace.scopes, context_scope))
-        hierarchy = build_hierarchy(context_workspace, 'demo')
+            declarations=(*workspace.declarations, extra), scopes=(*workspace.scopes, context_scope),
+            units=tuple(DeclUnit(f'{decl.ref.repo_key}:{decl.ref.local_id}', decl.ref)
+                        for decl in (*workspace.declarations, extra)))
+        digest = context_workspace.digest()
+        coverage = DependencyCoverage(digest, tuple(
+            CoverageEntry(decl.ref, part, domain, 'unknown', provenance)
+            for decl in context_workspace.declarations
+            for part in (("statement", "proof") if decl.proof is not None else ("statement",))
+            for domain in COVERAGE_DOMAINS
+        ))
+        bundle = RepositoryBuildBundle(
+            context_workspace, StructurePolicy(digest, 'preserve', provenance, True), coverage)
+        hierarchy = build_hierarchy(bundle, 'demo')
         store = ContentStore(context_workspace, hierarchy, self.path / 'context.json')
         store.publish({hierarchy.root_id:{'lead_in':'Start.','synopsis':'Reading subset.','lead_out':'End.','anchors':[]}})
         self.service.stores[store.instance_id] = store

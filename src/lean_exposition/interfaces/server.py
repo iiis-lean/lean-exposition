@@ -33,7 +33,8 @@ def create_app(service, *, static_dir=None):
 
     @mcp.tool()
     def inspect(reader_id: str, ref: str | dict, detail: str = "summary", view_id: str | None = None,
-                cursor: str | None = None, limit: int = 50) -> dict:
+                dependency_view: str = "analysis", cursor: str | None = None,
+                limit: int = 50) -> dict:
         """Inspect explicit material, or query a generation job owned by this reader."""
         return service.call("inspect", _arguments(locals()))
 

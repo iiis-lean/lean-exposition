@@ -189,6 +189,16 @@ class StructuredExecutorTests(ExecutorFixture, unittest.TestCase):
         self.assertEqual(call["response_format"]["json_schema"]["schema"], SCHEMA)
         self.assertEqual(call["reasoning_effort"], "high")
 
+    def test_output_limit_can_be_omitted_for_both_protocols(self):
+        self.assertIsNone(self.config().max_output_tokens)
+        self.executor().execute("prompt", SCHEMA)
+        self.assertNotIn("max_output_tokens", self.client.calls[-1])
+
+        self.executor(
+            protocol="chat_completions", max_output_tokens=None
+        ).execute("prompt", SCHEMA)
+        self.assertNotIn("max_tokens", self.client.calls[-1])
+
     def test_failure_categories_are_stable(self):
         cases = [
             ("", "empty_output"),
@@ -270,6 +280,8 @@ class StructuredExecutorTests(ExecutorFixture, unittest.TestCase):
             self.config(transport="websocket")
         with self.assertRaises(ValueError):
             self.config(protocol="chat_completions", reasoning={"mode": "advanced"})
+        with self.assertRaises(ValueError):
+            self.config(max_output_tokens=0)
         self.assertEqual(canonical_json({"b": 1, "a": "中"}), '{"a":"中","b":1}')
         self.assertEqual(
             stable_prompt("fixed  ", {"b": 1, "a": 2}),
