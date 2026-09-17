@@ -107,6 +107,44 @@ class DeterministicOrderTests(unittest.TestCase):
                                            keys=dict(reversed(tuple(keys.items())))))
         self.assertEqual(first.to_dict(), second.to_dict())
 
+    def test_heap_ready_matches_scan_order_and_frontier_statistics(self):
+        from lean_exposition.structure.order import _heap_ready
+        atoms = tuple(str(i) for i in range(35))
+        pairs = tuple((str(i), str(j), (i+j)%3+1) for i in range(35)
+                      for j in range(i+1, 35) if (i*13+j*7)%11 == 0)
+        keys = {atom: (int(atom)%4,) for atom in atoms}
+        problem = order_problem(atoms, pairs, keys=keys)
+        for reverse in (False, True):
+            pending, emitted, result = set(atoms), set(), []
+            ambiguous = maximum = 0
+            coefficients = {a: sum(w for p,c,w in pairs if p==a)-sum(w for p,c,w in pairs if c==a)
+                            for a in atoms}
+            while pending:
+                ready = {a for a in pending if all((c if reverse else p) in emitted
+                    for p,c,w in pairs if (p if reverse else c)==a)}
+                ambiguous += len(ready)>1
+                maximum = max(maximum, len(ready))
+                selected = (max(ready, key=lambda a: (coefficients[a], keys[a], a)) if reverse
+                            else min(ready, key=lambda a: (keys[a], a)))
+                pending.remove(selected)
+                emitted.add(selected)
+                result.append(selected)
+            expected = tuple(reversed(result)) if reverse else tuple(result)
+            self.assertEqual(_heap_ready(problem, (), reverse=reverse), (expected, ambiguous, maximum))
+
+    def test_budgeted_improvement_keeps_a_legal_deterministic_order(self):
+        from unittest.mock import patch
+        from lean_exposition.structure.order import ORDER_IMPLEMENTATION, validate_scope_order
+        atoms = tuple(str(i) for i in range(150))
+        problem = order_problem(atoms, tuple((str(i), str(i+60), 1) for i in range(60)))
+        with patch.dict(ORDER_IMPLEMENTATION, improvement_candidate_budget=10):
+            first = solve_order(problem)
+            second = solve_order(problem)
+        self.assertEqual(first.order, second.order)
+        validate_scope_order(problem, first)
+        self.assertLessEqual(first.metrics['dependency_distance'],
+                             min(first.metrics['source_start_distance'], first.metrics['reverse_start_distance']))
+
     def test_metrics_include_weighted_span_source_and_ready_evidence(self):
         basis = {"a": "explicit_primary", "b": "explicit_primary",
                  "c": "explicit_supporting", "d": "missing_source"}
@@ -119,6 +157,18 @@ class DeterministicOrderTests(unittest.TestCase):
 
 
 class SourceSequenceTests(unittest.TestCase):
+    def test_range_offsets_preserve_unicode_crlf_and_asset_replacement(self):
+        from lean_exposition.structure.source import SourceOrder
+        text = "αβ\r\nγδε\nlast"
+        source = SourceOrder({}, {'asset': text})
+        declaration = replace(workspace('a').declarations[0],
+                              source_refs=(SourceRange('asset', 1, 2, 2, 3),))
+        expected = len(text.splitlines(keepends=True)[0]) + 2 - 1
+        self.assertEqual(source.measure([declaration])['codepoints'], expected)
+        self.assertEqual(source.measure([declaration, declaration])['codepoints'], expected)
+        source.assets['asset'] = "longer\r\nγδε\nlast"
+        self.assertEqual(source.measure([declaration])['codepoints'], len('longer\r\n') + 2 - 1)
+
     def test_multi_origin_prefers_primary_and_preserves_all_matches(self):
         main = "\\documentclass{article}\nmain\n"
         support = "\\documentclass{article}\nsupport\n"

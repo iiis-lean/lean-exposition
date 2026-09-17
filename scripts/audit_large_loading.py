@@ -24,7 +24,9 @@ def main():
     result = {'root': args.root, 'profile': args.profile, 'stages': {},
               'implementation': {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in
                   (Path(__file__), Path('src/lean_exposition/importers/project.py'),
-                   Path('src/lean_exposition/models/facts.py'), Path('src/lean_exposition/construction/profiles.py'))}}
+                   Path('src/lean_exposition/models/facts.py'), Path('src/lean_exposition/construction/profiles.py'),
+                   Path('src/lean_exposition/structure/order.py'), Path('src/lean_exposition/structure/graph.py'),
+                   Path('src/lean_exposition/structure/source.py'))}}
     args.output.parent.mkdir(parents=True, exist_ok=True)
 
     def save(stage, values):

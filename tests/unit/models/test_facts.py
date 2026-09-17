@@ -1,5 +1,6 @@
 """Focused contracts for frozen facts, provenance, and unit ownership."""
 from dataclasses import replace
+import hashlib
 import json
 from pathlib import Path
 import unittest
@@ -28,6 +29,11 @@ class FactTests(unittest.TestCase):
         self.assertEqual(Workspace.from_json(before).to_json(), before)
         self.assertEqual(_record_schema.cache_info().misses, misses)
         self.invalid(replace(self.workspace, declarations=list(self.workspace.declarations)))
+
+    def test_streamed_digest_matches_canonical_json_bytes(self):
+        self.assertEqual(self.workspace.digest(), hashlib.sha256(self.workspace.to_json().encode()).hexdigest())
+        changed = replace(self.workspace, declarations=tuple(reversed(self.workspace.declarations)))
+        self.assertEqual(changed.digest(), hashlib.sha256(changed.to_json().encode()).hexdigest())
 
     def test_roundtrip_preserves_definition_body_and_content_states(self):
         restored = Workspace.from_json(self.workspace.to_json())

@@ -170,7 +170,13 @@ class Workspace:
 
     @cached_property
     def _identity_digest(self) -> str:
-        return hashlib.sha256(self.to_json().encode()).hexdigest()
+        self.validate()
+        result = hashlib.sha256()
+        encoder = json.JSONEncoder(ensure_ascii=False, sort_keys=True, indent=2)
+        for chunk in encoder.iterencode(asdict(self)):
+            result.update(chunk.encode())
+        result.update(b"\n")
+        return result.hexdigest()
 
     def digest(self) -> str:
         """Return the identity of the complete validated current fact package."""

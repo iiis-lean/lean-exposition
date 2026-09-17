@@ -141,6 +141,7 @@ class SourceOrder:
     config: dict = field(default_factory=dict)
     diagnostics: list = field(default_factory=list)
     sequence_spec: SourceSequenceSpec | None = None
+    _line_offsets: dict = field(default_factory=dict, init=False, repr=False, compare=False)
 
     def digest(self):
         records = [{"ref": asdict(ref), "record": record} for ref, record in sorted(
@@ -178,9 +179,17 @@ class SourceOrder:
                         "measurement": "conservative_formal_sum"}
             for r in locations:
                 text = self.assets[r.asset_id]
-                lines = text.splitlines(keepends=True)
-                start = sum(map(len, lines[:r.start_line - 1])) + (r.start_column - 1 if r.start_column else 0)
-                end = sum(map(len, lines[:r.end_line - 1])) + (r.end_column - 1 if r.end_column else len(lines[r.end_line - 1]))
+                cached = self._line_offsets.get(r.asset_id)
+                if cached is None or cached[0] is not text:
+                    offsets = [0]
+                    for line in text.splitlines(keepends=True):
+                        offsets.append(offsets[-1] + len(line))
+                    cached = (text, offsets)
+                    self._line_offsets[r.asset_id] = cached
+                offsets = cached[1]
+                start = offsets[r.start_line - 1] + (r.start_column - 1 if r.start_column else 0)
+                end = (offsets[r.end_line - 1] + r.end_column - 1 if r.end_column
+                       else offsets[r.end_line])
                 intervals.setdefault(r.asset_id, []).append((start, end))
         size = 0
         for values in intervals.values():

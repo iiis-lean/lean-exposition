@@ -7,6 +7,7 @@ later hierarchy construction.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import heapq
 import hashlib
 import json
 import math
@@ -21,7 +22,8 @@ ORDER_IMPLEMENTATION = {
     "edge_weight": "distinct_base_declaration_pairs",
     "starts": ["source_kahn", "reverse_frontier"],
     "objective": "weighted_atom_distance",
-    "improvement": "strict_best_legal_insertion",
+    "improvement": "budgeted_strict_best_legal_insertion",
+    "improvement_candidate_budget": 100000,
     "tie_break": "soft_relations_then_source_displacement_then_stable_identity",
 }
 
@@ -764,7 +766,40 @@ def _graph(problem, constraints):
     return successors, predecessors
 
 
+def _heap_ready(problem, constraints, *, reverse=False):
+    """Equivalent ready-node selection when no soft relations change priorities."""
+    successors, predecessors = _graph(problem, constraints)
+    adjacent = predecessors if reverse else successors
+    degree = {atom: len(successors[atom] if reverse else predecessors[atom]) for atom in problem.atoms}
+    coefficients = {atom: 0 for atom in problem.atoms}
+    if reverse:
+        for edge in problem.edges:
+            coefficients[edge.provider] += edge.weight
+            coefficients[edge.consumer] -= edge.weight
+    ranked = sorted(problem.atoms, key=lambda atom: (coefficients[atom], _tupleize(problem.source_keys[atom]), atom))
+    if reverse:
+        ranked.reverse()
+    rank = {atom: i for i, atom in enumerate(ranked)}
+    ready = [rank[atom] for atom in ranked if not degree[atom]]
+    heapq.heapify(ready)
+    result, ambiguous, maximum = [], 0, 0
+    while ready:
+        ambiguous += len(ready) > 1
+        maximum = max(maximum, len(ready))
+        atom = ranked[heapq.heappop(ready)]
+        result.append(atom)
+        for child in adjacent[atom]:
+            degree[child] -= 1
+            if not degree[child]:
+                heapq.heappush(ready, rank[child])
+    if len(result) != len(problem.atoms):
+        raise ValueError(f"cyclic order problem at {problem.scope_id}")
+    return tuple(reversed(result)) if reverse else tuple(result), ambiguous, maximum
+
+
 def _source_order(problem, constraints):
+    if not problem.tie_breaker_relations:
+        return _heap_ready(problem, constraints)[0]
     successors, predecessors = _graph(problem, constraints)
     degree = {atom: len(predecessors[atom]) for atom in problem.atoms}
     ready = {atom for atom in problem.atoms if not degree[atom]}
@@ -783,6 +818,8 @@ def _source_order(problem, constraints):
 
 
 def _reverse_frontier(problem, constraints):
+    if not problem.tie_breaker_relations:
+        return _heap_ready(problem, constraints, reverse=True)[0]
     successors, predecessors = _graph(problem, constraints)
     remaining_successors = {atom: len(successors[atom]) for atom in problem.atoms}
     ready = {atom for atom in problem.atoms if not remaining_successors[atom]}
@@ -861,6 +898,7 @@ def _improve(problem, constraints, initial):
     current = tuple(initial)
     current_distance = dependency_distance(problem, current)
     current_displacement = _source_displacement(problem, current)
+    remaining = ORDER_IMPLEMENTATION["improvement_candidate_budget"]
     while True:
         positions = {atom: index for index, atom in enumerate(current)}
         coefficient_prefix = [0]
@@ -879,6 +917,9 @@ def _improve(problem, constraints, initial):
             for new_index in range(lower, upper + 1):
                 if new_index == old_index:
                     continue
+                if remaining <= 0:
+                    return current
+                remaining -= 1
                 if new_index < old_index:
                     coefficient_delta = (coefficients[atom] * (new_index - old_index) +
                                          coefficient_prefix[old_index] - coefficient_prefix[new_index])
@@ -919,6 +960,8 @@ def _weighted_quantile(values, quantile):
 
 
 def _ready_stats(problem, constraints):
+    if not problem.tie_breaker_relations:
+        return _heap_ready(problem, constraints)[1:]
     successors, predecessors = _graph(problem, constraints)
     degree = {atom: len(predecessors[atom]) for atom in problem.atoms}
     ready = {atom for atom in problem.atoms if not degree[atom]}
@@ -958,15 +1001,19 @@ def _role_metrics(problem, order):
 def _metrics(problem, constraints, source_start, reverse_start, order):
     positions = {atom: index for index, atom in enumerate(order)}
     spans = [(positions[edge.consumer] - positions[edge.provider], edge.weight) for edge in problem.edges]
-    frontier = []
-    for cut in range(max(0, len(order) - 1)):
-        frontier.append(sum(edge.weight for edge in problem.edges
-                            if positions[edge.provider] <= cut < positions[edge.consumer]))
-    last_use = []
-    for atom in order:
-        consumers = [positions[edge.consumer] for edge in problem.edges if edge.provider == atom]
-        if consumers:
-            last_use.append(max(consumers) - positions[atom])
+    frontier_changes = [0] * len(order)
+    last_consumer = {}
+    for edge in problem.edges:
+        provider, consumer = positions[edge.provider], positions[edge.consumer]
+        if provider <= consumer:
+            frontier_changes[provider] += edge.weight
+            frontier_changes[consumer] -= edge.weight
+        last_consumer[edge.provider] = max(last_consumer.get(edge.provider, -1), consumer)
+    frontier, active = [], 0
+    for change in frontier_changes[:-1]:
+        active += change
+        frontier.append(active)
+    last_use = [last_consumer[atom] - positions[atom] for atom in order if atom in last_consumer]
     final_distance = dependency_distance(problem, order)
     if sum(frontier) != final_distance:
         raise AssertionError("frontier area does not equal dependency distance")

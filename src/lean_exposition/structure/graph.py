@@ -365,7 +365,9 @@ class DependencyGraph:
         # Outgoing usage is observed workspace usage, not unknown future consumers.
         coverage = self._coverage(refs)
         incoming, outgoing, internal = [], [], []
-        for edge in self.edges:
+        relevant = {(edge.provider, edge.consumer): edge for ref in coverage
+                    for edge in (*self.incoming[ref], *self.outgoing[ref])}
+        for _, edge in sorted(relevant.items(), key=lambda item: (_ref_key(item[0][0]), _ref_key(item[0][1]))):
             provider, consumer = edge.provider in coverage, edge.consumer in coverage
             if provider and consumer:
                 internal.append(edge)
@@ -408,7 +410,8 @@ class DependencyGraph:
             normalized[name] = refs
             owner.update((ref, name) for ref in refs)
         cross, internal = defaultdict(list), {name: [] for name in normalized}
-        for edge in self.edges:
+        relevant = (edge for ref in sorted(coverage, key=_ref_key) for edge in self.outgoing[ref])
+        for edge in relevant:
             if edge.provider in owner and edge.consumer in owner:
                 provider, consumer = owner[edge.provider], owner[edge.consumer]
                 if provider == consumer:

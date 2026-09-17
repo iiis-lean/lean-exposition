@@ -54,6 +54,18 @@ def workspace(names, pairs=(), *, units=True, scopes=None, outcomes=()):
 
 
 class GraphTests(unittest.TestCase):
+    def test_indexed_local_queries_match_full_edge_scan(self):
+        graph = DependencyGraph.from_workspace(workspace('abcde',
+            [(ref(a), ref(b), 'lean_type') for a,b in [('a','c'),('b','c'),('c','d'),('a','e')]]))
+        for mask in range(32):
+            selected = {ref(a) for i,a in enumerate('abcde') if mask & (1 << i)}
+            boundary = graph.boundary(selected)
+            self.assertEqual(boundary.internal, tuple(e for e in graph.edges if e.provider in selected and e.consumer in selected))
+            self.assertEqual(boundary.incoming, tuple(e for e in graph.edges if e.provider not in selected and e.consumer in selected))
+            self.assertEqual(boundary.outgoing, tuple(e for e in graph.edges if e.provider in selected and e.consumer not in selected))
+            projection = graph.project({'chosen': selected})
+            self.assertEqual(projection.internal_edges['chosen'], boundary.internal)
+
     def test_chain_shortcut_and_isolation(self):
         ws = workspace("abcd", [(ref("a"), ref("b"), "lean_type"), (ref("b"), ref("c"), "lean_value"),
                                 (ref("a"), ref("c"), "lc_declared")], outcomes=(ref("d"), ref("unloaded")))
