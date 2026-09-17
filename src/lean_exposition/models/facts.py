@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields
+from functools import cached_property, lru_cache
 import hashlib
 import json
 import re
@@ -150,20 +151,30 @@ class Workspace:
     scopes: tuple[Scope, ...] = ()
     units: tuple[DeclUnit, ...] = ()
 
-    def validate(self) -> None:
-        """Validate types, frozen identities, references, and optional full unit coverage."""
-        # The same strict shape checks apply to Python instances and loaded JSON.
+    @cached_property
+    def _validated(self) -> bool:
+        # Successful validation establishes deeply frozen schema records/tuples.
+        # dataclasses.replace creates a new instance with an empty cache.
         decoded = _decode(Workspace, asdict(self), "workspace")
         _require(decoded == self, "Python records must use schema dataclasses and tuples")
         _validate(self)
+        return True
+
+    def validate(self) -> None:
+        """Validate types, frozen identities, references, and optional full unit coverage."""
+        self._validated
 
     def to_json(self) -> str:
         self.validate()
         return json.dumps(asdict(self), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
 
+    @cached_property
+    def _identity_digest(self) -> str:
+        return hashlib.sha256(self.to_json().encode()).hexdigest()
+
     def digest(self) -> str:
         """Return the identity of the complete validated current fact package."""
-        return hashlib.sha256(self.to_json().encode()).hexdigest()
+        return self._identity_digest
 
     @classmethod
     def from_json(cls, text: str) -> Workspace:
@@ -198,6 +209,12 @@ class Workspace:
         return frozenset(result)
 
 
+@lru_cache(maxsize=None)
+def _record_schema(expected):
+    """Schema types are static; reuse reflection across declaration records."""
+    return frozenset(field.name for field in fields(expected)), get_type_hints(expected)
+
+
 def _decode(expected, value, path):
     origin = get_origin(expected)
     if origin in (Union, UnionType):
@@ -219,10 +236,9 @@ def _decode(expected, value, path):
             return value
     elif hasattr(expected, "__dataclass_fields__"):
         if isinstance(value, dict):
-            known = {field.name for field in fields(expected)}
+            known, hints = _record_schema(expected)
             if value.keys() - known:
                 raise ValidationError(f"{path}: unknown fields {sorted(value.keys() - known)}")
-            hints = get_type_hints(expected)
             try:
                 return expected(**{key: _decode(hints[key], item, f"{path}.{key}")
                                    for key, item in value.items()})

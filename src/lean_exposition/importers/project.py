@@ -69,6 +69,18 @@ def _profile_materials(adapter, plan, read):
     from lean_exposition.construction import MaterialBinding, MaterialTarget, MaterialRecord, MaterialBundle
     from lean_exposition.structure.source import derive_tex_materials
     names, diagnostics = _names(adapter), list(adapter.diagnostics)
+    module_candidates = {}
+    for declaration in adapter.declarations:
+        if not isinstance(declaration.locator, CanonicalDeclLocator):
+            continue
+        values = {field.field: field.value for field in declaration.fields}
+        if values.get('module') and values.get('lean_name'):
+            key = (values['module'], values['lean_name'])
+            module_candidates.setdefault(key, set()).add(declaration.locator.ref)
+    module_names = {}
+    for (module, name), refs in module_candidates.items():
+        if len(refs) == 1:
+            module_names.setdefault(module, {})[name] = next(iter(refs))
     bundles, artifacts, published, tex = [], [], {}, []
     for spec in plan.material_assets:
         try:
@@ -107,7 +119,17 @@ def _profile_materials(adapter, plan, read):
                 parser = {'formalization_yaml': parse_formalization_yaml,
                           'proof_path_markdown': parse_proof_path_markdown,
                           'published_html': parse_published_html_shard}[spec.parser_id]
-                kwargs = dict(plan=plan, asset=asset, text=text, declarations=names)
+                material_names = dict(names)
+                declared = spec.config.get('declared_statement')
+                provider = spec.config.get('internal_provider')
+                if declared and provider and spec.config.get('mapping_evidence'):
+                    if provider in names:
+                        material_names.setdefault(declared, names[provider])
+                    else:
+                        diagnostics.append(f'material_alias_unresolved:{declared}:{provider}')
+                kwargs = dict(plan=plan, asset=asset, text=text, declarations=material_names)
+                if spec.parser_id == 'formalization_yaml':
+                    kwargs['module_declarations'] = module_names
                 if spec.parser_id == 'published_html':
                     kwargs['allowed_declarations'] = tuple(names)
                 artifacts.append(parser(**kwargs))
@@ -304,8 +326,10 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
         if plan and plan.identity.toolchain and plan.identity.toolchain != toolchain:
             raise ValueError('profile toolchain mismatch')
         source_specs = [c for c in plan.contributors if c.kind == 'source_inventory'] if plan else []
-        roots = source_roots or tuple(r for c in source_specs for r in c.config.get('source_roots', c.config.get('roots', ())))
-        roots = roots or (plan.source_roots if plan else ()) or ('.',)
+        roots = (source_roots if source_roots is not None else
+                 (plan.source_roots if plan and plan.source_roots else
+                  tuple(r for c in source_specs for r in c.config.get('source_roots', c.config.get('roots', ())))))
+        roots = roots or ('.',)
         selected = list(modules) if modules is not None else []
         published_only = plan and all(c.kind == 'published' for c in plan.contributors)
         if modules is None and not published_only:
@@ -343,9 +367,9 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
             adapter = _published_base(repo_key, selected_names, toolchain=toolchain, revision=revision)
         semantic_modules = list(selected if compiled_modules is None else compiled_modules)
         semantic_completed = set()
-        if plan and compiled_modules is None:
+        if plan and compiled_modules is None and modules is None:
             semantic_modules += [m for c in plan.contributors if c.kind == 'compiled' for m in c.config.get('modules', ())]
-        if plan and compiled_modules is None:
+        if plan and compiled_modules is None and modules is None:
             for spec in plan.contributors:
                 manifest_path = spec.config.get('semantic_manifest') if spec.kind == 'compiled' else None
                 if not manifest_path:

@@ -54,6 +54,63 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(result.workspace.declarations[0].statement.formal.text, expected)
         self.assertTrue(any(f.authority == 'lean_source' for d in semantic.declarations for f in d.fields))
 
+    def test_slice_roots_override_broad_contributor_and_explicit_roots_override_slice(self):
+        from lean_exposition.construction.profiles import TargetSlice
+        self.write('A.lean', 'def a := 1\n')
+        self.write('B.lean', 'def b := 2\n')
+        profile = RepositoryProfile('p', RepositoryIdentity('r', 'a'*40), 'inventory',
+            (ContributorSpec('source', 'source_inventory', True, {'source_roots': ['.']}),),
+            (), (), (), (), (),
+            (TargetSlice('small', ('A.lean',), (), (), ('source',), (), (), (), ()),))
+        result = self.load(profile=profile)
+        self.assertEqual([d.module for d in result.workspace.declarations], ['A'])
+        explicit = self.load(profile=profile, source_roots=('B.lean',))
+        self.assertEqual([d.module for d in explicit.workspace.declarations], ['B'])
+
+    def test_explicit_modules_do_not_expand_profile_compiled_modules(self):
+        self.write('A.lean', 'def a := 1\n')
+        self.write('B.lean', 'def b := 2\n')
+        profile = RepositoryProfile('p', RepositoryIdentity('r', 'a'*40), 'inventory',
+            (ContributorSpec('compiled', 'compiled', False, {'modules': ['A', 'B']}),),
+            (), (), (), (), (), ())
+        with patch('lean_exposition.importers.project.NativeRepositoryAdapter.collect', side_effect=RuntimeError('fixture')) as collect:
+            result = load_project(self.root, repo_key='r', profile=profile, modules=('A',), build=False)
+        self.assertEqual(collect.call_count, 1)
+        self.assertEqual([d.module for d in result.workspace.declarations], ['A'])
+
+    def test_material_alias_uses_explicit_evidence_and_existing_provider(self):
+        self.write('M.lean', 'theorem internal : True := by trivial\n')
+        text = 'status:\n  main_results:\n    - declaration: published_name\n      statement: Truth holds.\n'
+        self.write('formalization.yaml', text)
+        spec = MaterialAssetSpec('yaml', 'formalization.yaml', hashlib.sha256(text.encode()).hexdigest(),
+            'application/yaml', 'formalization_yaml', 'explicit', 'primary',
+            {'declared_statement': 'published_name', 'internal_provider': 'internal',
+             'mapping_evidence': 'Author explicitly identifies the provider'})
+        profile = RepositoryProfile('p', RepositoryIdentity('r', 'a'*40), 'inventory',
+            (ContributorSpec('source', 'source_inventory', True, {}),), (spec,), (), (), (), (), ())
+        result = self.load(profile=profile)
+        bindings = [b for m in result.materials for b in m.bindings]
+        self.assertTrue(bindings)
+        self.assertTrue(all(b.status == 'exact' and b.target.ref == result.workspace.declarations[0].ref for b in bindings))
+        no_evidence = replace(spec, config={'declared_statement': 'published_name', 'internal_provider': 'internal'})
+        unresolved = self.load(profile=replace(profile, material_assets=(no_evidence,)))
+        self.assertTrue(all(b.status == 'unresolved' for m in unresolved.materials for b in m.bindings))
+
+    def test_material_file_disambiguates_challenge_and_solution(self):
+        self.write('Challenge.lean', 'theorem result : True := by sorry\n')
+        self.write('Solution.lean', 'theorem result : True := by trivial\n')
+        text = 'status:\n  main_results:\n    - declaration: result\n      file: Solution.lean\n      statement: Truth holds.\n'
+        self.write('formalization.yaml', text)
+        spec = MaterialAssetSpec('yaml', 'formalization.yaml', hashlib.sha256(text.encode()).hexdigest(),
+            'application/yaml', 'formalization_yaml', 'exact', 'primary', {})
+        profile = RepositoryProfile('p', RepositoryIdentity('r', 'a'*40), 'inventory',
+            (ContributorSpec('source', 'source_inventory', True, {}),), (spec,), (), (), (), (), ())
+        result = self.load(profile=profile)
+        target = next(d.ref for d in result.workspace.declarations if d.module == 'Solution')
+        bindings = [b for m in result.materials for b in m.bindings]
+        self.assertTrue(bindings)
+        self.assertTrue(all(b.status == 'exact' and b.target.ref == target for b in bindings))
+
     def test_default_compiles_missing_and_reuses_existing_modules(self):
         self.write('A.lean', 'def a := 1\n')
         self.write('B.lean', 'def b := 2\n')

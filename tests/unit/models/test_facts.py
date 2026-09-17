@@ -19,6 +19,16 @@ class FactTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             workspace.validate()
 
+    def test_cached_schema_preserves_canonical_json_and_type_validation(self):
+        from lean_exposition.models.facts import _record_schema
+        before = self.workspace.to_json()
+        _record_schema.cache_clear()
+        self.assertEqual(Workspace.from_json(before).to_json(), before)
+        misses = _record_schema.cache_info().misses
+        self.assertEqual(Workspace.from_json(before).to_json(), before)
+        self.assertEqual(_record_schema.cache_info().misses, misses)
+        self.invalid(replace(self.workspace, declarations=list(self.workspace.declarations)))
+
     def test_roundtrip_preserves_definition_body_and_content_states(self):
         restored = Workspace.from_json(self.workspace.to_json())
         self.assertEqual(restored, self.workspace)

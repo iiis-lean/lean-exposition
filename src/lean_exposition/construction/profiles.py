@@ -612,7 +612,8 @@ def _record(asset: SourceAsset, spec: MaterialAssetSpec, plan: ProfileRunPlan, *
 
 def parse_formalization_yaml(*, plan: ProfileRunPlan, asset: SourceAsset, text: str,
                              declarations: Mapping[str, DeclRef],
-                             yaml_loader: Callable[[str], object] | None = None) -> ArtifactContributions:
+                             yaml_loader: Callable[[str], object] | None = None,
+                             module_declarations: Mapping[str, Mapping[str, DeclRef]] | None = None) -> ArtifactContributions:
     """Read main-results/alignment entries with PyYAML's safe loader.
 
     PyYAML is an optional material-ingestion dependency rather than a core
@@ -704,7 +705,11 @@ def parse_formalization_yaml(*, plan: ProfileRunPlan, asset: SourceAsset, text: 
         if module is None and isinstance(item.get("file"), str):
             module = item["file"].removesuffix(".lean").replace("/", ".")
         for declaration in declarations_in_entry:
-            locator = _resolve(declaration, plan.identity.repo_key, declarations, module)
+            # Challenge and Solution may intentionally define the same name in
+            # separate Lean environments. Respect the author's file/module tag.
+            local_names = (module_declarations or {}).get(module, {})
+            locator = _resolve(declaration, plan.identity.repo_key,
+                               {**declarations, **local_names}, module)
             relation = "states" if path == "status.main_results" else "paper_label"
             bindings.append(MaterialBinding(record.record_id, _target(locator), relation,
                                             _status(locator), provenance))
