@@ -40,18 +40,25 @@ require Toolkit or Lean.
 | LC | Auto-detected catalog, or `lc_catalog` profile contributor | Registered declarations, NL/FL, dependencies, scopes, summaries, resources |
 | Source | `modules` or `source_roots`; otherwise discovered `.lean` files | Approximate declaration inventory, exact recognized slices, docstrings, context, explicit references |
 | Prebuilt Lean | `compiled_modules=('M', ...)` | Canonical names, kernel kinds, type/value constants, generated ownership, elaborated types and docstrings |
-| Mixed default | `compiled_modules=None` | Source plus detected local `.olean` modules and profile compiled module selections |
+| Compiled-first default | `compiled_modules=None`, `build=None` | Query all selected modules; reuse existing artifacts and build missing ones |
 | Explicit build | `build=True` | Build selected semantic modules before extraction |
 | Exported semantics | Compiled contributor `config.semantic_manifest` | Existing `extract_modules` JSON, checked against source/config/toolchain hashes |
 | Published materials | Profile assets and selected declarations | Available published statements, NL and published dependencies |
 
-`build=False` is the default. Reading `.olean` uses a small Lean program under the
+`build=None` is the unified runner default: build missing selected-module artifacts,
+reuse existing ones. `build=True` requests incremental builds even when artifacts
+exist; `build=False` (CLI `--no-build`) forbids builds but still requests semantic
+extraction. `compiled_modules=()` (CLI `--source-only`) explicitly chooses text-only
+loading for expensive projects. LC continues its dedicated catalog path.
+Reading `.olean` uses a small Lean program under the
 project's toolchain, importing the existing environment; Python does not decode
 Lean's binary format. No LeanInteract or REPL is required. Each module runs in a
 fresh single-thread Lean query with a timeout and optional `memory_limit_mb`
 (Lean's allocation limit, not a whole-process RSS guarantee). Imports may still
-consume substantial memory. Failure of one optional module preserves source and
-other successful observations. Nothing is downloaded by the loader itself.
+consume substantial memory. Failure of a requested module preserves source and
+other successful observations, but `compiled_acquisition:incomplete` explicitly
+lists incomplete modules. This is an acquisition report, not a downstream gate. The loader does not clone projects; an explicitly or automatically requested Lake
+build may resolve dependencies using the project configuration.
 
 Source parsing reuses Toolkit's existing `text_ast`. Reference resolution masks
 comments/strings, respects loaded imports, namespaces, simple opens and local

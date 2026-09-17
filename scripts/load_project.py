@@ -18,7 +18,11 @@ def main():
     parser.add_argument('--source-root', action='append')
     parser.add_argument('--compiled-module', action='append')
     parser.add_argument('--source-only', action='store_true')
-    parser.add_argument('--build', action='store_true')
+    build_policy = parser.add_mutually_exclusive_group()
+    build_policy.add_argument('--build', dest='build', action='store_true', default=None,
+                              help='Run incremental builds even when artifacts exist')
+    build_policy.add_argument('--no-build', dest='build', action='store_false',
+                              help='Read existing artifacts only; report missing modules')
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--cache-dir', type=Path)
     parser.add_argument('--memory-limit-mb', type=int)
@@ -37,6 +41,7 @@ def main():
     (args.output_dir / 'hierarchy.json').write_text(json.dumps(hierarchy.to_dict(), ensure_ascii=False, indent=2))
     print(json.dumps({'repository': repo, 'declarations': len(bundle.workspace.declarations),
                       'nodes': len(hierarchy.nodes), 'diagnostics': len(bundle.diagnostics),
+                      'semantic_acquisition': [d for d in bundle.diagnostics if d.startswith('compiled_acquisition:')],
                       'bundle_digest': bundle.digest()}, ensure_ascii=False))
 
 

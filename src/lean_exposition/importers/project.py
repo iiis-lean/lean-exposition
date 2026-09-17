@@ -252,14 +252,18 @@ def _hints(adapter, plan):
 
 
 def load_project(project, *, repo_key=None, profile=None, target_slice=None, modules=None,
-                 source_roots=None, compiled_modules=None, build=False, timeout=300,
+                 source_roots=None, compiled_modules=None, build=None, timeout=300,
                  cache_dir=None, providers=(), contributors=(), primary_outcomes=(), memory_limit_mb=None):
     """Load any repository into the same downstream bundle.
 
     Custom contributors are callables ``(adapter, context) -> adapter`` and can
     contribute core fields, materials, identity mappings, or structure seeds.
-    Optional acquisition failures are diagnostics; malformed final data remains
-    an error. This function never downloads projects or invokes generation.
+    Native inputs default to all selected modules with semantic extraction.
+    build=None builds missing artifacts; True runs incremental builds for all;
+    False only reads artifacts. compiled_modules=() explicitly selects source-only.
+    Acquisition failures are diagnostics; malformed final data remains
+    an error. This function never clones projects or invokes generation; Lake
+    builds may resolve dependencies using the project configuration.
     """
     root = Path(project).resolve()
     bundle_cache = None
@@ -334,10 +338,8 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
         else:
             selected_names = tuple(dict.fromkeys(n for c in plan.contributors for n in c.config.get('selected_declarations', ()))) if plan else ()
             adapter = _published_base(repo_key, selected_names, toolchain=toolchain, revision=revision)
-        semantic_modules = list(compiled_modules or ())
-        if compiled_modules is None:
-            semantic_modules.extend(m for m in selected
-                if (root / '.lake/build/lib/lean' / (m.replace('.', '/') + '.olean')).is_file())
+        semantic_modules = list(selected if compiled_modules is None else compiled_modules)
+        semantic_completed = set()
         if plan and compiled_modules is None:
             semantic_modules += [m for c in plan.contributors if c.kind == 'compiled' for m in c.config.get('modules', ())]
         if plan and compiled_modules is None:
@@ -350,14 +352,16 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
                     manifest_modules = tuple(spec.config.get('modules') or payload['source_digests'])
                     semantic = NativeRepositoryAdapter(root, repo_key=repo_key, modules=manifest_modules, payload=payload).collect()
                     adapter = merge_adapters(adapter, semantic)
+                    semantic_completed.update(manifest_modules)
                     semantic_modules = [m for m in semantic_modules if m not in manifest_modules]
                 except (OSError, ValueError, KeyError) as exc:
                     diagnostics.append(f'semantic_manifest_failed:{manifest_path}:{exc}')
-        if build and compiled_modules is None and not semantic_modules:
-            semantic_modules = selected
+        requested_modules = set(semantic_modules) | semantic_completed
+        build_modules = {m for m in semantic_modules if build is True or (build is None and not
+            (root / '.lake/build/lib/lean' / (m.replace('.', '/') + '.olean')).is_file())}
         from lean_exposition.lean.tools import _artifact_stamp
-        artifact_state = _artifact_stamp(root) if semantic_modules and cache_dir and not build else None
-        if cache_dir and not build and not contributors:
+        artifact_state = _artifact_stamp(root) if semantic_modules and cache_dir and not build_modules else None
+        if cache_dir and not build_modules and not contributors:
             code_root = Path(__file__).parents[1]
             implementation = hashlib.sha256(b''.join(p.read_bytes() for p in sorted(code_root.rglob('*.py'))) +
                                             (code_root / 'lean/environment.lean').read_bytes()).hexdigest()
@@ -385,13 +389,19 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
         for module in dict.fromkeys(semantic_modules):
             try:
                 semantic = NativeRepositoryAdapter(root, repo_key=repo_key, modules=(module,), timeout=timeout,
-                                                    build=build, cache_dir=cache_dir, _artifact_state=artifact_state, memory_limit_mb=memory_limit_mb).collect()
+                                                    build=module in build_modules, cache_dir=cache_dir, _artifact_state=artifact_state, memory_limit_mb=memory_limit_mb).collect()
                 adapter = merge_adapters(adapter, semantic)
+                semantic_completed.add(module)
             except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
                 diagnostics.append(f'compiled_failed:{module}:{exc}')
         if artifact_state is not None and artifact_state != _artifact_stamp(root):
             adapter = semantic_base
+            semantic_completed.difference_update(semantic_modules)
             diagnostics.append('compiled_artifacts_changed:discarded_concurrent_semantic_observations')
+        if requested_modules:
+            missing_modules = sorted(requested_modules - semantic_completed)
+            diagnostics.append('compiled_acquisition:' + ('incomplete:' + ','.join(missing_modules)
+                if missing_modules else 'complete:' + str(len(requested_modules))))
         adapter = replace(adapter, diagnostics=adapter.diagnostics + tuple(diagnostics))
     if plan:
         adapter = _hints(adapter, plan)

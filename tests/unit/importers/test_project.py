@@ -33,7 +33,29 @@ class ProjectTests(unittest.TestCase):
         p.write_text(text)
 
     def load(self, **kwargs):
+        kwargs.setdefault('compiled_modules', ())
         return load_project(self.root, repo_key='r', **kwargs)
+
+    def test_default_compiles_missing_and_reuses_existing_modules(self):
+        self.write('A.lean', 'def a := 1\n')
+        self.write('B.lean', 'def b := 2\n')
+        self.write('.lake/build/lib/lean/A.olean', 'fixture')
+        base = self.load()
+        semantic = adapter_result_from_workspace(base.workspace, unit_aggregation='native_helpers',
+                                                  authority='lean_environment', method='compiled')
+        with patch('lean_exposition.importers.project.NativeRepositoryAdapter') as adapter:
+            adapter.return_value.collect.return_value = semantic
+            result = load_project(self.root, repo_key='r')
+        calls = {c.kwargs['modules'][0]: c.kwargs['build'] for c in adapter.call_args_list}
+        self.assertEqual(calls, {'A': False, 'B': True})
+        self.assertIn('compiled_acquisition:complete:2', result.diagnostics)
+
+    def test_default_semantic_failure_is_explicit_and_retains_source(self):
+        self.write('M.lean', 'def n := 1\n')
+        with patch('lean_exposition.importers.project.NativeRepositoryAdapter.collect', side_effect=RuntimeError('budget')):
+            result = load_project(self.root, repo_key='r')
+        self.assertIn('compiled_acquisition:incomplete:M', result.diagnostics)
+        self.assertEqual(len(result.workspace.declarations), 1)
 
     def test_source_only_reaches_same_hierarchy_and_content_store(self):
         self.write('M.lean', '/-- A number. -/\ndef n : Nat := 1\ntheorem t : n = 1 := by rfl\n')
@@ -289,10 +311,10 @@ Use the unique constructor.
         semantic = adapter_result_from_workspace(base.workspace, unit_aggregation='native_helpers',
                                                   authority='lean_environment', method='compiled')
         with patch('lean_exposition.importers.project.NativeRepositoryAdapter.collect', return_value=semantic) as compiler:
-            first = self.load(cache_dir=self.root / '.cache', compiled_modules=('M',))
+            first = self.load(cache_dir=self.root / '.cache', compiled_modules=('M',), build=False)
             self.assertEqual(compiler.call_count, 1)
         with patch('lean_exposition.importers.project.NativeRepositoryAdapter.collect', side_effect=AssertionError('cache miss')):
-            second = self.load(cache_dir=self.root / '.cache', compiled_modules=('M',))
+            second = self.load(cache_dir=self.root / '.cache', compiled_modules=('M',), build=False)
         self.assertEqual(first, second)
         self.assertEqual(len(list((self.root / '.cache/projects').glob('*.json'))), 1)
 
