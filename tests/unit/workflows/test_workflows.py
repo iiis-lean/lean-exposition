@@ -29,13 +29,17 @@ class FakeStructured:
             self.calls.append((prompt, schema, trace_label))
         if self.fail_stage and trace_label.startswith(self.fail_stage):
             return ExecutionResult(
-                "failed", error=ApiError("fixture_failure"), trace_label=trace_label
+                "failed",
+                error=ApiError("fixture_failure"),
+                trace_label=trace_label,
+                structured_output_mode="native_schema",
             )
         return ExecutionResult(
             "succeeded",
             data=self.factory(prompt, schema, trace_label),
             usage=ApiUsage(input_tokens=100, cached_tokens=40),
             trace_label=trace_label,
+            structured_output_mode="native_schema",
         )
 
 
@@ -61,6 +65,7 @@ class FakeTools:
             data={"answer": result["answer"]},
             usage=ApiUsage(input_tokens=50, cached_tokens=7),
             trace_label=trace_label,
+            structured_output_mode="native_schema",
         )
 
 
@@ -158,6 +163,11 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(result.drafts[0].prefix_digest, result.drafts[1].prefix_digest)
         self.assertEqual(result.evidence["calls"], 4)
         self.assertEqual(result.evidence["cached_tokens"], 160)
+        self.assertEqual(result.evidence["structured_output_modes"], ["native_schema"])
+        self.assertEqual(
+            {stage["structured_output_mode"] for stage in result.evidence["stages"]},
+            {"native_schema"},
+        )
         self.assertEqual(dict(result.final_drafts)["a"]["lead_out"], "joined left")
         self.assertEqual(dict(result.final_drafts)["b"]["lead_in"], "joined right")
 

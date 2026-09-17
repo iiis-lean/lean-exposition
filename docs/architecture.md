@@ -10,7 +10,7 @@ Lean Exposition separates fixed mathematical inputs, reading structure, immutabl
 | `structure` | Dependency queries, explicit source sequences, deterministic narrative order, helper grouping, scope compression, and Regions |
 | `features` | Recomputable declaration and hierarchy observations bound to Workspace and Hierarchy digests |
 | `recommendation` | Structural refinement ranking and a deterministic random comparison baseline |
-| `runtime` | API-first strict structured calls and bounded tool loops; optional Codex/Pi Agent executors |
+| `runtime` | API-first explicit native-schema or prompt-JSON calls and bounded tool loops; optional Codex/Pi Agent executors |
 | `workflows` | Provider-independent naming, EET, Reader-tool, annotation, and source-order calls |
 | `exposition` | Digest-bound content stores, concurrent sibling generation, validation, immutable manifests, and rendering |
 | `reading` | Persistent readers, immutable views, legal actions, pagination, generation jobs, and display budgets |

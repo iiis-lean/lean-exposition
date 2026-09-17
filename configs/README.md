@@ -8,7 +8,9 @@ Shareable configuration examples live here. Keep credentials and real local sett
   according to `kind`; the other arrays remain present and empty.
 - `math-reader.api.example.json` and `math-reader.agent.example.json` configure
   reader generation clients.
-- `runtime.api.example.json` configures the shared structured API executor.
+- `runtime.api.example.json` configures the shared structured API executor. Its
+  explicit `structured_output_mode` is `native_schema` or `prompt_json`; the
+  checked-in DeepSeek examples retain the compatible `native_schema` behavior.
 - `project_profiles/` contains strict declarative profiles for fixed real
   repositories. A profile selects contributors, target slices, primary outcomes,
   materials, and order hints. Its `stage` is a capability gate (`inventory`,
@@ -43,10 +45,12 @@ PYTHONPATH=src python scripts/runtime_smoke.py pi \
 ```
 
 For another OpenAI-compatible API, pass its model, base URL, protocol, and the
-name of its credential environment variable explicitly. `--env-file` is
-optional; values already present in the process environment take precedence.
-Saved records include only the environment variable name and normalized,
-redacted runtime errors.
+name of its credential environment variable explicitly. Select
+`--structured-output-mode native_schema` or
+`--structured-output-mode prompt_json`; the command never retries in the other
+mode. `--env-file` is optional; values already present in the process
+environment take precedence. Saved records include the actual mode, only the
+environment variable name, and normalized, redacted runtime errors.
 
 The generic API runtime does not send an output-token limit unless
 `max_output_tokens` is set to a positive integer. Current product examples use

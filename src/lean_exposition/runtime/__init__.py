@@ -1,4 +1,4 @@
-"""OpenAI-compatible API execution with explicit protocol contracts."""
+"""OpenAI-compatible API execution with explicit protocol and output contracts."""
 
 from .api import (
     ApiToolExecutor,
@@ -9,7 +9,7 @@ from .api import (
     request_digest,
     stable_prompt,
 )
-from .config import ApiConfig
+from .config import ApiConfig, StructuredOutputMode
 from .agents import (
     AgentControlResult,
     AgentError,
@@ -63,6 +63,7 @@ __all__ = [
     "Runtime",
     "RuntimeFailure",
     "StructuredExecutor",
+    "StructuredOutputMode",
     "ToolEvent",
     "canonical_json",
     "prompt_digest",

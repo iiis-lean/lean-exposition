@@ -3,6 +3,7 @@
   "base_url": "https://api.deepseek.com",
   "credential_env": "DEEPSEEK_API_KEY",
   "protocol": "responses",
+  "structured_output_mode": "native_schema",
   "transport": "http",
   "proxy_url": null,
   "timeout": 180,

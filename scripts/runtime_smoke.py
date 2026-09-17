@@ -81,6 +81,7 @@ def api_config_from_args(args: argparse.Namespace) -> ApiConfig:
         credential_env=args.credential_env,
         base_url=args.base_url,
         protocol=args.protocol,
+        structured_output_mode=args.structured_output_mode,
         timeout=args.timeout,
         max_output_tokens=args.max_output_tokens,
         reasoning=reasoning,
@@ -140,6 +141,7 @@ def run_api(
         "model": config.model,
         "base_url": config.base_url,
         "protocol": config.protocol,
+        "structured_output_mode": config.structured_output_mode,
         "credential_env": config.credential_env,
         "prompt": PROMPT,
         "schema": SCHEMA,
@@ -181,6 +183,11 @@ def build_parser() -> argparse.ArgumentParser:
     api.add_argument("--credential-env", default="DEEPSEEK_API_KEY")
     api.add_argument(
         "--protocol", choices=["responses", "chat_completions"], default="responses"
+    )
+    api.add_argument(
+        "--structured-output-mode",
+        choices=["native_schema", "prompt_json"],
+        default="native_schema",
     )
     api.add_argument("--reasoning-effort")
     api.add_argument("--max-output-tokens", type=int)

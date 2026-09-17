@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
+
+
+StructuredOutputMode = Literal["native_schema", "prompt_json"]
 
 
 @dataclass(frozen=True)
@@ -20,6 +23,7 @@ class ApiConfig:
     reasoning: dict[str, Any] | None = None
     extra_body: dict[str, Any] = field(default_factory=dict)
     prompt_cache_key: str | None = None
+    structured_output_mode: StructuredOutputMode = "native_schema"
 
     def __post_init__(self) -> None:
         if not self.model:
@@ -28,6 +32,10 @@ class ApiConfig:
             raise ValueError("credential_env is required")
         if self.protocol not in {"responses", "chat_completions"}:
             raise ValueError("protocol must be responses or chat_completions")
+        if self.structured_output_mode not in {"native_schema", "prompt_json"}:
+            raise ValueError(
+                "structured_output_mode must be native_schema or prompt_json"
+            )
         if self.transport != "http":
             raise ValueError("direct API execution currently supports only HTTP transport")
         if self.timeout <= 0:

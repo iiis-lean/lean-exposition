@@ -121,6 +121,13 @@ class RuntimeSmokeTests(unittest.TestCase):
         api_config = runtime_smoke.api_config_from_args(api_args)
         self.assertEqual(api_config.model, "deepseek-flash")
         self.assertEqual(api_config.base_url, "https://api.deepseek.com")
+        self.assertEqual(api_config.structured_output_mode, "native_schema")
+        prompted = runtime_smoke.api_config_from_args(
+            runtime_smoke.build_parser().parse_args(
+                ["api", "--structured-output-mode", "prompt_json"]
+            )
+        )
+        self.assertEqual(prompted.structured_output_mode, "prompt_json")
         codex_args = runtime_smoke.build_parser().parse_args(["codex"])
         self.assertEqual(
             runtime_smoke.agent_config_from_args(codex_args).model,

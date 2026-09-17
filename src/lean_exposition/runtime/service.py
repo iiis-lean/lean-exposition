@@ -29,9 +29,14 @@ class Runtime:
         worker: Callable[[threading.Event, Callable[[Callable[[], object]], bool]], ExecutionResult],
         *,
         timeout: float,
+        initial_result: ExecutionResult | None = None,
     ) -> JobHandle:
         handle = JobHandle(uuid.uuid4().hex)
-        job = _Job(ExecutionResult(status="queued"), threading.Event(), threading.Event())
+        job = _Job(
+            initial_result or ExecutionResult(status="queued"),
+            threading.Event(),
+            threading.Event(),
+        )
         with self._lock:
             self._jobs[handle.job_id] = job
         threading.Thread(
@@ -50,10 +55,7 @@ class Runtime:
         return self.status(handle)
 
     def cancel(self, handle: JobHandle) -> bool:
-        return self._stop(
-            handle,
-            ExecutionResult(status="cancelled", error=ApiError(kind="cancelled")),
-        )
+        return self._stop_with_error(handle, "cancelled", ApiError(kind="cancelled"))
 
     def _run(self, handle: JobHandle, worker, timeout: float) -> None:
         with self._lock:
@@ -63,9 +65,8 @@ class Runtime:
             job.result = replace(job.result, status="running")
         timer = threading.Timer(
             timeout,
-            lambda: self._stop(
-                handle,
-                ExecutionResult(status="failed", error=ApiError(kind="timeout")),
+            lambda: self._stop_with_error(
+                handle, "failed", ApiError(kind="timeout")
             ),
         )
         timer.daemon = True
@@ -74,15 +75,12 @@ class Runtime:
             result = worker(job.cancelled, lambda stop: self._register_stop(handle, stop))
             self._finish(handle, result)
         except Exception as exc:
-            self._finish(
+            self._finish_with_error(
                 handle,
-                ExecutionResult(
-                    status="failed",
-                    error=ApiError(
-                        kind="internal_error",
-                        exception_type=type(exc).__name__,
-                        status_code=getattr(exc, "status_code", None),
-                    ),
+                ApiError(
+                    kind="internal_error",
+                    exception_type=type(exc).__name__,
+                    status_code=getattr(exc, "status_code", None),
                 ),
             )
         finally:
@@ -105,6 +103,18 @@ class Runtime:
             job.result = copy.deepcopy(result)
             job.done.set()
             return True
+
+    def _finish_with_error(self, handle: JobHandle, error: ApiError) -> bool:
+        with self._lock:
+            current = self._jobs[handle.job_id].result
+        return self._finish(handle, replace(current, status="failed", error=error))
+
+    def _stop_with_error(
+        self, handle: JobHandle, status: str, error: ApiError
+    ) -> bool:
+        with self._lock:
+            current = self._jobs[handle.job_id].result
+        return self._stop(handle, replace(current, status=status, error=error))
 
     def _stop(self, handle: JobHandle, result: ExecutionResult) -> bool:
         with self._lock:

@@ -30,6 +30,7 @@ def call_record(call):
         "requested_model": call.execution.requested_model,
         "response_model": call.execution.response_model,
         "protocol": call.execution.protocol,
+        "structured_output_mode": call.execution.structured_output_mode,
         "provider_status": call.execution.provider_status,
         "finish_reason": call.execution.finish_reason,
         "prefix_digest": call.prefix_digest,

@@ -1,6 +1,6 @@
 # API runtime
 
-`lean_exposition.runtime` is the API-first model execution layer. `StructuredExecutor` performs one strict JSON Schema call. `ApiToolExecutor` adds a bounded function-tool loop. Optional stateful Codex and Pi backends implement the shared [`AgentExecutor`](agents.md) contract and use separate configuration.
+`lean_exposition.runtime` is the API-first model execution layer. `StructuredExecutor` performs one explicitly configured structured-output call. `ApiToolExecutor` adds a bounded function-tool loop. Optional stateful Codex and Pi backends implement the shared [`AgentExecutor`](agents.md) contract and use separate configuration.
 
 The credential-free example in [runtime.api.example.json](../configs/runtime.api.example.json) targets the official `deepseek-flash` endpoint. Load its credential only from the named environment variable:
 
@@ -23,7 +23,12 @@ if result.status == "succeeded":
     print(result.data)
 ```
 
-`protocol` is explicitly `responses` or `chat_completions`; Responses is the product default. Both paths send a strict JSON Schema request and validate the returned JSON locally. The runtime never chooses a protocol or changes reasoning from the model name. Responses reasoning settings are passed from the `reasoning` mapping. Chat Completions accepts only an explicit `reasoning.effort` because its API surface does not support the other Responses reasoning fields.
+`protocol` is explicitly `responses` or `chat_completions`; Responses is the product default. `structured_output_mode` is independently and explicitly one of:
+
+- `native_schema` (the default) sends the existing provider-native strict JSON Schema request and preserves the previous response contract.
+- `prompt_json` omits the provider-native final-output schema. A deterministic prefix contains the same canonical schema, the exact output rules, and a schema-derived fenced example. The task is placed after that stable prefix. The final answer must be exactly one lowercase `json` fenced object with no surrounding prose.
+
+Both modes parse and validate locally against the same caller-provided JSON Schema. There is no fallback between modes, and the runtime never selects a mode, protocol, or reasoning setting from the model name. Responses reasoning settings are passed unchanged from the `reasoning` mapping. Chat Completions accepts only an explicit `reasoning.effort` because its API surface does not support the other Responses reasoning fields; the value is passed unchanged as `reasoning_effort` in either output mode.
 
 The HTTP transport disables redirects, SDK retries, and environment proxy discovery. Set `proxy_url` explicitly when the endpoint requires a proxy. Configuration contains only a credential environment-variable name, never the credential value. `extra_body` is an explicit provider escape hatch; callers own its compatibility.
 
@@ -35,9 +40,9 @@ an explicit output budget.
 
 ## Results and failures
 
-`ExecutionResult` records the normalized status, validated data, raw completion text, provider status, Chat finish reason, Responses incomplete details, model and response identifiers, caller trace label, request digest, tool events, and usage. The request digest covers the prompt, schema, endpoint/model, protocol, output limit, reasoning, provider options, and cache key without including credentials. Usage includes input, output, total, cached, and reasoning tokens plus the original provider usage reports for each call in a tool loop.
+`ExecutionResult` records the normalized status, validated data, raw completion text, provider status, Chat finish reason, Responses incomplete details, model and response identifiers, protocol, actual structured-output mode, caller trace label, request digest, tool events, and usage. The request digest distinguishes the output modes while preserving existing `native_schema` digests; it also covers the prompt, schema, endpoint/model, protocol, output limit, reasoning, provider options, and cache key without including credentials. Usage includes input, output, total, cached, and reasoning tokens plus the original provider usage reports for each call in a tool loop. Queued, cancelled, timed-out, failed, and successful background results retain the configured mode evidence.
 
-Errors use stable categories such as `missing_credential`, `provider_error`, `provider_failed`, `length`, `incomplete`, `empty_output`, `invalid_json`, `trailing_output`, `schema_validation`, `unknown_tool`, `invalid_tool_json`, `invalid_tool_arguments`, `tool_handler_error`, `tool_step_limit`, `timeout`, and `cancelled`. Provider exception text is never retained because it may contain credentials or request content. HTTP status, exception type, and provider code are retained when available.
+Errors use stable categories such as `missing_credential`, `provider_error`, `provider_failed`, `length`, `incomplete`, `empty_output`, `invalid_json`, `trailing_output`, `schema_validation`, `unknown_tool`, `invalid_tool_json`, `invalid_tool_arguments`, `tool_handler_error`, `tool_step_limit`, `timeout`, and `cancelled`. Prompt JSON additionally distinguishes `missing_json_fence`, `multiple_json_fences`, `invalid_json_fence`, `leading_output`, and `non_object`; non-empty text after the closing fence remains `trailing_output`. Provider exception text and rejected output are never copied into `ApiError`, so error records remain stable and redacted. HTTP status, exception type, and provider code are retained when available.
 
 `run_json` returns validated data and raises `RuntimeFailure` with the complete result on failure. `start`, `status`, `result`, and `cancel` provide process-local background execution. A configured timeout or cancellation publishes one terminal result; late provider output cannot replace it. Closing the local client requests interruption but does not guarantee remote billing cancellation.
 
@@ -67,7 +72,7 @@ result = ApiToolExecutor(config).execute(
 )
 ```
 
-The executor validates tool arguments before dispatch and stops at `max_steps`. Responses loops append returned output items and `function_call_output` items to client-owned history. Chat loops append assistant tool calls and tool messages. Neither path sends `previous_response_id`. Tool definitions are sorted by name, and `canonical_json` plus `stable_prompt` keep shared prefixes and dynamic suffixes deterministic for cache reuse. Cache effectiveness must be read from `result.usage.cached_tokens`.
+The executor validates tool arguments before every dispatch and stops at `max_steps`. Responses loops append returned output items and `function_call_output` items to client-owned history. Chat loops append assistant tool calls and tool messages. Neither path sends `previous_response_id`. In `native_schema`, tool definitions retain their provider strict marker. In `prompt_json`, the marker is omitted for provider portability while the parameter schema is still supplied and enforced locally before the handler runs. The final response uses the selected mode's parser. Tool definitions are sorted by name, and `canonical_json` plus `stable_prompt` keep shared prefixes and dynamic suffixes deterministic for cache reuse. Cache effectiveness must be read from `result.usage.cached_tokens`.
 
 ## API-first workflows
 
@@ -87,14 +92,9 @@ interface when a workflow needs a native Agent lifecycle.
 
 The official `deepseek-flash` Responses endpoint passed one strict structured-output call and one client-history function-tool loop. The tool call returned the exact bound value; normalized usage recorded cached and reasoning tokens. Checked-in DeepSeek configuration and smoke commands use only Flash; DeepSeek Pro is not a supported project configuration.
 
-BeeAPI Grok passed strict Responses calls in the 2026-09-16 canary when the
-required proxy was supplied explicitly. On 2026-09-17 the same provider still
-passed ordinary Responses, streaming, long-output, and client-history tool
-calls, while minimal native strict-schema routes returned 404. Prompt-enforced
-fenced JSON plus local schema validation passed the current probes, but that
-portable mode is research evidence and is not yet part of
-`StructuredExecutor`. Provider support must therefore be rechecked by output
-mode rather than inferred from the model name or an older successful call.
+BeeAPI Grok passed strict Responses calls in the 2026-09-16 canary when the required proxy was supplied explicitly. On 2026-09-17 the same provider still passed ordinary Responses, streaming, long-output, and client-history tool calls, while minimal native strict-schema routes returned 404. Those probes motivated the now-explicit `prompt_json` mode; provider support must still be checked by mode rather than inferred from a model name or an older successful call.
+
+The implemented `prompt_json` path was then checked through the shared executors with Paratera `GLM-5.3-Flash`, Paratera `DeepSeek-V4.1-Flash`, and BeeAPI `grok-4.6`. Each model passed one small structured call and one one-tool client-history loop with high reasoning and no output-token limit. This is protocol and endpoint evidence only, not a quality, reliability, latency, or cost conclusion.
 
 ## Verification
 

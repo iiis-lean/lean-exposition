@@ -156,6 +156,7 @@ class EetGroupResult:
                     "incomplete_details": deepcopy(call.execution.incomplete_details),
                     "requested_model": call.execution.requested_model,
                     "response_model": call.execution.response_model,
+                    "structured_output_mode": call.execution.structured_output_mode,
                     "error_kind": call.execution.error.kind if call.execution.error else None,
                 }
                 for call in calls

@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import threading
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
@@ -39,6 +40,8 @@ def request_digest(prompt: str, schema: dict[str, Any], config: ApiConfig) -> st
         "extra_body": config.extra_body,
         "prompt_cache_key": config.prompt_cache_key,
     }
+    if config.structured_output_mode != "native_schema":
+        payload["structured_output_mode"] = config.structured_output_mode
     return hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
 
 
@@ -106,6 +109,7 @@ class StructuredExecutor:
                 prompt, schema, trace_label, cancelled, register
             ),
             timeout=self.config.timeout,
+            initial_result=_pending_result(prompt, schema, self.config, trace_label),
         )
 
     def status(self, handle: JobHandle) -> ExecutionResult:
@@ -127,10 +131,15 @@ class StructuredExecutor:
             with _client(self.config, self._client_factory) as client:
                 if not register_stop(client.close) or cancelled.is_set():
                     raise _Failure("cancelled")
-                response = _create_response(client, self.config, prompt, schema)
+                provider_prompt = _provider_prompt(
+                    prompt, schema, self.config.structured_output_mode
+                )
+                response = _create_response(client, self.config, provider_prompt, schema)
                 _capture_response(response, self.config.protocol, trace)
                 _require_complete(trace)
-                data = _parse_and_validate(trace.raw_text, schema)
+                data = _parse_and_validate(
+                    trace.raw_text, schema, self.config.structured_output_mode
+                )
                 return _result("succeeded", self.config, trace, data=data)
         except Exception as exc:
             return _error_result(exc, self.config, trace, cancelled)
@@ -185,6 +194,7 @@ class ApiToolExecutor(StructuredExecutor):
                 register,
             ),
             timeout=self.config.timeout,
+            initial_result=_pending_result(prompt, schema, self.config, trace_label),
         )
 
     def _execute_tools(
@@ -205,7 +215,12 @@ class ApiToolExecutor(StructuredExecutor):
         try:
             _check_schema(schema)
             ordered_tools = _validate_tools(tools, handlers, max_steps)
-            history: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
+            provider_prompt = _provider_prompt(
+                prompt, schema, self.config.structured_output_mode
+            )
+            history: list[dict[str, Any]] = [
+                {"role": "user", "content": provider_prompt}
+            ]
             with _client(self.config, self._client_factory) as client:
                 if not register_stop(client.close) or cancelled.is_set():
                     raise _Failure("cancelled")
@@ -219,7 +234,9 @@ class ApiToolExecutor(StructuredExecutor):
                     calls = _tool_calls(response, self.config.protocol)
                     if not calls:
                         _require_complete(trace)
-                        data = _parse_and_validate(trace.raw_text, schema)
+                        data = _parse_and_validate(
+                            trace.raw_text, schema, self.config.structured_output_mode
+                        )
                         return _result("succeeded", self.config, trace, data=data)
                     if step == max_steps:
                         raise _Failure("tool_step_limit")
@@ -286,31 +303,33 @@ def _create_response(client, config, prompt_or_history, schema, *, tools=()):
         kwargs: dict[str, Any] = {
             "model": config.model,
             "input": prompt_or_history,
-            "text": {
+            **cache,
+        }
+        if config.structured_output_mode == "native_schema":
+            kwargs["text"] = {
                 "format": {
                     "type": "json_schema",
                     "name": "result",
                     "strict": True,
                     "schema": schema,
                 }
-            },
-            **cache,
-        }
+            }
         if config.max_output_tokens is not None:
             kwargs["max_output_tokens"] = config.max_output_tokens
         if config.reasoning is not None:
             kwargs["reasoning"] = config.reasoning
         if tools:
-            kwargs["tools"] = [
-                {
+            kwargs["tools"] = []
+            for tool in tools:
+                definition = {
                     "type": "function",
                     "name": tool.name,
                     "description": tool.description,
                     "parameters": tool.parameters,
-                    "strict": True,
                 }
-                for tool in tools
-            ]
+                if config.structured_output_mode == "native_schema":
+                    definition["strict"] = True
+                kwargs["tools"].append(definition)
         if config.extra_body:
             kwargs["extra_body"] = config.extra_body
         return client.responses.create(**kwargs)
@@ -322,33 +341,37 @@ def _create_response(client, config, prompt_or_history, schema, *, tools=()):
     kwargs = {
         "model": config.model,
         "messages": messages,
-        "response_format": {
+        **cache,
+    }
+    if config.structured_output_mode == "native_schema":
+        kwargs["response_format"] = {
             "type": "json_schema",
             "json_schema": {
                 "name": "result",
                 "strict": True,
                 "schema": schema,
             },
-        },
-        **cache,
-    }
+        }
     if config.max_output_tokens is not None:
         kwargs["max_tokens"] = config.max_output_tokens
     if config.reasoning is not None:
         kwargs["reasoning_effort"] = config.reasoning["effort"]
     if tools:
-        kwargs["tools"] = [
-            {
-                "type": "function",
-                "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": tool.parameters,
-                    "strict": True,
-                },
+        kwargs["tools"] = []
+        for tool in tools:
+            function = {
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": tool.parameters,
             }
-            for tool in tools
-        ]
+            if config.structured_output_mode == "native_schema":
+                function["strict"] = True
+            kwargs["tools"].append(
+                {
+                    "type": "function",
+                    "function": function,
+                }
+            )
     if config.extra_body:
         kwargs["extra_body"] = config.extra_body
     return client.chat.completions.create(**kwargs)
@@ -385,9 +408,13 @@ def _require_complete(trace: _Trace) -> None:
         raise _Failure("incomplete", provider_code=reason or trace.finish_reason)
 
 
-def _parse_and_validate(raw_text: str | None, schema: dict[str, Any]) -> Any:
+def _parse_and_validate(
+    raw_text: str | None, schema: dict[str, Any], structured_output_mode: str
+) -> Any:
     if raw_text is None or not raw_text.strip():
         raise _Failure("empty_output")
+    if structured_output_mode == "prompt_json":
+        raw_text = _extract_prompt_json(raw_text)
     try:
         data = json.loads(raw_text)
     except json.JSONDecodeError:
@@ -400,6 +427,8 @@ def _parse_and_validate(raw_text: str | None, schema: dict[str, Any]) -> Any:
         if stripped[end:].strip():
             raise _Failure("trailing_output") from None
         raise _Failure("invalid_json") from None
+    if structured_output_mode == "prompt_json" and not isinstance(data, dict):
+        raise _Failure("non_object")
     try:
         import jsonschema
 
@@ -407,6 +436,87 @@ def _parse_and_validate(raw_text: str | None, schema: dict[str, Any]) -> Any:
     except jsonschema.ValidationError:
         raise _Failure("schema_validation") from None
     return data
+
+
+def _provider_prompt(prompt: str, schema: dict[str, Any], mode: str) -> str:
+    if mode == "native_schema":
+        return prompt
+    example = _schema_example(schema)
+    prefix = (
+        "STRUCTURED OUTPUT CONTRACT\n"
+        "After completing the task and any tool calls, return exactly one JSON object "
+        "inside one lowercase json code fence. Do not write text before or after the "
+        "fence. The object must validate against OUTPUT_SCHEMA. Do not copy the example; "
+        "use the schema and task values.\n\n"
+        f"OUTPUT_SCHEMA\n{canonical_json(schema)}\n\n"
+        "VALID FORMAT EXAMPLE\n"
+        f"```json\n{canonical_json(example)}\n```"
+    )
+    return stable_prompt(prefix, {"task": prompt})
+
+
+def _schema_example(schema: dict[str, Any]) -> Any:
+    if "const" in schema:
+        return copy.deepcopy(schema["const"])
+    examples = schema.get("examples")
+    if isinstance(examples, list) and examples:
+        return copy.deepcopy(examples[0])
+    if "default" in schema:
+        return copy.deepcopy(schema["default"])
+    enum = schema.get("enum")
+    if isinstance(enum, list) and enum:
+        return copy.deepcopy(enum[0])
+    for choice_key in ("anyOf", "oneOf"):
+        choices = schema.get(choice_key)
+        if isinstance(choices, list) and choices:
+            return _schema_example(choices[0])
+    schema_type = schema.get("type")
+    if schema_type == "object" or "properties" in schema:
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
+        return {
+            name: _schema_example(properties[name])
+            for name in required
+            if name in properties
+        }
+    if schema_type == "array":
+        count = max(int(schema.get("minItems", 0)), 1)
+        if schema.get("maxItems") == 0:
+            count = 0
+        item_schema = schema.get("items", {})
+        return [_schema_example(item_schema) for _ in range(count)]
+    if schema_type == "integer":
+        return int(schema.get("minimum", 0))
+    if schema_type == "number":
+        return schema.get("minimum", 0)
+    if schema_type == "boolean":
+        return False
+    if schema_type == "null":
+        return None
+    minimum = int(schema.get("minLength", 1))
+    return "x" * max(minimum, 1)
+
+
+def _extract_prompt_json(raw_text: str) -> str:
+    markers = list(
+        re.finditer(r"(?m)^[ \t]*```(?P<label>[A-Za-z0-9_-]*)[ \t]*\r?$", raw_text)
+    )
+    openings = [marker for marker in markers if marker.group("label") == "json"]
+    if not openings:
+        raise _Failure("missing_json_fence")
+    if len(openings) > 1 or len(markers) > 2:
+        raise _Failure("multiple_json_fences")
+    if len(markers) != 2:
+        raise _Failure("invalid_json_fence")
+    opening = openings[0]
+    if markers[0] is not opening or markers[1].group("label"):
+        raise _Failure("invalid_json_fence")
+    if raw_text[: opening.start()].strip():
+        raise _Failure("leading_output")
+    closing = markers[1]
+    if raw_text[closing.end() :].strip():
+        raise _Failure("trailing_output")
+    return raw_text[opening.end() : closing.start()]
 
 
 def _check_schema(schema: dict[str, Any]) -> None:
@@ -488,6 +598,17 @@ def _usage(reports: list[dict[str, Any]]) -> ApiUsage:
     )
 
 
+def _pending_result(prompt, schema, config, trace_label):
+    return ExecutionResult(
+        status="queued",
+        requested_model=config.model,
+        protocol=config.protocol,
+        structured_output_mode=config.structured_output_mode,
+        trace_label=trace_label,
+        input_digest=request_digest(prompt, schema, config),
+    )
+
+
 def _result(status, config, trace, *, data=None, error=None):
     return ExecutionResult(
         status=status,
@@ -502,6 +623,7 @@ def _result(status, config, trace, *, data=None, error=None):
         requested_model=config.model,
         response_model=trace.response_model,
         protocol=config.protocol,
+        structured_output_mode=config.structured_output_mode,
         response_id=trace.response_id,
         trace_label=trace.trace_label,
         input_digest=trace.input_digest,

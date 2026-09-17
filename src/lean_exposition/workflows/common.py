@@ -111,6 +111,13 @@ def cache_report(calls: Iterable[WorkflowCall]) -> dict[str, Any]:
         "calls": len(calls),
         "cached_tokens": sum(call.cached_tokens for call in calls),
         "input_tokens": sum(call.execution.usage.input_tokens for call in calls),
+        "structured_output_modes": sorted(
+            {
+                call.execution.structured_output_mode
+                for call in calls
+                if call.execution.structured_output_mode is not None
+            }
+        ),
         "prefix_digests": sorted({call.prefix_digest for call in calls}),
         "request_digests": [call.prompt_digest for call in calls],
     }
@@ -123,6 +130,7 @@ def prompt_payload(call: WorkflowCall) -> str:
         {
             "stage": call.stage,
             "status": call.execution.status,
+            "structured_output_mode": call.execution.structured_output_mode,
             "prefix_digest": call.prefix_digest,
             "prompt_digest": call.prompt_digest,
             "cached_tokens": call.cached_tokens,

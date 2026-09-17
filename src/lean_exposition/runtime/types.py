@@ -53,6 +53,7 @@ class ExecutionResult:
     response_id: str | None = None
     trace_label: str | None = None
     input_digest: str | None = None
+    structured_output_mode: str | None = None
 
 
 @dataclass(frozen=True)
