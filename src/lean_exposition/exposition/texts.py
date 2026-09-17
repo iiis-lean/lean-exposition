@@ -221,7 +221,7 @@ def _instructions(locale):
 
 
 def ensure_decl_texts(workspace, store, refs, *, locale, executor, profile="default",
-                      config_digest=None, implementation_digest=None, batch_size=12):
+                      config_digest=None, implementation_digest=None, batch_size=12, max_batch_characters=60000):
     """Explicitly generate missing records in bounded sibling batches.
 
     Ordinary views never call this function. Identical requests are serialized by
@@ -229,7 +229,9 @@ def ensure_decl_texts(workspace, store, refs, *, locale, executor, profile="defa
     """
     if not 1 <= batch_size <= 16:
         raise DeclTextError("batch_size must be between 1 and 16")
-    config_digest = config_digest or _digest({"batch_size": batch_size})
+    if max_batch_characters <= 0:
+        raise DeclTextError("max_batch_characters must be positive")
+    config_digest = config_digest or _digest({"batch_size": batch_size, "max_batch_characters": max_batch_characters})
     implementation_digest = implementation_digest or _digest("ensure-decl-texts")
     prompt_prefix = _instructions(locale)
     prompt_hash = _digest(prompt_prefix)
@@ -250,6 +252,10 @@ def ensure_decl_texts(workspace, store, refs, *, locale, executor, profile="defa
                 "ref": asdict(ref), "name": declaration.lean_name,
                 "kind": declaration.kind, "statement": asdict(declaration.statement),
                 "proof": asdict(declaration.proof) if declaration.proof else None,
+                "source_context": [asdict(t) for t in declaration.source_context
+                    if any(p.method in {"source_scope_context", "lean_compiler_type"} for p in t.provenance)],
+                "additional_materials": [asdict(t) for t in declaration.source_context
+                    if any(p.method.startswith("material") or p.method == "lc_resource" for p in t.provenance)],
                 "need_statement_nl": declaration.statement.nl.status != "present",
                 "need_proof_nl": bool(declaration.proof and declaration.proof.nl.status != "present"),
             }
@@ -269,6 +275,12 @@ def ensure_decl_texts(workspace, store, refs, *, locale, executor, profile="defa
         current = []
         current_group = None
         for item in pending:
+            size = len(_canonical(item[1]))
+            if size > max_batch_characters:
+                failed.append(_ref_key(item[0]))
+                continue
+            if current and sum(len(_canonical(v[1])) for v in current) + size > max_batch_characters:
+                batches.append(current); current = []
             long = len(_canonical(item[1].get("proof"))) > 10000
             group = (item[0].repo_key,
                      bool(item[1]["need_statement_nl"] or item[1]["need_proof_nl"]))

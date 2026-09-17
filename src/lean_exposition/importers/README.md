@@ -1,24 +1,22 @@
 # importers
 
-`common.py` provides lossless adapter migration helpers. `lc.py` reads current LC
-catalog records from selected Git snapshots; `native.py` maps Lean source and
-compiled constant evidence into the same construction contracts. Both public
-loaders return a validated `RepositoryBuildBundle`.
+`load_project` is the unified acquisition entry point. It composes LC catalog,
+Toolkit source, prebuilt Lean environment, exported semantic JSON, and published
+material observations into one validated `RepositoryBuildBundle`. All bundles
+use the same downstream hierarchy and EET APIs, including source-only bundles.
 
-`source.py` is the source-only native path. It consumes the current
-`lean-mcp-toolkit declarations.extract` JSON/JSONL contract, including chunk
-identity, rather than copying the Toolkit parser. It records declarations,
-docstrings, exact source slices, command-coverage diagnostics, and unknown
-dependency coverage. An inventory is not a production Workspace. Callers may
-explicitly create a provisional bundle for inspection; Region, recommendation,
-EET, and Reader still require a verified bundle.
+- `lc.py`: immutable Git catalog, singleton units, summaries and resources.
+- `toolkit.py` / `source.py`: cached Toolkit parsing and strict inventory contract.
+- `references.py`: approximate explicit references with scope/import diagnostics.
+- `native.py`: compiler facts and original source slices, without LeanInteract.
+- `merge.py`: unique identity matches and partial source/semantic composition.
+- `materials.py`: local/core NL binding and LC resources/blueprint handling.
+- `project.py`: acquisition policy, profiles, caching and custom contributors.
 
-Public entry points: `LCRepositoryInput`, `load_lc_workspace`, `load_native`, and
-`assemble_workspace`, plus the source-inventory readers. See
-[loading APIs](../../../docs/loading.md) for usage,
-field mapping, pinned repository/toolchain support, and input limitations. Importers
-preserve real Git revisions, source hashes, and dependency locks; they do not add a
-manual input version.
+Missing and approximate facts remain explicit. Complete semantic coverage can
+replace corresponding source reference guesses. Acquisition failures are local;
+malformed final structures remain validation errors. LC retains its direct
+catalog route rather than being forced through native declaration parsing.
 
-LC never uses the source-only path: one active current-catalog declaration becomes
-one singleton DeclUnit, and the default `preserve` policy does not merge it.
+See [loading projects](../../../docs/loading.md) for APIs, profiles, resource
+limits, summary projection, and cache boundaries.

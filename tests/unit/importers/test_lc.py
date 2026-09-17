@@ -127,13 +127,54 @@ class LCImportTests(unittest.TestCase):
     def test_missing_local_dependency_fails(self):
         dep = {"kind": "repo_decl", "ref": {"repo": None, "node": "Main", "name": "absent"}}
         path = self.fixture("repo", dep)
-        with self.assertRaisesRegex(ValidationError, "does not resolve"):
-            load_lc_workspace(LCRepositoryInput(path, "repo"))
+        result = load_lc_workspace(LCRepositoryInput(path, "repo"))
+        self.assertTrue(any("unloaded_dependency" in d for d in result.diagnostics))
 
     def test_missing_export_fails(self):
         path = self.fixture("repo")
         self.write(path, ".lean_constellation/nodes/root/contracts/1.json", {
             "exports": [{"repo": None, "node": "Main", "name": "absent"}], "interfaces": []})
         self.commit(path)
-        with self.assertRaisesRegex(ValidationError, "Main export does not resolve"):
-            load_lc_workspace(LCRepositoryInput(path, "repo"))
+        result = load_lc_workspace(LCRepositoryInput(path, "repo"))
+        self.assertTrue(any("unresolved_primary_outcome" in d for d in result.diagnostics))
+
+    def test_resources_are_bound_without_loading_lc_runtime(self):
+        import hashlib
+        from lean_exposition.exposition import decl_card
+        from lean_exposition.construction import RepositoryBuildBundle
+        from lean_exposition.structure import build_hierarchy
+        path = self.fixture('repo')
+        base = '.lean_constellation/resources/items/graph-paper/'
+        text = '# Lemma\nEvery edge has two endpoints.\n'
+        self.write(path, base + 'resource.json', {'resource_key': 'graph-paper', 'canonical_entry': 'paper.md'})
+        self.write(path, base + 'manifest.json', {'canonical_entry': 'paper.md', 'files': [
+            {'path': 'paper.md', 'readable_kind': 'markdown', 'size_bytes': len(text.encode()),
+             'sha256': hashlib.sha256(text.encode()).hexdigest()}]})
+        self.write(path, base + 'paper.md', text)
+        revision = '.lean_constellation/nodes/child/decl_graph/decls/x/revisions/2.json'
+        current = json.loads((path / revision).read_text())
+        current['statement']['nl']['origin'] = [{'resource_key': 'graph-paper', 'source_path': 'paper.md',
+                                                'start_line': 2, 'end_line': 2}]
+        self.write(path, revision, current)
+        fixed = self.commit(path)
+        self.write(path, base + 'paper.md', 'uncommitted change')
+        result = load_lc_workspace(LCRepositoryInput(path, 'repo', fixed))
+        self.assertEqual(len(result.materials), 1)
+        card = decl_card(result.workspace, result.workspace.declarations[0].ref)
+        self.assertTrue(any('Every edge' in t['text'] for t in card['additional_materials']))
+        self.assertEqual(RepositoryBuildBundle.from_json(result.to_json()), result)
+        self.assertTrue(build_hierarchy(result, 'repo').nodes)
+
+    def test_damaged_optional_resource_keeps_catalog(self):
+        from lean_exposition.structure import build_hierarchy
+        path = self.fixture('repo')
+        base = '.lean_constellation/resources/items/paper/'
+        self.write(path, base + 'manifest.json', {'canonical_entry': 'paper.md', 'files': [
+            {'path': 'paper.md', 'readable_kind': 'markdown', 'size_bytes': 3, 'sha256': 'a'*64}]})
+        self.write(path, base + 'paper.md', 'bad')
+        self.commit(path)
+        result = load_lc_workspace(LCRepositoryInput(path, 'repo'))
+        self.assertEqual(len(result.workspace.declarations), 1)
+        self.assertFalse(result.materials)
+        self.assertTrue(any('lc_resource_digest_mismatch' in d for d in result.diagnostics))
+        self.assertTrue(build_hierarchy(result, 'repo').nodes)

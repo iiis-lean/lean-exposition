@@ -9,6 +9,7 @@ from types import UnionType
 from typing import Union, get_args, get_origin, get_type_hints
 
 from lean_exposition.models import DeclRef, Provenance, ValidationError, Workspace
+from .materials import MaterialBundle
 from .contributions import (
     COVERAGE_DOMAINS, COVERAGE_STATES, SourceTextContribution,
     UNIT_AGGREGATIONS, UnresolvedDeclLocator,
@@ -44,14 +45,11 @@ class StructurePolicy:
     workspace_digest: str
     unit_aggregation: str
     provenance: tuple[Provenance, ...]
-    production_structure: bool
 
     def validate(self) -> None:
         _require(re.fullmatch(r"[0-9a-f]{64}", self.workspace_digest) is not None,
                  "StructurePolicy workspace_digest must be lowercase SHA256")
         _require(self.unit_aggregation in UNIT_AGGREGATIONS, "invalid unit aggregation policy")
-        _require(type(self.production_structure) is bool,
-                 "StructurePolicy production_structure must be boolean")
         _validate_provenance(self.provenance, "StructurePolicy")
 
     def digest(self) -> str:
@@ -134,9 +132,12 @@ class RepositoryBuildBundle:
     source_texts: tuple[SourceTextContribution, ...] = ()
     diagnostics: tuple[str, ...] = ()
     unresolved_locators: tuple[UnresolvedDeclLocator, ...] = ()
+    materials: tuple[MaterialBundle, ...] = ()
 
     def validate(self) -> None:
         self.workspace.validate()
+        for material in self.materials:
+            material.validate()
         digest = self.workspace.digest()
         self.structure_policy.validate()
         _require(self.structure_policy.workspace_digest == digest, "stale StructurePolicy workspace digest")
@@ -229,6 +230,8 @@ def _decode(expected, value, path):
     elif expected in (str, bool, int):
         if type(value) is expected:
             return value
+    elif expected is MaterialBundle:
+        return MaterialBundle.from_dict(value)
     elif hasattr(expected, "__dataclass_fields__"):
         if isinstance(value, dict):
             known = {field.name for field in fields(expected)}

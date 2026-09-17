@@ -30,7 +30,10 @@ run_meta do
     let rangeJson := ranges.map fun r => Json.mkObj [
       ("start", Json.mkObj [("line", toJson r.range.pos.line), ("column", toJson r.range.pos.column)]),
       ("finish", Json.mkObj [("line", toJson r.range.endPos.line), ("column", toJson r.range.endPos.column)])]
+    let typeText ← ppExpr info.type
+    let docString ← findDocString? env name
     let payload := Json.mkObj [
+      ("type_text", toJson typeText.pretty), ("docstring", toJson docString),
       ("name", toJson name.toString), ("user_name", toJson (privateToUserName name).toString),
       ("module", toJson (ownerOf name)), ("kind", toJson kind),
       ("generator", toJson (generator.map Name.toString)), ("range", rangeJson.getD Json.null),

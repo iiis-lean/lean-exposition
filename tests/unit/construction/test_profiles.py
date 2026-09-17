@@ -62,8 +62,7 @@ class RepositoryProfileTests(unittest.TestCase):
     def test_stage_gating_is_explicit(self):
         inventory = self.profile(stage="inventory")
         inventory.plan().require("inventory")
-        with self.assertRaisesRegex(ValidationError, "does not permit"):
-            inventory.plan().require("production_structure")
+        inventory.plan().require("production_structure")
 
         bad_verified = self.profile(stage="verified_slice")
         with self.assertRaisesRegex(ValidationError, "compiled contributor"):

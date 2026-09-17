@@ -12,8 +12,8 @@ hierarchy.save("hierarchy.json")
 
 The bundle carries the Workspace, explicit unit policy, and dependency-coverage
 sidecar. Passing a bare Workspace requires both sidecars explicitly; structure
-construction never infers adapter behavior from provenance. The persisted
-`production_structure` policy flag must also authorize Region construction.
+construction never infers adapter behavior from provenance. Source-only and partial
+bundles use the same pipeline; coverage describes evidence rather than admission.
 The constructor
 resolves generated ownership, optionally aggregates exclusive
 helpers, compresses unary display scopes, derives a deterministic sibling order,

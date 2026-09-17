@@ -318,8 +318,8 @@ def _validate(workspace):
         _nonempty(repo.repo_key, "repo_key")
         _require(repo.version_status in {"fixed", "unresolved"}, "invalid repository version status")
         if repo.version_status == "fixed":
-            _require(repo.toolchain is not None, "fixed repository needs toolchain")
-            _nonempty(repo.toolchain, "toolchain")
+            if repo.toolchain is not None:
+                _nonempty(repo.toolchain, "toolchain")
             _require(repo.revision is not None or repo.input_digest is not None,
                      f"repository has no fixed version: {repo.repo_key}")
         else:

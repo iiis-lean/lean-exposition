@@ -14,7 +14,7 @@ from typing import Mapping, Iterable, TypeVar, Generic
 
 from lean_exposition.models.facts import DeclRef, Provenance, RawDecl, Scope, Workspace
 
-MATHEMATICAL_EVIDENCE_KINDS = frozenset({"lc_declared", "lean_type", "lean_value"})
+MATHEMATICAL_EVIDENCE_KINDS = frozenset({"lc_declared", "lean_type", "lean_value", "text_reference", "published"})
 T = TypeVar("T")
 
 

@@ -1,7 +1,9 @@
 """Authority-aware assembly of repository contributions into fixed facts."""
 from __future__ import annotations
 
-from dataclasses import fields, is_dataclass, replace
+from dataclasses import asdict, fields, is_dataclass, replace
+import hashlib
+import json
 import re
 
 from lean_exposition.models import (
@@ -13,7 +15,7 @@ from .contracts import CoverageEntry, DependencyCoverage, RepositoryBuildBundle,
 from .contributions import (
     COVERAGE_DOMAINS, COVERAGE_STATES, CONTRIBUTION_STATES,
     CanonicalDeclLocator, CoverageContribution, DeclarationContribution,
-    FieldContribution, RepositoryAdapterResult, UNIT_AGGREGATIONS,
+    FieldContribution, DeclUnitSeed, RepositoryAdapterResult, UNIT_AGGREGATIONS,
     UnresolvedDeclLocator,
 )
 
@@ -133,31 +135,40 @@ def _merge_dependency_values(values) -> tuple[Dependency, ...]:
     return tuple(merged)
 
 
-def _merge_field(field: str, contributions: list[FieldContribution]):
+def _merge_field(field: str, contributions: list[FieldContribution], diagnostics=None, exact_authorities=()):
     present = [value for value in contributions if value.state == "present"]
     if present and any(value.state == "not_applicable" for value in contributions):
-        raise ValidationError(f"not_applicable contribution conflicts with present field: {field}")
+        if diagnostics is not None:
+            diagnostics.append(f"field_conflict:{field}:present_vs_not_applicable")
     if not present:
         return None
     if field in {"statement.deps", "proof.deps"}:
-        return _merge_dependency_values([value.value for value in present])
+        # Complete compiler/catalog contributions (including confirmed empty)
+        # replace approximate references in the same declaration part.
+        exact = [v for v in present if v.authority in exact_authorities]
+        return _merge_dependency_values([value.value for value in (exact or present)])
+    available = [v for v in present if not isinstance(v.value, TextContent) or v.value.text is not None]
+    present = available or present
     if field in _UNION_FIELDS:
         tuples = [value.value for value in present]
         _require(all(isinstance(value, tuple) for value in tuples), f"{field} must be a tuple")
         return _unique(item for value in tuples for item in value)
     best = max(_authority(field, value.authority) for value in present)
-    selected = [value for value in present if _authority(field, value.authority) == best]
+    selected = sorted((value for value in present if _authority(field, value.authority) == best),
+                      key=lambda value: (value.backend, value.method, repr(value.value)))
     result = selected[0].value
     for value in selected[1:]:
         merged = _merge_equal(result, value.value)
-        _require(merged is not None,
-                 f"unresolved authoritative conflict for {field} between "
-                 f"{selected[0].backend} and {value.backend}")
-        result = merged
+        if merged is None:
+            if diagnostics is not None:
+                diagnostics.append(f"field_conflict:{field}:{selected[0].backend}:{value.backend}:"
+                                   f"selected={result!r}:alternative={value.value!r}")
+        else:
+            result = merged
     return result
 
 
-def _fields_for(contributions: list[DeclarationContribution]) -> dict[str, object]:
+def _fields_for(contributions: list[DeclarationContribution], diagnostics=None, complete_domains=None) -> dict[str, object]:
     grouped: dict[str, list[FieldContribution]] = {}
     for contribution in contributions:
         seen: set[str] = set()
@@ -166,8 +177,22 @@ def _fields_for(contributions: list[DeclarationContribution]) -> dict[str, objec
             _require(value.field not in seen, f"duplicate field in one declaration contribution: {value.field}")
             seen.add(value.field)
             grouped.setdefault(value.field, []).append(value)
-    return {field: merged for field, values in grouped.items()
-            if (merged := _merge_field(field, values)) is not None}
+    complete_domains = complete_domains or set()
+    result = {}
+    for field, values in grouped.items():
+        part = field.split('.')[0]
+        exact = set()
+        if (part, 'lc_declared') in complete_domains:
+            exact.add('lc_catalog')
+        needed = {'lean_type'} if part == 'statement' else {'lean_value'}
+        if part == 'statement' and not any(k.startswith('proof.') for k in grouped):
+            needed.add('lean_value')
+        if all((part, domain) in complete_domains for domain in needed):
+            exact.add('lean_environment')
+        merged = _merge_field(field, values, diagnostics, exact)
+        if merged is not None:
+            result[field] = merged
+    return result
 
 
 def _range_matches(expected: SourceRange | None, fields_by_ref: dict[DeclRef, dict[str, object]], ref: DeclRef):
@@ -274,8 +299,14 @@ def build_repository(adapter: RepositoryAdapterResult) -> RepositoryBuildBundle:
         else:
             raise ValidationError("unknown declaration locator")
 
-    fields_by_ref = {ref: _fields_for(values) for ref, values in canonical.items()}
+    diagnostics = list(adapter.diagnostics)
+    complete_domains = {}
+    for item in adapter.coverage:
+        if item.status in {'complete', 'not_applicable'}:
+            complete_domains.setdefault(item.ref, set()).add((item.part, item.evidence_domain))
+    fields_by_ref = {ref: _fields_for(values, diagnostics, complete_domains.get(ref)) for ref, values in canonical.items()}
     unresolved_locators: list[UnresolvedDeclLocator] = []
+    fallback_units = []
     for contribution in unresolved:
         locator = contribution.locator
         if locator.authoritative_ref is not None:
@@ -290,10 +321,26 @@ def build_repository(adapter: RepositoryAdapterResult) -> RepositoryBuildBundle:
             ]
         if len(candidates) != 1:
             unresolved_locators.append(locator)
+            values = _fields_for([contribution], diagnostics)
+            if _REQUIRED <= values.keys():
+                identity = "source:" + hashlib.sha256(json.dumps(asdict(locator), sort_keys=True).encode()).hexdigest()
+                ref = DeclRef(locator.repo_key, identity)
+                scopes = {s.scope_id for s in adapter.scopes}
+                if values['native_scope'] not in scopes:
+                    root = next((r.root_scope for r in adapter.repositories if r.repo_key == locator.repo_key), None)
+                    if root is None:
+                        continue
+                    values['native_scope'] = root
+                if ref not in fields_by_ref:
+                    order.append(ref)
+                    fields_by_ref[ref] = values
+                    fallback_units.append(DeclUnitSeed(json.dumps([ref.repo_key, ref.local_id], separators=(',', ':')),
+                                                      ref, (), contribution.fields[0].provenance))
+                    diagnostics.append(f"source_identity_retained:{locator.module}:{locator.raw_name}")
             continue
         ref = candidates[0]
         canonical[ref].append(contribution)
-        fields_by_ref[ref] = _fields_for(canonical[ref])
+        fields_by_ref[ref] = _fields_for(canonical[ref], diagnostics, complete_domains.get(ref))
 
     declarations = tuple(_raw_decl(ref, fields_by_ref[ref]) for ref in order)
     repositories = tuple(adapter.repositories)
@@ -314,7 +361,7 @@ def build_repository(adapter: RepositoryAdapterResult) -> RepositoryBuildBundle:
         declarations,
         tuple(Scope(seed.scope_id, seed.repo_key, seed.kind, seed.name,
                     seed.provenance, seed.parent) for seed in adapter.scopes),
-        tuple(DeclUnit(seed.unit_id, seed.representative, seed.members) for seed in adapter.units),
+        tuple(DeclUnit(seed.unit_id, seed.representative, seed.members) for seed in (*adapter.units, *fallback_units)),
     )
     _require(not declarations or bool(workspace.units), "builder requires explicit complete unit seeds")
     workspace.validate()
@@ -322,15 +369,15 @@ def build_repository(adapter: RepositoryAdapterResult) -> RepositoryBuildBundle:
     policy = StructurePolicy(
         digest, adapter.unit_aggregation,
         (Provenance("repository_adapter", f"unit-aggregation:{adapter.unit_aggregation}"),),
-        adapter.production_structure,
     )
     bundle = RepositoryBuildBundle(
         workspace=workspace,
         structure_policy=policy,
         dependency_coverage=_coverage(adapter, workspace),
         source_texts=adapter.source_texts,
-        diagnostics=adapter.diagnostics,
+        diagnostics=tuple(dict.fromkeys(diagnostics)),
         unresolved_locators=tuple(unresolved_locators),
+        materials=adapter.materials,
     )
     bundle.validate()
     return bundle

@@ -196,9 +196,7 @@ class SourceInventoryTests(unittest.TestCase):
             (inventory,), repo_key="demo", toolchain="leanprover/lean4:v4.32.0",
             revision="a" * 40, primary_outcome_names=("Δ.«name with spaces»",),
         )
-        self.assertIn("stage:provisional-source-only", bundle.diagnostics)
         self.assertEqual(bundle.structure_policy.unit_aggregation, "preserve")
-        self.assertFalse(bundle.structure_policy.production_structure)
         self.assertEqual(len(bundle.workspace.declarations), 1)
         statuses = {
             (entry.part, entry.evidence_domain): entry.status
@@ -210,15 +208,10 @@ class SourceInventoryTests(unittest.TestCase):
                          (bundle.workspace.declarations[0].ref,))
         order = derive_narrative_order(bundle, "demo")
         self.assertTrue(order.scopes)
-        with self.assertRaisesRegex(ValueError, "provisional source-only"):
-            build_hierarchy(bundle, "demo")
-        with self.assertRaisesRegex(ValueError, "provisional source-only"):
-            build_hierarchy(
-                bundle.workspace,
-                "demo",
-                structure_policy=bundle.structure_policy,
-                dependency_coverage=bundle.dependency_coverage,
-            )
+        self.assertTrue(build_hierarchy(bundle, "demo").nodes)
+        self.assertTrue(build_hierarchy(bundle.workspace, "demo",
+            structure_policy=bundle.structure_policy,
+            dependency_coverage=bundle.dependency_coverage).nodes)
 
     def test_compiled_merge_uses_unique_module_name_range_and_keeps_compiler_dependencies(self):
         inventory = self.inventory()

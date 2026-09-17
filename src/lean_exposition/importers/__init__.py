@@ -13,3 +13,6 @@ __all__ = ["LCRepositoryAdapter", "LCRepositoryInput", "NativeRepositoryAdapter"
            "assemble_workspace", "build_provisional_source_bundle",
            "consume_text_ast_json", "iter_text_ast_jsonl", "load_lc_workspace",
            "load_native", "merge_source_inventory", "provisional_source_adapter"]
+
+from .project import load_project
+__all__.append("load_project")

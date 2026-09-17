@@ -1,7 +1,7 @@
 """Read current LC facts from immutable Git snapshots without loading LC runtime."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 import subprocess
@@ -59,7 +59,7 @@ def _ref(repo_key, value):
     return DeclRef(value.get("repo") or repo_key, value["node"] + "/" + value["name"])
 
 
-def _load_lc_facts(main: LCRepositoryInput, providers=()):
+def _load_lc_facts(main: LCRepositoryInput, providers=(), *, include_snapshots=False):
     """Freeze main HEAD and read each declaration's current revision only.
 
     Provider inputs identify local object stores. A consumer Lake lock selects the
@@ -95,6 +95,7 @@ def _load_lc_facts(main: LCRepositoryInput, providers=()):
 
     repositories, declarations, scopes, locks, source_texts = [], [], [], [], []
     external = {}
+    diagnostics = []
     for key, snapshot in snapshots.items():
         toolchain = snapshot.read("lean-toolchain").decode().strip()
         for package in snapshot.packages():
@@ -173,11 +174,13 @@ def _load_lc_facts(main: LCRepositoryInput, providers=()):
                                 data = snapshot.read(asset_path)
                                 entry = next((f for f in corpus["files"] if f["path"] == source_path), None)
                                 if entry and snapshot.assets[asset_path].sha256 != entry["sha256"]:
-                                    raise ValidationError(f"source corpus digest mismatch: {source_path}")
+                                    diagnostics.append(f"source_corpus_digest_mismatch:{source_path}")
+                                    continue
                                 start, end = origin.get("start_line"), origin.get("end_line")
                                 if start is not None and end is not None:
                                     if not 1 <= start <= end <= len(data.decode().splitlines()):
-                                        raise ValidationError(f"source origin range outside asset: {source_path}")
+                                        diagnostics.append(f"source_origin_range_invalid:{source_path}")
+                                        continue
                                     ranges = (SourceRange(snapshot.assets[asset_path].asset_id, start, None, end, None),)
                         prov += (Provenance("lc_origin", json.dumps(origin, ensure_ascii=False, sort_keys=True), ranges),)
                     check = value.get("check")
@@ -200,7 +203,7 @@ def _load_lc_facts(main: LCRepositoryInput, providers=()):
             declarations.append(RawDecl(
                 decl_ref, current["lean_decl_name"],
                 meta["module"], qualified_id(key, meta["node_path"]), meta["kind"],
-                content(current["statement"], "statement"), Status("imported", provenance),
+                content(current.get("statement") or {}, "statement"), Status("imported", provenance),
                 snapshot.provenance(path) + provenance,
                 Status(current["state"], provenance) if current.get("state") else None,
                 content(current["proof"], "proof") if current.get("proof") is not None else None,
@@ -218,17 +221,21 @@ def _load_lc_facts(main: LCRepositoryInput, providers=()):
     for repository in repositories:
         for outcome in repository.primary_outcomes:
             if outcome not in loaded_refs:
-                raise ValidationError(f"Main export does not resolve to a loaded declaration: {outcome}")
+                diagnostics.append(f"unresolved_primary_outcome:{outcome}")
     for declaration in declarations:
         for part in (declaration.statement, declaration.proof):
             if part is not None:
                 for dependency in part.deps:
                     if dependency.provider.repo_key in snapshots and dependency.provider not in loaded_refs:
-                        raise ValidationError(f"Dependency in supplied repository does not resolve: {dependency.provider}")
+                        diagnostics.append(f"unloaded_dependency:{dependency.provider}")
+    repositories = [replace(repo, primary_outcomes=tuple(ref for ref in repo.primary_outcomes if ref in loaded_refs))
+                    for repo in repositories]
     repositories.extend(external.values())
     workspace = assemble_workspace(repositories=repositories, declarations=declarations, scopes=scopes,
                                    assets=[asset for snapshot in snapshots.values() for asset in snapshot.assets.values()],
                                    dependency_locks=locks)
+    if include_snapshots:
+        return workspace, tuple(source_texts), tuple(snapshots.values()), tuple(diagnostics)
     return workspace, tuple(source_texts)
 
 
@@ -240,7 +247,7 @@ class LCRepositoryAdapter:
         self.providers = tuple(providers)
 
     def collect(self, context: RepositoryContext | None = None):
-        workspace, source_texts = _load_lc_facts(self.main, self.providers)
+        workspace, source_texts, snapshots, diagnostics = _load_lc_facts(self.main, self.providers, include_snapshots=True)
         coverage = []
         for decl in workspace.declarations:
             for part_name, part in (("statement", decl.statement), ("proof", decl.proof)):
@@ -249,10 +256,12 @@ class LCRepositoryAdapter:
                 coverage.append(CoverageContribution(
                     decl.ref, part_name, "lc_declared", "complete", decl.provenance,
                 ))
-        return adapter_result_from_workspace(
+        adapter = adapter_result_from_workspace(
             workspace, unit_aggregation="preserve", authority="lc_catalog",
-            method="lc_catalog", coverage=coverage, source_texts=source_texts,
+            method="lc_catalog", coverage=coverage, source_texts=source_texts, diagnostics=diagnostics,
         )
+        from .materials import lc_resources
+        return lc_resources(adapter, snapshots)
 
 
 def load_lc_workspace(main: LCRepositoryInput, providers=()):

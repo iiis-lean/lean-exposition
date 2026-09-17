@@ -2,6 +2,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+import subprocess
 
 from lean_exposition.lean import extract_modules
 
@@ -14,25 +15,43 @@ class ToolBoundaryTests(unittest.TestCase):
                     extract_modules('/unused', modules)
             run.assert_not_called()
 
-    def test_unknown_version_requires_explicit_repl(self):
+    def test_artifact_query_does_not_require_repl_mapping_or_build(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / 'M.lean').write_text('def x := 1')
             (root / 'lean-toolchain').write_text('leanprover/lean4:v9.0.0')
-            with patch('lean_exposition.lean.tools._run') as run:
-                with self.assertRaisesRegex(ValueError, 'supply repl_rev explicitly'):
-                    extract_modules(root, ('M',))
-                run.assert_not_called()
+            with patch('lean_exposition.lean.tools._run') as build, patch(
+                    'lean_exposition.lean.tools._query', return_value=[]) as query:
+                result = extract_modules(root, ('M',), include_source=False)
+                build.assert_not_called()
+                self.assertEqual(query.call_count, 1)
+                self.assertFalse(result['build_requested'])
 
-    def test_local_repl_toolchain_mismatch_never_builds(self):
+    def test_cache_invalidates_source_and_artifact_changes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / 'M.lean').write_text('def x := 1')
-            (root / 'lean-toolchain').write_text('leanprover/lean4:v4.28.0')
-            repl = root / 'repl'
-            repl.mkdir()
-            (repl / 'lean-toolchain').write_text('leanprover/lean4:v4.32.0')
-            with patch('lean_exposition.lean.tools._run') as run:
-                with self.assertRaisesRegex(ValueError, 'does not match'):
-                    extract_modules(root, ('M',), local_repl_path=repl)
-                run.assert_not_called()
+            (root / 'lean-toolchain').write_text('lean:v4.32')
+            (root / '.lake').mkdir()
+            artifact = root / '.lake/M.olean'
+            artifact.write_bytes(b'one')
+            with patch('lean_exposition.lean.tools._query', return_value=[]) as query:
+                options = dict(include_source=False, cache_dir=root / 'cache')
+                extract_modules(root, ('M',), **options)
+                extract_modules(root, ('M',), **options)
+                self.assertEqual(query.call_count, 1)
+                artifact.write_bytes(b'changed')
+                extract_modules(root, ('M',), **options)
+                (root / 'M.lean').write_text('def x := 2')
+                extract_modules(root, ('M',), **options)
+                self.assertEqual(query.call_count, 3)
+
+    def test_build_is_explicit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'M.lean').write_text('def x := 1')
+            (root / 'lean-toolchain').write_text('lean:v4.32')
+            with patch('lean_exposition.lean.tools._run', return_value=subprocess.CompletedProcess([], 0, '', '')) as build, patch(
+                    'lean_exposition.lean.tools._query', return_value=[]):
+                extract_modules(root, ('M',), build=True, include_source=False)
+                self.assertEqual(build.call_args.args[0], ['lake', 'build', '+M'])

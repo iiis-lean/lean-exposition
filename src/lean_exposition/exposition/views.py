@@ -25,6 +25,13 @@ def decl_card(workspace, ref, *, proof=False, text_store=None, locale=None,
             "proof_available": declaration.proof is not None and declaration.proof.formal.text is not None,
             "completion_state": declaration.completion_status.state if declaration.completion_status else None,
             "extraction_status": {"state": declaration.extraction_status.state, "reason": declaration.extraction_status.reason}}
+    card["source_context"] = [text.text for text in declaration.source_context
+                              if any(p.method == "source_scope_context" for p in text.provenance)]
+    card["elaborated_type"] = next((text.text for text in declaration.source_context
+                                    if any(p.method == "lean_compiler_type" for p in text.provenance)), None)
+    card["additional_materials"] = [asdict(text) for text in declaration.source_context
+                                    if any(p.method.startswith("material") or p.method == "lc_resource"
+                                           for p in text.provenance)]
     if proof:
         card["proof"] = _content(declaration.proof) if declaration.proof else None
     if text_store is not None and locale is not None:
@@ -95,6 +102,7 @@ def scope_view(workspace, hierarchy, node_id, *, offset=0, limit=24,
             "primary_outcomes": [asdict(ref) for r in workspace.manifest.repositories
                                  for ref in r.primary_outcomes if ref_key(ref) in inside],
             "decl_refs": [{"repo_key": r, "local_id": d} for r, d in ordered],
+            "additional_materials": node.get("metadata", {}).get("additional_materials", []),
             "cards": [decl_card(workspace, DeclRef(*key), proof=key in inside,
                                 text_store=text_store, locale=locale, profile=profile,
                                 text_record_ids=text_record_ids)
@@ -178,6 +186,7 @@ def writing_view(workspace, hierarchy, node_id, *, mathematical=False,
                          {'declaration_count': len(nodes[child]['decl_refs'])} for child in node['children']],
             'incoming': unique(incoming), 'outgoing': unique(outgoing), 'internal': unique(connections),
             'primary_outcomes': full['primary_outcomes'],
+            'additional_materials': full.get('additional_materials', []),
             'cards': [decl_card(workspace, DeclRef(*key), proof=mathematical and key in selected,
                                 text_store=text_store, locale=locale, profile=profile,
                                 text_record_ids=text_record_ids)
@@ -225,6 +234,12 @@ def _mathematical_projection(view, node, nodes):
         compact["writing_role"] = "local_declaration" if ref_key(card["ref"]) in inside else "incoming_provider_interface"
         compact["primary_outcome"] = bool(card.get("primary_outcome") and ref_key(card["ref"]) in inside)
         compact["local_public"] = bool(card.get("local_public") and card.get("owner") == node.get("source_scope"))
+        if compact.get("summary") and node["kind"] != "unit" and ref_key(card["ref"]) not in focus:
+            for field in ("statement", "proof", "additional_materials", "elaborated_type", "source_context"):
+                compact.pop(field, None)
+            compact["detail_projection"] = "summary; full declaration remains available through decl_card"
+            cards.append(compact)
+            continue
         proof = compact.get("proof")
         if node["kind"] != "unit" and proof and proof["nl"].get("text") and ref_key(card["ref"]) not in focus:
             compact["proof"] = {"nl": proof["nl"], "formal_omitted": "Complete source NL proof supplied; formal implementation remains in declaration query."}

@@ -77,8 +77,8 @@ class ConstructionTests(unittest.TestCase):
             StructurePolicy.from_json(bundle.structure_policy.to_json().replace(
                 '"unit_aggregation":', '"typo": true, "unit_aggregation":'))
         missing = json.loads(bundle.structure_policy.to_json())
-        del missing["production_structure"]
-        with self.assertRaisesRegex(ValidationError, "production_structure"):
+        del missing["unit_aggregation"]
+        with self.assertRaisesRegex(ValidationError, "unit_aggregation"):
             StructurePolicy.from_json(json.dumps(missing))
 
     def test_unknown_and_confirmed_empty_coverage_have_distinct_identity(self):
@@ -112,8 +112,8 @@ class ConstructionTests(unittest.TestCase):
 
         conflict = self.field("kind", "theorem", authority="lean_environment")
         conflicting_observation = DeclarationContribution(CanonicalDeclLocator(self.ref), (conflict,))
-        with self.assertRaisesRegex(ValidationError, "authoritative conflict for kind"):
-            build_repository(self.adapter(declarations=(self.declaration(), conflicting_observation)))
+        result = build_repository(self.adapter(declarations=(self.declaration(), conflicting_observation)))
+        self.assertTrue(any("field_conflict:kind" in d for d in result.diagnostics))
 
     def test_same_semantic_value_merges_value_provenance(self):
         extra_provenance = (Provenance("source", "Demo.lean"),)

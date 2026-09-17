@@ -39,7 +39,8 @@ def slice_source(text, location):
 def _load_native_workspace(project: str | Path, *, repo_key: str, modules: tuple[str, ...],
                            primary_outcomes: tuple[str, ...] = (), timeout: int = 300,
                            repl_rev: str | None = None, local_repl_path: str | Path | None = None,
-                           evidence_dir: str | Path | None = None):
+                           evidence_dir: str | Path | None = None, build: bool = False,
+                           cache_dir: str | Path | None = None, payload: dict | None = None, _artifact_state=None, memory_limit_mb=None):
     """Load explicit built modules (include desired local import closure explicitly).
 
     Source commands are canonicalized against compiler names, including private
@@ -48,8 +49,16 @@ def _load_native_workspace(project: str | Path, *, repo_key: str, modules: tuple
     """
     from lean_exposition.lean import extract_modules
     root = Path(project).resolve()
-    payload = extract_modules(root, modules, timeout=timeout, repl_rev=repl_rev, local_repl_path=local_repl_path,
-                              evidence_dir=evidence_dir)
+    if payload is None:
+        payload = extract_modules(root, modules, timeout=timeout, repl_rev=repl_rev, local_repl_path=local_repl_path,
+                                  evidence_dir=evidence_dir, build=build, cache_dir=cache_dir, _artifact_state=_artifact_state, memory_limit_mb=memory_limit_mb)
+    elif not payload.get('source'):
+        # A pre-exported environment can omit source author commands. Recover
+        # them locally so private names and statement/proof slices still align.
+        from .toolkit import source_authors
+        payload = dict(payload, source={module: source_authors(
+            (root / (module.replace('.', '/') + '.lean')).read_text(), module)
+            for module in modules}, source_backend='toolkit_text_ast')
     return normalize_native(root, repo_key=repo_key, modules=modules, payload=payload,
                             primary_outcomes=primary_outcomes)
 
@@ -60,7 +69,8 @@ class NativeRepositoryAdapter:
     def __init__(self, project: str | Path, *, repo_key: str, modules: tuple[str, ...],
                  primary_outcomes: tuple[str, ...] = (), timeout: int = 300,
                  repl_rev: str | None = None, local_repl_path: str | Path | None = None,
-                 evidence_dir: str | Path | None = None):
+                 evidence_dir: str | Path | None = None, build: bool = False,
+                           cache_dir: str | Path | None = None, payload: dict | None = None, _artifact_state=None, memory_limit_mb=None):
         self.project = project
         self.repo_key = repo_key
         self.modules = tuple(modules)
@@ -69,26 +79,34 @@ class NativeRepositoryAdapter:
         self.repl_rev = repl_rev
         self.local_repl_path = local_repl_path
         self.evidence_dir = evidence_dir
+        self.build = build
+        self.cache_dir = cache_dir
+        self.payload = payload
+        self._artifact_state = _artifact_state
+        self.memory_limit_mb = memory_limit_mb
 
     def collect(self, context: RepositoryContext | None = None):
         workspace = _load_native_workspace(
             self.project, repo_key=self.repo_key, modules=self.modules,
             primary_outcomes=self.primary_outcomes, timeout=self.timeout,
             repl_rev=self.repl_rev, local_repl_path=self.local_repl_path,
-            evidence_dir=self.evidence_dir,
+            evidence_dir=self.evidence_dir, build=self.build, cache_dir=self.cache_dir, payload=self.payload, _artifact_state=self._artifact_state, memory_limit_mb=self.memory_limit_mb,
         )
         coverage = []
         for decl in workspace.declarations:
             coverage.append(CoverageContribution(
                 decl.ref, "statement", "lean_type", "complete", decl.provenance,
             ))
+            value_status = ("unknown" if any(p.method == "lean_value_unavailable" for p in decl.provenance) else "complete")
+            if decl.kernel_kind == "axiom":
+                value_status = "not_applicable"
             if decl.proof is None:
                 coverage.append(CoverageContribution(
-                    decl.ref, "statement", "lean_value", "complete", decl.provenance,
+                    decl.ref, "statement", "lean_value", value_status, decl.provenance,
                 ))
             else:
                 coverage.append(CoverageContribution(
-                    decl.ref, "proof", "lean_value", "complete", decl.provenance,
+                    decl.ref, "proof", "lean_value", value_status, decl.provenance,
                 ))
         return adapter_result_from_workspace(
             workspace, unit_aggregation="native_helpers", authority="lean_environment",
@@ -159,6 +177,10 @@ def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()
             module = dep.get('module')
             if not module or module in module_repositories:
                 continue
+            prefix = module.split('.')[0].lower()
+            if prefix in {'lean', 'init', 'std'}:
+                module_repositories[module] = lean_repo.repo_key
+                continue
             path = module.replace('.', '/') + '.lean'
             if (root / path).is_file():
                 module_repositories[module] = repo_key
@@ -168,6 +190,9 @@ def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()
                     if (package_root / path).is_file():
                         module_repositories[module] = external[package['name'].lower()].repo_key
                         break
+                if module not in module_repositories:
+                    repository = external.get(prefix)
+                    module_repositories[module] = repository.repo_key if repository else repo_key + '/external/' + prefix
 
     def dep_ref(dep):
         module = dep.get('module') or ''
@@ -199,26 +224,28 @@ def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()
                                   and d['range']['start'] == source_span.get('start')
                                   and d['range']['finish'] == source_span.get('finish')]
                 if len(candidates) != 1:
-                    raise ValueError(f'cannot uniquely canonicalize author declaration {module}:{name}')
+                    continue  # Unmatched source declarations survive in the unified source contributor.
                 match = candidates[0]
             if match['name'] in authors:
-                raise ValueError(f'duplicate author identity {match["name"]}')
+                continue
             authors[match['name']] = author
     for name, fact in sorted(compiled.items()):
         module = fact['module']
         text, asset = sources[module]
         author = authors.get(name)
         span = source_range(asset.asset_id, author.get('range')) if author else None
-        range_method = 'lean_interact_source'
+        range_method = payload.get('source_backend', 'lean_interact') + '_source'
         if author and span is None and fact.get('range'):
             original = author.get('range') or {}
             if all(fact['range'][p] == original.get(p) for p in ('start', 'finish')):
                 span = source_range(asset.asset_id, fact['range'])
                 range_method = 'lean_compiler_range_matching_macro_source'
         origin = (Provenance('lean_compiler_expr', name),)
+        if fact.get('value') is None:
+            origin += (Provenance('lean_value_unavailable', name),)
         source_origin = (Provenance(range_method, name, (span,) if span else ()),)
         missing_nl = TextContent(None, 'missing', source_origin, 'No declaration docstring is available')
-        nl = missing_nl
+        nl = (TextContent(fact["docstring"], "present", origin) if fact.get("docstring") else missing_nl)
         if author:
             doc = author.get('modifiers', {}).get('docString')
             if doc:
@@ -240,9 +267,9 @@ def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()
                 statement_span = SourceRange(span.asset_id, span.start_line, span.start_column,
                                              value_span.start_line, value_span.start_column)
                 formal = TextContent(slice_source(text, statement_span), 'present',
-                    (Provenance('lean_interact_statement_before_value', name, (statement_span,)),))
+                    (Provenance(payload.get('source_backend', 'lean_interact') + '_statement_before_value', name, (statement_span,)),))
                 proof_formal = TextContent(slice_source(text, value_span), 'present',
-                    (Provenance('lean_interact_value', name, (value_span,)),))
+                    (Provenance(payload.get('source_backend', 'lean_interact') + '_value', name, (value_span,)),))
             else:
                 proof_formal = TextContent(None, 'missing', source_origin, 'No reliable proof source range')
             proof = DeclContent(TextContent(None, 'missing', source_origin,
@@ -250,10 +277,11 @@ def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()
         elif fact['kind'] == 'theorem':
             proof = DeclContent(missing_nl, TextContent(None, 'missing', origin,
                                 'Generated theorem has no author proof mapping'), deps_value)
-        context = ()
+        context = ((TextContent(fact["type_text"], "present", (Provenance("lean_compiler_type", name),)),)
+                   if fact.get("type_text") else ())
         if author:
-            context = (TextContent(json.dumps(author.get('scope', {}), ensure_ascii=False, sort_keys=True),
-                                   'present', (Provenance('lean_interact_scope', name),)),)
+            context += (TextContent(json.dumps(author.get('scope', {}), ensure_ascii=False, sort_keys=True),
+                                   'present', (Provenance(payload.get('source_backend', 'lean_interact') + '_scope', name),)),)
         declarations.append(RawDecl(DeclRef(repo_key, name), name, module,
             qualified_id(repo_key, module), kind,
             DeclContent(nl, formal, deps_type if proof else deps_type + deps_value),

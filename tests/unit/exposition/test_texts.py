@@ -64,6 +64,27 @@ class DeclTextTests(unittest.TestCase):
                                     profile="partial", executor=partial)
         self.assertEqual(outcome["failed"], ["r\0b"])
 
+    def test_oversized_summary_input_does_not_submit_api_call(self):
+        store = DeclTextStore(self.ws, self.path)
+        fake = FakeExecutor()
+        result = ensure_decl_texts(self.ws, store, [ref("a")], locale="en", executor=fake,
+                                   max_batch_characters=1)
+        self.assertEqual(fake.calls, 0)
+        self.assertEqual(result["failed"], ["r\0a"])
+
+    def test_summary_compacts_scope_but_keeps_unit_details(self):
+        from lean_exposition.exposition.views import _mathematical_projection
+        card = decl_card(self.ws, ref("a"), proof=True)
+        card['summary'] = 'A short mathematical account.'
+        view = {'node': {}, 'cards': [card], 'primary_outcomes': [],
+                'incoming': [], 'outgoing': [], 'internal': []}
+        node = {'kind': 'scope', 'decl_refs': [card['ref']]}
+        compact = _mathematical_projection(view, node, {})['cards'][0]
+        self.assertEqual(compact['summary'], card['summary'])
+        self.assertNotIn('statement', compact)
+        detailed = _mathematical_projection(view, dict(node, kind='unit'), {})['cards'][0]
+        self.assertIn('statement', detailed)
+
     def test_record_identity_includes_actual_output(self):
         one = DeclTextStore(self.ws, self.path)
         a = FakeExecutor()

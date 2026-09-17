@@ -1,185 +1,159 @@
-# Loading declaration facts
+# Loading projects
 
-LC and native Lean adapters produce the same `RepositoryBuildBundle`. Its
-`workspace` contains declaration facts; Workspace-bound sidecars state unit
-aggregation and dependency extraction coverage. Graph construction consumes the
-bundle so that it never has to infer adapter behavior from provenance strings.
+`load_project` combines catalog metadata, Lean source, compiled environments,
+and published materials into the same `RepositoryBuildBundle`. Every bundle can
+enter the same HDG, content, EET, and reader pipeline. Missing fields and approximate
+edges carry provenance, coverage, and diagnostics; they do not select a different
+reader or prevent structure construction. Structural corruption still raises an
+error.
 
-## LC Git inputs
+## Unified entry point
 
 ```python
-from lean_exposition.importers import LCRepositoryInput, load_lc_workspace
+from lean_exposition.importers import load_project
+from lean_exposition.structure import build_hierarchy
 
-bundle = load_lc_workspace(
-    LCRepositoryInput('/path/to/ConsecutiveDivisorCounts', 'ConsecutiveDivisorCounts'),
-    providers=(LCRepositoryInput('/path/to/WeightedSieve', 'WeightedSieve'),),
+bundle = load_project(
+    '/path/to/project', repo_key='project',
+    compiled_modules=(),  # Explicit source-only policy, including profile inputs.
+    cache_dir='/path/to/cache',
 )
-serialized = bundle.workspace.to_json()
+hierarchy = build_hierarchy(bundle, 'project')
 ```
 
-Use repository keys matching the source's dependency references and Lake package
-names. The adapter reads Git objects, so uncommitted working-tree edits are not
-included. The main input defaults to local `HEAD`; fetching newer GitHub commits
-is the caller's responsibility. Each declaration contributes only its current
-revision. A supplied provider repository is an object store from which the
-consumer's Lake lock selects the dependency commit. This does not maintain a
-history of declaration revisions in the resulting model.
-
-`Main` is represented by the repository root scope, named after the repository.
-Its children and directly owned declarations can be presented immediately below
-the repository. All of the active Main contract's `exports` become
-`primary_outcomes`; `interfaces[].bound_decl` is not an exhaustive substitute.
-`local_public` remains a separate declaration property.
-
-The adapter preserves statement/proof NL, formal code, declared dependencies,
-node ownership, fine declaration kinds, and source provenance. It does not load
-LC runtime state, build objects, scan source text for declarations, or load node
-dependency graphs. Every active catalog declaration remains a separate singleton
-unit. Catalog summaries are returned as source text contributions outside the
-Workspace. Dependency edges are
-labelled `lc_declared`; they are not claimed to enumerate kernel expression
-constants. Missing proof content stays missing.
-
-## Native Lean inputs
-
-Install the optional native tools in the environment used for extraction:
+The equivalent CLI writes `bundle.json` and `hierarchy.json`, without generating
+text:
 
 ```sh
-pip install -e '.[native]'
+python scripts/load_project.py --root /path/to/project --repo-key project \
+  --source-only --cache-dir /path/to/cache --output-dir /path/to/output
 ```
+
+Install Toolkit in the extraction environment (`pip install -e '.[native]'`, or
+an editable local `lean-mcp-toolkit` checkout). LC catalog loading alone does not
+require Toolkit or Lean.
+
+### Acquisition choices
+
+| Input | Selection | What is recovered |
+| --- | --- | --- |
+| LC | Auto-detected catalog, or `lc_catalog` profile contributor | Registered declarations, NL/FL, dependencies, scopes, summaries, resources |
+| Source | `modules` or `source_roots`; otherwise discovered `.lean` files | Approximate declaration inventory, exact recognized slices, docstrings, context, explicit references |
+| Prebuilt Lean | `compiled_modules=('M', ...)` | Canonical names, kernel kinds, type/value constants, generated ownership, elaborated types and docstrings |
+| Mixed default | `compiled_modules=None` | Source plus detected local `.olean` modules and profile compiled module selections |
+| Explicit build | `build=True` | Build selected semantic modules before extraction |
+| Exported semantics | Compiled contributor `config.semantic_manifest` | Existing `extract_modules` JSON, checked against source/config/toolchain hashes |
+| Published materials | Profile assets and selected declarations | Available published statements, NL and published dependencies |
+
+`build=False` is the default. Reading `.olean` uses a small Lean program under the
+project's toolchain, importing the existing environment; Python does not decode
+Lean's binary format. No LeanInteract or REPL is required. Each module runs in a
+fresh single-thread Lean query with a timeout and optional `memory_limit_mb`
+(Lean's allocation limit, not a whole-process RSS guarantee). Imports may still
+consume substantial memory. Failure of one optional module preserves source and
+other successful observations. Nothing is downloaded by the loader itself.
+
+Source parsing reuses Toolkit's existing `text_ast`. Reference resolution masks
+comments/strings, respects loaded imports, namespaces, simple opens and local
+binders, and reports ambiguity. It does not recover all macro, notation,
+typeclass, or tactic-generated dependencies. These edges are `text_reference`,
+never compiler expression dependencies. Source-only IDs remain source-stable;
+unique module/name/range matches connect them to compiled identities in a mixed
+bundle. Unmatched source declarations remain loaded.
+
+A theorem's type/value dependencies belong to statement/proof respectively.
+Definitions keep body and type/value dependencies in statement. Complete compiled
+coverage supersedes approximate edges for that part, including confirmed empty
+sets. Partial coverage preserves fallback evidence. Unloaded providers remain
+references. Cycles remain graph facts; cyclic ordering constraints are relaxed
+with a diagnostic so a reading tree can still be built.
+
+## LC inputs
+
+LC uses fixed Git objects, not uncommitted working-tree edits. One active catalog
+declaration produces one singleton unit; the `preserve` policy keeps this unit
+boundary. Main exports become primary outcomes. Provider repositories supplied
+through `providers` are resolved using the consumer's Lake lock. The loader does
+not run LC runtime, recovery, or compilation.
+
+Catalog statement/proof NL and FL, fine kinds, dependencies, origins, and summaries
+are retained. Readable resource manifests under `.lean_constellation/resources/items`
+are checked for byte size and SHA-256. Exact origin ranges attach to declarations;
+otherwise material remains available at repository level. Invalid resources are
+reported locally. Images and vector drawing source are not treated as prose.
+
+The narrower `load_lc_workspace` and `load_native` APIs remain available; prefer
+`load_project` when mixing acquisition routes or needing source fallback.
+
+## Profiles and project-specific materials
+
+Pass a `RepositoryProfile` or a profile JSON path, optionally with `target_slice`.
+Profiles fix inputs, select contributors/material assets, and provide primary
+outcomes, scope/unit hints, and order hints. Their stage labels describe acquisition
+intent; they do not gate downstream access. A source archive without Git records
+its declared revision as unverified and fixes loaded bytes with asset hashes.
+A profiled Git checkout must match its fixed revision without tracked edits.
+
+Built-in material readers cover formalization YAML, PROOF-PATH, published HTML
+and site JavaScript data, TeX, plain/Markdown text, and optional PDF page text
+(requires PyMuPDF; no OCR). Published-site readers use data parsing, not JavaScript
+execution. PDF page numbers are retained without inventing source line positions.
+TeX resolves static includes; explicit `\lean{...}` or label-to-declaration maps
+bind complete statement/proof environments locally. Unsupported TeX stays
+reported; there is no general TeX interpreter or fuzzy mathematical alignment.
+
+Materials retain their own assets, records, bindings, parser/config identities,
+and provenance in the bundle. Exact `states` / `proof_route` relations can fill
+core NL fields. General explanations stay additional materials, visible in full
+declaration cards and summary input. Ambiguous/unbound materials remain available
+on a scope or repository. Published edges retain `published` evidence labels.
+
+For repository-specific logic use a narrow contributor:
 
 ```python
-from lean_exposition.importers import load_native
+# Return a RepositoryAdapterResult, normally via dataclasses.replace.
+def enrich(adapter, context):
+    # context provides root, repo_key, profile, plan, and a fixed-input read(path).
+    # Add field contributions, SourceTextContribution summaries, material bundles,
+    # or explicit scope/unit seeds. Use attach_materials for text projection.
+    return adapter
 
-bundle = load_native(
-    '/path/to/AgreeToDisagree',
-    repo_key='agree_to_disagree',
-    modules=('AgreeToDisagree.AgreeToDisagree',),
-    primary_outcomes=('AgreeToDisagree.agreeToDisagree',),
-    evidence_dir='/path/to/local/extraction-evidence',
-)
+bundle = load_project('/path/to/project', contributors=(enrich,))
 ```
 
-Select the modules to include explicitly. Include their local import closure when
-you want those declarations loaded rather than retained as references. Independent
-alternative formalizations that define the same names should be loaded into
-separate workspaces.
+Custom contributions may fill core NL/FL fields, dependencies, summaries, or
+structure seeds. Region construction and helper aggregation remain shared.
+Equal-authority field conflicts select deterministically and record alternatives
+in diagnostics; no unmarked replacement is performed.
 
-Native extraction uses the project's own `lean-toolchain`. LeanInteract provides
-source declarations, positions, docstrings, and section context. A narrow Lean
-query obtains compiled names, kinds, type/value constant dependencies, and known
-generated-declaration ownership. Syntax identifier lists are not used as semantic
-edges. Source text is sliced from the original file rather than reconstructed
-from pretty-printed terms.
+## Summaries and downstream use
 
-A theorem's type dependencies belong to its statement and value dependencies to
-its proof. A definition retains its body and value dependencies in the statement.
-An indivisible docstring is kept whole in statement NL; proof NL records that no
-separate text was supplied. A later writing context should provide both parts.
-Compiler-only generated constants can have missing original source text; their
-status records that distinction.
+LC catalog summaries feed the existing declaration text store. Extra generation
+remains opt-in. The existing writing preparation can collect missing texts in
+batches; the generation input now includes declaration context, elaborated type,
+and attached materials. Batches are bounded by declaration count and characters.
+Oversized single requests remain failed/missing and retain full-source access.
+Accepted records are cached and pinned for fixed EET content.
 
-Raw extraction evidence is an audit artifact, not a validated reusable cache.
-Later features may extend the same source/environment passes, but no feature
-selection or extraction is performed by these adapters.
+Mathematical writing views use summaries for nonfocus declarations in coarse
+scope/region contexts. Focused unit cards retain full statement/proof fields and
+materials. A source-only bundle uses exactly these same views.
 
-## Source-only native inventory
+## Caching and limits
 
-Large native repositories can first be inventoried without compiling every
-module. `scripts/source_inventory.py` invokes the current Toolkit
-`declarations.extract` operation and writes strict JSONL records. Each record
-fixes the repository path, Lean module, source digest, `chunk_index`,
-`chunk_count`, declaration observations, and command-coverage diagnostics.
-Chunks for one file must be complete and consistent before they can be merged.
+Source caches include source and Toolkit implementation bytes. Compiled caches
+include source/config/toolchain, exporter implementation, and local artifact
+state. The unified runner shares artifact checks across modules and caches the
+normalized project bundle; custom contributors disable that whole-bundle cache.
+Partial compiler failures are not saved as final project-cache successes.
+Artifact stamps use paths, sizes, and mtimes; they are local cache guards, not a
+proof that supplied binaries were built from supplied sources. Trusted artifacts
+must come from a matching fixed checkout/toolchain.
 
-`lean_exposition.importers.source` streams those records and preserves exact
-source ranges, docstrings, statement/value slices, unrecognized commands, and
-unresolved declaration locators. It never claims that absent dependencies are
-an empty dependency set: source-only dependency coverage remains unknown. The
-inventory is a discovery artifact, not a Workspace. An explicit provisional
-conversion supports diagnostics and a provisional graph/order only; production
-Region, features, recommendation, EET, and Reader reject that stage.
-The persisted `StructurePolicy.production_structure` capability participates in
-artifact identity, so passing a provisional Workspace and its sidecars
-separately cannot bypass this gate.
-
-When compiled evidence is available, source observations merge by canonical
-name, module, and source range through the same construction builder. Ambiguous
-or conflicting observations fail or stay unresolved instead of being guessed.
-This source-only route is for native Lean projects. LC already supplies a
-catalog and therefore never invokes text AST extraction.
-
-## Repository profiles and materials
-
-Strict profiles in `configs/project_profiles/` compose fixed contributors,
-target slices, primary outcomes, scope/unit/order hints, and material assets.
-They contain no callbacks and no schema-version field. The current code accepts
-the current contract directly. Profile stages are capability gates:
-
-- `inventory` records source and material coverage;
-- `provisional` may expose a diagnostic graph but no production hierarchy;
-- `verified_slice` combines a bounded compiled closure with its source and
-  material evidence;
-- `formal` uses an authoritative LC catalog or compiled contributor.
-
-Materials are stored separately as content-addressed records and bindings.
-Bindings distinguish exact, candidate, ambiguous, and unresolved targets.
-Parser implementation, parser configuration, binder implementation, and binder
-configuration all participate in their identities. TeX include order preserves
-repeated occurrences and reports cycles, dynamic paths, missing files, and
-conditional ambiguity. Exact declaration bindings may project protected order
-relations; ambiguous bindings never become hard ordering constraints.
-
-Published-site dependencies are also separate evidence. For example, the FLT
-profile validates its fixed metadata, title array, compressed graph, and selected
-FNV shard, then labels recovered edges `published`; it does not reinterpret them
-as compiler dependencies.
-
-## Presentation scope
-
-A bundle's Workspace may contain multiple repositories for dependency resolution.
-Each HDG/EET presents one explicitly chosen repository. Other loaded repositories
-supply external declaration facts rather than additional trees in that document.
-Use the [repository graph view](graph-foundation.md) to enforce this boundary.
-
-## Field correspondence
-
-| Model field | LC input | Native Lean input |
-| --- | --- | --- |
-| Workspace repositories | Main repository and supplied provider object stores | One selected project and dependency metadata |
-| Repository version | Selected Git commit | Project Git commit when applicable, plus input asset digest |
-| Repository toolchain | Selected `lean-toolchain` | Exact project toolchain; never upgraded by the adapter |
-| `primary_outcomes` | Active Main `exports` | Explicit selected declaration names |
-| Scope | Active node tree with implicit Main root | Selected module paths and their containing scopes |
-| Declaration identity | Repository + node path + registered name | Repository + canonical compiled Lean name |
-| Fine kind / kernel kind | LC registered kind / unavailable | Source command kind / compiler constant kind |
-| Statement NL | Current statement NL | Complete declaration docstring when available |
-| Proof NL | Current proof NL | Missing unless independent text is available |
-| Formal content | Current statement/proof code | Exact source slices, with theorem value separated |
-| Dependencies | LC statement/proof declaration references | Compiler `Expr` constants in type/value |
-| Source context | LC projection source, including possible helpers | Lean namespace/section context returned by the parser |
-| Generated owner | No extra helper enumeration | Confirmed constructor, recursor, or projection owner |
-| DeclUnit | One per imported declaration | One per imported declaration, including compiler-only facts |
-
-The source adapters do not infer native primary outcomes from every public
-constant. Unknown generated ownership is retained as unknown rather than guessed
-from a name suffix.
-
-## Version and input boundaries
-
-The default verified mappings are Lean 4.28.0 with REPL v1.3.14 and Lean 4.32.0
-with REPL v1.3.18. Other toolchains require an explicit `repl_rev`; that override
-is not a claim of tested compatibility. `local_repl_path` can select an existing
-REPL project of the matching Lean version when automatic fetching is unavailable.
-
-The native adapter currently expects explicit module selections and conventional
-project-root module paths. Automatic entrypoint discovery and general Lake
-`srcDir`/custom package layout resolution are not implemented. Dependencies outside
-the selected modules remain references; installed package source paths help
-resolve their repository ownership. A full dependency source audit is not performed.
-
-Selected-module incremental builds precede extraction. Source, project
-configuration, and toolchain digests guard against changes during extraction.
-Compiler-only facts retain semantic dependencies even when no original author
-command can be mapped. This supports basic loading, not a claim of exhaustive
-generated-owner classification or independent mathematical verification.
+The current runner supports conventional project-root module paths. Nonstandard
+Lake `srcDir` layouts need a project adapter. Very large single modules are not
+split during Lean environment loading. Source parsing, graph construction, and
+material aggregation still run in memory; source-only access avoids proof
+elaboration but is not a claim that every whole-repository HDG is cheap. Select
+modules/roots/slices and cache results for large experiments. No full builds or
+model-generation quality claims follow from a successful inventory.

@@ -151,10 +151,10 @@ def build_hierarchy(build_input, repo_key, *, structure_policy=None, dependency_
                     region_burden_features=None):
     workspace, policy, coverage = _resolve_build_input(
         build_input, structure_policy, dependency_coverage)
-    if not policy.production_structure:
-        raise ValueError(
-            "provisional source-only bundles support diagnostic graph/order inspection, not production Regions"
-        )
+    if materials is None and isinstance(build_input, RepositoryBuildBundle) and build_input.materials:
+        from lean_exposition.construction.materials import combine_materials, material_order_evidence
+        materials = combine_materials(build_input.materials, repo_key)
+        order_evidence = material_order_evidence(materials)
     hierarchy, _ = _construct(workspace, repo_key, policy, coverage,
                               config=config, source=source, source_spec=source_spec,
                               narrative_order=narrative_order, materials=materials,
@@ -168,6 +168,10 @@ def derive_narrative_order(build_input, repo_key, *, structure_policy=None, depe
                            materials=None, order_evidence=None, keep_separate=()):
     workspace, policy, coverage = _resolve_build_input(
         build_input, structure_policy, dependency_coverage)
+    if materials is None and isinstance(build_input, RepositoryBuildBundle) and build_input.materials:
+        from lean_exposition.construction.materials import combine_materials, material_order_evidence
+        materials = combine_materials(build_input.materials, repo_key)
+        order_evidence = material_order_evidence(materials)
     _, order = _construct(workspace, repo_key, policy, coverage,
                           config=config, source=source, source_spec=source_spec,
                           materials=materials, order_evidence=order_evidence,
@@ -338,6 +342,20 @@ def _construct(workspace, repo_key, structure_policy, dependency_coverage, *,
     if config.scope_compression == "unary":
         compress(root)
     nodes[root]["metadata"]["aliases"] = dict(sorted(aliases.items()))
+    if materials is not None:
+        local_bound = {b.record_id for b in materials.bindings
+                       if b.status == "exact" and b.target.kind == "declaration"}
+        scope_targets = {}
+        for binding in materials.bindings:
+            if binding.status == "exact" and binding.target.kind in {"repository", "scope"}:
+                scope_targets.setdefault(binding.record_id, []).append(binding.target)
+        for record in materials.records:
+            if record.record_id in local_bound or not record.text:
+                continue
+            targets = scope_targets.get(record.record_id, ())
+            destinations = {aliases.get(t.identifier, root) if t.kind == "scope" else root for t in targets} or {root}
+            for destination in destinations:
+                nodes[destination]["metadata"].setdefault("additional_materials", []).append(asdict(record))
 
     def atom_source(child):
         refs = coverage[child]
@@ -454,8 +472,11 @@ def _construct(workspace, repo_key, structure_policy, dependency_coverage, *,
             collect_order_problems(child)
         projection = graph.project({child: coverage[child] for child in children})
         baseline = _order(children, ((edge.provider, edge.consumer) for edge in projection.edges), node_key, {})
+        cyclic_group = {node: i for i, cycle in enumerate(baseline.cycles) for node in cycle.nodes}
         if not baseline.is_acyclic:
-            raise HierarchyCycleError(nodes[current]["source_scope"], baseline)
+            diagnostics.append({"code": "cyclic_dependencies", "scope": nodes[current]["source_scope"],
+                                "components": [list(c.nodes) for c in baseline.cycles],
+                                "action": "retain_graph_edges_relax_internal_order_constraints"})
         source_keys, source_basis, source_roles, source_anchors = {}, {}, {}, {}
         for child in children:
             (source_keys[child], source_basis[child], source_roles[child],
@@ -468,7 +489,9 @@ def _construct(workspace, repo_key, structure_policy, dependency_coverage, *,
         problems.append(OrderProblem(
             nodes[current]["source_scope"], current, tuple(sorted(children)),
             tuple(OrderEdge(edge.provider, edge.consumer, len(edge.base_edges))
-                  for edge in sorted(projection.edges, key=lambda edge: (edge.provider, edge.consumer))),
+                  for edge in sorted(projection.edges, key=lambda edge: (edge.provider, edge.consumer))
+                  if not (edge.provider in cyclic_group and edge.consumer in cyclic_group
+                          and cyclic_group[edge.provider] == cyclic_group[edge.consumer])),
             source_keys, source_basis, source_roles, source_anchors,
             protected_relations=projected.protected,
             tie_breaker_relations=projected.tie_breakers,
@@ -548,9 +571,13 @@ def _construct(workspace, repo_key, structure_policy, dependency_coverage, *,
             "rejected_relation_ids": list(scope_order.rejected_relation_ids),
         }
         indices = {c: i for i, c in enumerate(ordered)}
-        weights = {(indices[e.provider], indices[e.consumer]):
-                   sum(overrides.get((edge.provider, edge.consumer), 1) for edge in e.base_edges)
-                   for e in projection.edges}
+        # Region cost measures connection distance, also for back edges in an
+        # SCC. Preserve direction in the graph, aggregate undirected pair costs.
+        weights = {}
+        for edge in projection.edges:
+            pair = tuple(sorted((indices[edge.provider], indices[edge.consumer])))
+            weights[pair] = weights.get(pair, 0) + sum(
+                overrides.get((base.provider, base.consumer), 1) for base in edge.base_edges)
         burdens = None
         if burden_values is not None and all(burden_values[r] is not None for child in ordered for r in coverage[child]):
             burdens = [sum(burden_values[r] for r in coverage[child]) for child in ordered]

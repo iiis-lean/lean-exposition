@@ -26,7 +26,7 @@ def bundle(workspace, unit_aggregation="native_helpers", coverage_status="unknow
     )
     return RepositoryBuildBundle(
         workspace,
-        StructurePolicy(digest, unit_aggregation, P, True),
+        StructurePolicy(digest, unit_aggregation, P),
         DependencyCoverage(digest, entries),
     )
 
@@ -86,9 +86,9 @@ class GraphTests(unittest.TestCase):
         cross = graph.outgoing[ref("p", "s")][0]
         self.assertEqual(len(cross.occurrences), 3)
         self.assertEqual({value.part for value in cross.occurrences}, {"statement", "proof"})
-        self.assertEqual(graph.unloaded_refs, {ref("missing"), ref("Nat", "external")})
+        self.assertEqual(graph.unloaded_refs, {ref("missing"), ref("Nat", "external"), ref("text")})
         self.assertEqual(graph.order().ordered, (ref("p", "s"), ref("c")))
-        self.assertEqual(len(graph.boundary([ref("c")]).incoming), 3)
+        self.assertEqual(len(graph.boundary([ref("c")]).incoming), 4)
         text = DependencyGraph.from_workspace(ws, evidence_kinds={"text_reference"})
         self.assertEqual(text.unloaded_refs, {ref("text")})
         self.assertEqual(len(text.edges), 1)

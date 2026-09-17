@@ -418,3 +418,74 @@ def _material_binding(value: object) -> MaterialBinding:
     return MaterialBinding(value["record_id"], _material_target(value["target"]),
                            value["relation"], value["status"],
                            tuple(_provenance(item) for item in value["provenance"]))
+
+
+def combine_materials(bundles, repo_key):
+    """Rebase independently parsed records into one fixed downstream material set."""
+    bundles = tuple(b for b in bundles if b.repo_key == repo_key)
+    implementation = _digest('combine-material-bundles')
+    config = {'inputs': sorted(b.digest() for b in bundles)}
+    config_digest = _digest(config)
+    assets, records, bindings, diagnostics = {}, {}, [], []
+    mapping = {}
+    for bundle in bundles:
+        bundle.validate()
+        for asset in bundle.assets:
+            if asset.asset_id in assets and assets[asset.asset_id] != asset:
+                raise ValidationError('conflicting fixed material asset')
+            assets[asset.asset_id] = asset
+        bundle_digest = bundle.digest()
+        pending = list(bundle.records)
+        while pending:
+            remaining = []
+            for record in pending:
+                if record.parent_record_id and record.parent_record_id not in mapping:
+                    remaining.append(record)
+                    continue
+                new = MaterialRecord.create(asset=assets[record.asset_id],
+                    occurrence_id=bundle_digest + ':' + record.occurrence_id,
+                    parser_implementation_digest=implementation, parser_config_digest=config_digest,
+                    source_range=record.source_range, page=record.page, url=record.url,
+                    heading=record.heading, label=record.label,
+                    parent_record_id=mapping.get(record.parent_record_id), text=record.text,
+                    payload=record.payload, provenance=record.provenance)
+                mapping[record.record_id] = new.record_id
+                records[new.record_id] = new
+            if len(remaining) == len(pending):
+                raise ValidationError('cyclic material parent records')
+            pending = remaining
+        for b in bundle.bindings:
+            bindings.append(MaterialBinding(mapping[b.record_id], b.target, b.relation, b.status, b.provenance))
+        diagnostics.extend(bundle.diagnostics)
+    return MaterialBundle.create(repo_key=repo_key, assets=tuple(assets.values()), records=tuple(records.values()),
+        bindings=tuple(dict.fromkeys(bindings)), parser_implementation_digest=implementation,
+        parser_config=config, binder_implementation_digest=implementation, binder_config={},
+        diagnostics=tuple(diagnostics))
+
+
+def material_order_evidence(materials):
+    """Project explicit route hints and TeX logical order through exact bindings."""
+    from lean_exposition.structure.order import OrderEvidenceBundle, OrderSequence, OrderSubject
+    groups = {}
+    for record in materials.records:
+        payload = record.payload or {}
+        hint = payload.get('order_hint')
+        tex = payload.get('tex')
+        if hint:
+            key = ('hint', hint['id'])
+            groups.setdefault(key, []).append((hint['position'], record, hint))
+        elif tex:
+            key = ('tex', tex['root'])
+            groups.setdefault(key, []).append((tex['logical_position'], record, tex))
+    sequences = []
+    for index, (key, rows) in enumerate(sorted(groups.items())):
+        rows.sort(key=lambda item: (item[0], item[1].record_id))
+        if len(rows) < 2:
+            continue
+        hint = rows[0][2]
+        sequences.append(OrderSequence(
+            ':'.join(key), tuple(OrderSubject('material_record', r.record_id) for _, r, _ in rows),
+            hint.get('strength', 'tie_breaker'), hint.get('basis', 'TeX logical order'),
+            'manual_config' if key[0] == 'hint' else 'automatic_tex', index, rows[0][1].provenance))
+    return OrderEvidenceBundle.create(material_digest=materials.material_digest(),
+                                     binding_digest=materials.binding_digest(), sequences=tuple(sequences))

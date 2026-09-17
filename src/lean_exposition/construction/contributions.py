@@ -9,6 +9,9 @@ from lean_exposition.models import (
 )
 
 
+from .materials import MaterialBundle
+
+
 COVERAGE_DOMAINS = (
     "lc_declared", "lean_type", "lean_value", "published", "text_reference",
 )
@@ -113,7 +116,7 @@ class RepositoryAdapterResult:
     coverage: tuple[CoverageContribution, ...] = ()
     source_texts: tuple[SourceTextContribution, ...] = ()
     diagnostics: tuple[str, ...] = ()
-    production_structure: bool = True
+    materials: tuple[MaterialBundle, ...] = ()
 
 
 @dataclass(frozen=True)

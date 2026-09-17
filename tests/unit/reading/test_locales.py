@@ -196,7 +196,7 @@ class LocaleTests(unittest.TestCase):
             for domain in COVERAGE_DOMAINS
         ))
         bundle = RepositoryBuildBundle(
-            context_workspace, StructurePolicy(digest, 'preserve', provenance, True), coverage)
+            context_workspace, StructurePolicy(digest, 'preserve', provenance), coverage)
         hierarchy = build_hierarchy(bundle, 'demo')
         store = ContentStore(context_workspace, hierarchy, self.path / 'context.json')
         store.publish({hierarchy.root_id:{'lead_in':'Start.','synopsis':'Reading subset.','lead_out':'End.','anchors':[]}})

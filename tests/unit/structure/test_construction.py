@@ -134,9 +134,9 @@ class HierarchyTests(unittest.TestCase):
 
     def test_scope_quotient_cycle_has_witness(self):
         w = workspace("abc", edges(("a", "b"), ("b", "c")), scopes={"a": "a", "b": "b", "c": "a"})
-        with self.assertRaises(HierarchyCycleError) as caught:
-            build_hierarchy(w, "r")
-        self.assertEqual(caught.exception.witnesses[0][0], caught.exception.witnesses[0][-1])
+        result = build_hierarchy(w, "r")
+        self.assertTrue(any(d["code"] == "cyclic_dependencies" for d in result.diagnostics))
+        self.assertEqual(len(result.edges), 2)
 
     def test_dependency_order_and_roundtrip_are_enumeration_stable(self):
         w = workspace("abc", edges(("a", "b")))

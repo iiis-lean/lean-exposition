@@ -470,7 +470,7 @@ def _coverage_diagnostics(item: SourceInventoryFile) -> tuple[str, ...]:
         f"{item.coverage.total_top_level_commands}"
     ]
     result.extend(
-        f"text_ast_unrecognized:{item.path}:{issue.line}:{issue.column}:{issue.head}"
+        f"text_ast_unrecognized:{item.path}:{issue.line}:{issue.column}:{issue.head}:{issue.source}"
         for issue in item.coverage.unrecognized_commands
     )
     return tuple(result)
@@ -488,7 +488,7 @@ def provisional_source_adapter(files: Iterable[SourceInventoryFile], *, repo_key
              "all source inventory files must belong to repo_key")
     _validate_inventory_chunks(values)
     failed = [item.path for item in values if not item.complete]
-    _require(not failed, f"cannot promote failed source inventories: {failed}")
+
     input_digest = hashlib.sha256(json.dumps(
         [(item.path, item.module, item.asset.sha256, item.chunk_index, item.chunk_count)
          for item in values],
@@ -503,7 +503,7 @@ def provisional_source_adapter(files: Iterable[SourceInventoryFile], *, repo_key
     declarations: list[DeclarationContribution] = []
     units: list[DeclUnitSeed] = []
     coverage: list[CoverageContribution] = []
-    diagnostics = ["stage:provisional-source-only"]
+    diagnostics = ["source_inventory_failed:" + path for path in failed]
     observed_names: dict[str, list[DeclRef]] = {}
     seen_assets: set[str] = set()
     for item in values:
@@ -552,16 +552,15 @@ def provisional_source_adapter(files: Iterable[SourceInventoryFile], *, repo_key
     diagnostics.extend(f"text_ast_ambiguous_observed_name:{name}" for name in duplicate_names)
     name_to_ref = {name: refs[0] for name, refs in observed_names.items() if len(refs) == 1}
     missing_outcomes = sorted(set(primary_outcome_names) - name_to_ref.keys())
-    _require(not missing_outcomes, f"provisional primary outcomes are not uniquely observed: {missing_outcomes}")
+    diagnostics.extend("unresolved_primary_outcome:" + name for name in missing_outcomes)
     repository = Repository(
         repo_key, toolchain, root_id, revision=revision, input_digest=input_digest,
-        primary_outcomes=tuple(name_to_ref[name] for name in primary_outcome_names),
+        primary_outcomes=tuple(name_to_ref[name] for name in primary_outcome_names if name in name_to_ref),
     )
     return RepositoryAdapterResult(
         repositories=(repository,), assets=tuple(assets), declarations=tuple(declarations),
         scopes=tuple(scopes.values()), units=tuple(units), unit_aggregation="preserve",
         coverage=tuple(coverage), diagnostics=tuple(diagnostics),
-        production_structure=False,
     )
 
 
@@ -590,7 +589,7 @@ def build_provisional_source_bundle(files: Iterable[SourceInventoryFile], *, rep
                                     toolchain: str | None = None,
                                     revision: str | None = None,
                                     primary_outcome_names: tuple[str, ...] = ()):
-    """Build a diagnostic provisional bundle; this does not construct Regions."""
+    """Build the common downstream bundle from source observations."""
     return build_repository(provisional_source_adapter(
         files, repo_key=repo_key, toolchain=toolchain, revision=revision,
         primary_outcome_names=primary_outcome_names,

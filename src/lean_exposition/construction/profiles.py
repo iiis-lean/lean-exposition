@@ -25,16 +25,9 @@ from lean_exposition.models import DeclRef, Provenance, SourceAsset, SourceRange
 
 PROFILE_STAGES = ("inventory", "provisional", "verified_slice", "formal")
 CONTRIBUTOR_KINDS = ("lc_catalog", "source_inventory", "compiled", "published")
-PROFILE_CAPABILITIES = {
-    "inventory": frozenset({"inventory", "materials"}),
-    "provisional": frozenset({"inventory", "materials", "provisional_graph"}),
-    "verified_slice": frozenset(
-        {"inventory", "materials", "provisional_graph", "production_structure"}
-    ),
-    "formal": frozenset(
-        {"inventory", "materials", "provisional_graph", "production_structure"}
-    ),
-}
+# Stage describes acquisition evidence, never downstream admission.
+PROFILE_CAPABILITIES = {stage: frozenset({"inventory", "materials", "provisional_graph",
+                                         "production_structure"}) for stage in PROFILE_STAGES}
 MATERIAL_ROLES = ("primary", "supporting", "reference")
 ORDER_STRENGTHS = ("protected", "tie_breaker")
 PARSER_IDS = (
