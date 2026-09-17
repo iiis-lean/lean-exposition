@@ -77,6 +77,8 @@ def _merge_equal(left, right):
 
 
 def _authority(field: str, authority: str) -> int:
+    if authority == "lean_source":
+        return 110
     if authority == "lc_catalog":
         return 100
     if authority == "lean_environment":

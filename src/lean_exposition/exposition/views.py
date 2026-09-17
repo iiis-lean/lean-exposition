@@ -26,7 +26,7 @@ def decl_card(workspace, ref, *, proof=False, text_store=None, locale=None,
             "completion_state": declaration.completion_status.state if declaration.completion_status else None,
             "extraction_status": {"state": declaration.extraction_status.state, "reason": declaration.extraction_status.reason}}
     card["source_context"] = [text.text for text in declaration.source_context
-                              if any(p.method == "source_scope_context" for p in text.provenance)]
+                              if any(p.method in {"source_scope_context", "lean_interact_scope"} for p in text.provenance)]
     card["elaborated_type"] = next((text.text for text in declaration.source_context
                                     if any(p.method == "lean_compiler_type" for p in text.provenance)), None)
     card["additional_materials"] = [asdict(text) for text in declaration.source_context

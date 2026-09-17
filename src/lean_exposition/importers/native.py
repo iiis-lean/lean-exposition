@@ -40,7 +40,7 @@ def _load_native_workspace(project: str | Path, *, repo_key: str, modules: tuple
                            primary_outcomes: tuple[str, ...] = (), timeout: int = 300,
                            repl_rev: str | None = None, local_repl_path: str | Path | None = None,
                            evidence_dir: str | Path | None = None, build: bool = False,
-                           cache_dir: str | Path | None = None, payload: dict | None = None, _artifact_state=None, memory_limit_mb=None):
+                           cache_dir: str | Path | None = None, payload: dict | None = None, _artifact_state=None, memory_limit_mb=None, source_backend="toolkit_text_ast"):
     """Load explicit built modules (include desired local import closure explicitly).
 
     Source commands are canonicalized against compiler names, including private
@@ -51,14 +51,14 @@ def _load_native_workspace(project: str | Path, *, repo_key: str, modules: tuple
     root = Path(project).resolve()
     if payload is None:
         payload = extract_modules(root, modules, timeout=timeout, repl_rev=repl_rev, local_repl_path=local_repl_path,
-                                  evidence_dir=evidence_dir, build=build, cache_dir=cache_dir, _artifact_state=_artifact_state, memory_limit_mb=memory_limit_mb)
+                                  evidence_dir=evidence_dir, build=build, cache_dir=cache_dir, _artifact_state=_artifact_state, memory_limit_mb=memory_limit_mb, source_backend=source_backend)
     elif not payload.get('source'):
         # A pre-exported environment can omit source author commands. Recover
         # them locally so private names and statement/proof slices still align.
-        from .toolkit import source_authors
-        payload = dict(payload, source={module: source_authors(
-            (root / (module.replace('.', '/') + '.lean')).read_text(), module)
-            for module in modules}, source_backend='toolkit_text_ast')
+        from lean_exposition.lean.tools import extract_sources
+        payload = dict(payload, source=extract_sources(root, modules, source_backend=source_backend,
+            timeout=timeout, repl_rev=repl_rev, local_repl_path=local_repl_path, cache_dir=cache_dir),
+            source_backend=source_backend)
     return normalize_native(root, repo_key=repo_key, modules=modules, payload=payload,
                             primary_outcomes=primary_outcomes)
 
@@ -70,7 +70,7 @@ class NativeRepositoryAdapter:
                  primary_outcomes: tuple[str, ...] = (), timeout: int = 300,
                  repl_rev: str | None = None, local_repl_path: str | Path | None = None,
                  evidence_dir: str | Path | None = None, build: bool = False,
-                           cache_dir: str | Path | None = None, payload: dict | None = None, _artifact_state=None, memory_limit_mb=None):
+                           cache_dir: str | Path | None = None, payload: dict | None = None, _artifact_state=None, memory_limit_mb=None, source_backend="toolkit_text_ast"):
         self.project = project
         self.repo_key = repo_key
         self.modules = tuple(modules)
@@ -84,13 +84,14 @@ class NativeRepositoryAdapter:
         self.payload = payload
         self._artifact_state = _artifact_state
         self.memory_limit_mb = memory_limit_mb
+        self.source_backend = source_backend
 
     def collect(self, context: RepositoryContext | None = None):
         workspace = _load_native_workspace(
             self.project, repo_key=self.repo_key, modules=self.modules,
             primary_outcomes=self.primary_outcomes, timeout=self.timeout,
             repl_rev=self.repl_rev, local_repl_path=self.local_repl_path,
-            evidence_dir=self.evidence_dir, build=self.build, cache_dir=self.cache_dir, payload=self.payload, _artifact_state=self._artifact_state, memory_limit_mb=self.memory_limit_mb,
+            evidence_dir=self.evidence_dir, build=self.build, cache_dir=self.cache_dir, payload=self.payload, _artifact_state=self._artifact_state, memory_limit_mb=self.memory_limit_mb, source_backend=self.source_backend,
         )
         coverage = []
         for decl in workspace.declarations:
@@ -108,10 +109,19 @@ class NativeRepositoryAdapter:
                 coverage.append(CoverageContribution(
                     decl.ref, "proof", "lean_value", value_status, decl.provenance,
                 ))
-        return adapter_result_from_workspace(
+        adapter = adapter_result_from_workspace(
             workspace, unit_aggregation="native_helpers", authority="lean_environment",
             method="compiled_native", coverage=coverage,
         )
+
+        # Lean-provided author slices must not be overwritten by the fallback
+        # Toolkit contributor in a unified mixed bundle.
+        from dataclasses import replace
+        return replace(adapter, declarations=tuple(replace(d, fields=tuple(
+            replace(f, authority='lean_source') if f.field in {
+                'statement.formal', 'proof.formal', 'statement.nl', 'kind'} and
+                any(p.method.startswith('lean_interact') for p in f.provenance)
+            else f for f in d.fields)) for d in adapter.declarations))
 
 
 def load_native(*args, **kwargs):

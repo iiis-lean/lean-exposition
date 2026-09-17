@@ -84,17 +84,58 @@ def _artifact_stamp(root):
     return sorted(result)
 
 
+def extract_sources(project, modules, *, source_backend="toolkit_text_ast", timeout=300,
+                    repl_rev=None, local_repl_path=None, cache_dir=None):
+    """Return the common author-command contract without querying semantic facts."""
+    root = Path(project).resolve()
+    if source_backend == 'toolkit_text_ast':
+        from lean_exposition.importers.toolkit import source_authors
+        return {module: source_authors((root / (module.replace('.', '/') + '.lean')).read_text(),
+                                      module, cache_dir=cache_dir) for module in modules}
+    if source_backend != 'lean_interact':
+        raise ValueError('unknown source backend: ' + source_backend)
+    toolchain = (root / 'lean-toolchain').read_text().strip()
+    if repl_rev is None:
+        repl_rev = {'leanprover/lean4:v4.28.0': 'v1.3.14',
+                    'leanprover/lean4:v4.32.0': 'v1.3.18'}.get(toolchain)
+        if repl_rev is None:
+            raise ValueError('supply repl_rev for this LeanInteract toolchain: ' + toolchain)
+    if local_repl_path is not None:
+        local_repl_path = Path(local_repl_path).resolve()
+        if (local_repl_path / 'lean-toolchain').read_text().strip() != toolchain:
+            raise ValueError('local REPL toolchain does not match project toolchain')
+    from lean_interact import FileCommand, LeanREPLConfig, LeanServer
+    from lean_interact.project import LocalProject
+    server = LeanServer(LeanREPLConfig(project=LocalProject(directory=root, auto_build=False),
+                                      repl_rev=repl_rev, local_repl_path=local_repl_path))
+    source = {}
+    try:
+        for module in modules:
+            response = server.run(FileCommand(path=str(root / (module.replace('.', '/') + '.lean')),
+                                              declarations=True), timeout=timeout)
+            data = response.model_dump(by_alias=True, exclude_none=False)
+            errors = [m for m in data.get('messages', []) if m.get('severity') == 'error']
+            if errors or 'declarations' not in data:
+                raise RuntimeError(f'LeanInteract source extraction failed for {module}: {errors}')
+            source[module] = data
+    finally:
+        server.kill()
+    return source
+
+
 def extract_modules(project: str | Path, modules: tuple[str, ...], *, timeout: int = 300,
                     repl_rev: str | None = None, local_repl_path: str | Path | None = None,
                     evidence_dir: str | Path | None = None, build: bool = False,
                     include_source: bool = True, cache_dir: str | Path | None = None,
-                    _artifact_state=None, memory_limit_mb: int | None = None) -> dict:
-    """Read selected built modules; building is explicit and source uses Toolkit.
+                    _artifact_state=None, memory_limit_mb: int | None = None,
+                    source_backend="toolkit_text_ast") -> dict:
+    """Read compiled facts and select Toolkit or optional LeanInteract source extraction.
 
-    ``repl_rev``/``local_repl_path`` remain accepted for callers migrating their
-    project configuration; no REPL is imported or executed. Each module query
-    runs in a fresh process, bounding retained environments across modules.
+    Semantic module queries are isolated; source extraction shares one REPL per
+    call when LeanInteract is selected. Builds remain explicit at this layer.
     """
+    if source_backend not in {'toolkit_text_ast', 'lean_interact'}:
+        raise ValueError('unknown source backend: ' + source_backend)
     if memory_limit_mb is not None and memory_limit_mb <= 0:
         raise ValueError("memory_limit_mb must be positive")
     root = Path(project).resolve()
@@ -137,16 +178,15 @@ def extract_modules(project: str | Path, modules: tuple[str, ...], *, timeout: i
                     temporary = Path(handle.name)
                 temporary.replace(cached)
         compiled.extend(facts)
-        if include_source:
-            from lean_exposition.importers.toolkit import source_authors
-            source[module] = source_authors((root / (module.replace('.', '/') + '.lean')).read_text(),
-                                             module, cache_dir=cache_dir)
+    if include_source:
+        source = extract_sources(root, modules, source_backend=source_backend, timeout=timeout,
+                                 repl_rev=repl_rev, local_repl_path=local_repl_path, cache_dir=cache_dir)
     if initial != _inputs(root, modules) or (cache_dir and _artifact_state is None and stamp != _artifact_stamp(root)):
         raise RuntimeError('project inputs or compiled artifacts changed during extraction')
     data = dict(extractor_sha256=hashlib.sha256(template.encode()).hexdigest(),
                 input_digests=initial, source_digests={m: initial[m.replace('.', '/') + '.lean'] for m in modules},
                 source=source, compiled=compiled, toolchain=toolchain,
-                source_backend='toolkit_text_ast', build_requested=build)
+                source_backend=source_backend, build_requested=build)
     if evidence_dir:
         destination = Path(evidence_dir)
         destination.mkdir(parents=True, exist_ok=True)

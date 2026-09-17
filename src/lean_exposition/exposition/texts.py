@@ -253,7 +253,7 @@ def ensure_decl_texts(workspace, store, refs, *, locale, executor, profile="defa
                 "kind": declaration.kind, "statement": asdict(declaration.statement),
                 "proof": asdict(declaration.proof) if declaration.proof else None,
                 "source_context": [asdict(t) for t in declaration.source_context
-                    if any(p.method in {"source_scope_context", "lean_compiler_type"} for p in t.provenance)],
+                    if any(p.method in {"source_scope_context", "lean_compiler_type", "lean_interact_scope"} for p in t.provenance)],
                 "additional_materials": [asdict(t) for t in declaration.source_context
                     if any(p.method.startswith("material") or p.method == "lc_resource" for p in t.provenance)],
                 "need_statement_nl": declaration.statement.nl.status != "present",

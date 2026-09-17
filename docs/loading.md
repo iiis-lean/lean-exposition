@@ -52,7 +52,8 @@ extraction. `compiled_modules=()` (CLI `--source-only`) explicitly chooses text-
 loading for expensive projects. LC continues its dedicated catalog path.
 Reading `.olean` uses a small Lean program under the
 project's toolchain, importing the existing environment; Python does not decode
-Lean's binary format. No LeanInteract or REPL is required. Each module runs in a
+Lean's binary format. The default Toolkit source backend requires no LeanInteract or REPL. An optional
+LeanInteract source backend is available for Lean-provided author ranges/context. Each module runs in a
 fresh single-thread Lean query with a timeout and optional `memory_limit_mb`
 (Lean's allocation limit, not a whole-process RSS guarantee). Imports may still
 consume substantial memory. Failure of a requested module preserves source and
@@ -164,3 +165,41 @@ material aggregation still run in memory; source-only access avoids proof
 elaboration but is not a claim that every whole-repository HDG is cheap. Select
 modules/roots/slices and cache results for large experiments. No full builds or
 model-generation quality claims follow from a successful inventory.
+
+## Comparing source extraction backends
+
+Compilation policy and source extraction backend are independent. Both backends
+use the same compiled type/value dependency query:
+
+```python
+bundle = load_project(
+    '/path/to/project', source_backend='lean_interact',
+    # Optional for a matching locally built REPL:
+    local_repl_path='/path/to/repl',
+)
+```
+
+Install `.[lean-interact]` to enable that backend. CLI options are
+`--source-backend lean_interact`, `--repl-rev`, and `--local-repl-path`.
+Known REPL mappings are retained for Lean 4.28.0 and 4.32.0; other versions require
+an explicit revision. A local REPL must use the project's toolchain.
+LeanInteract processes source and can re-elaborate proofs; it is not an inexpensive
+`.olean` syntax lookup. Its source-provided slices take precedence over the
+Toolkit fallback when a declaration matches. Semantic extraction failures remain
+explicit. Lean's `memory_limit_mb` currently bounds the environment query, not the
+LeanInteract server. Whole-project bundle caching is disabled for this optional
+backend; compiled semantic caches remain reusable.
+
+For a reproducible, no-build comparison against one shared semantic export:
+
+```sh
+python scripts/compare_source_backends.py --root /path/to/project   --module MyProject.Main --output-dir /path/to/comparison
+```
+
+The report separates semantic-query time from source-extraction time and stores
+raw responses and per-declaration differences. Mapping/proof coverage is not a
+mathematical accuracy score. `lemma` versus `theorem`, whitespace, and delimiters
+can differ without changing meaning. The source backend default remains Toolkit;
+use LeanInteract explicitly when complete proof segmentation/context matters.
+Current samples show that Toolkit can miss term-style proof splitting even when
+it finds the declaration and compiled dependencies correctly.

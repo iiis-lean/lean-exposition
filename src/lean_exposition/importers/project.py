@@ -253,7 +253,8 @@ def _hints(adapter, plan):
 
 def load_project(project, *, repo_key=None, profile=None, target_slice=None, modules=None,
                  source_roots=None, compiled_modules=None, build=None, timeout=300,
-                 cache_dir=None, providers=(), contributors=(), primary_outcomes=(), memory_limit_mb=None):
+                 cache_dir=None, providers=(), contributors=(), primary_outcomes=(), memory_limit_mb=None,
+                 source_backend="toolkit_text_ast", repl_rev=None, local_repl_path=None):
     """Load any repository into the same downstream bundle.
 
     Custom contributors are callables ``(adapter, context) -> adapter`` and can
@@ -265,6 +266,8 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
     an error. This function never clones projects or invokes generation; Lake
     builds may resolve dependencies using the project configuration.
     """
+    if source_backend not in {'toolkit_text_ast', 'lean_interact'}:
+        raise ValueError('unknown source backend: ' + source_backend)
     root = Path(project).resolve()
     bundle_cache = None
     if cache_dir is not None:
@@ -350,7 +353,8 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
                 try:
                     payload = json.loads(read(manifest_path))
                     manifest_modules = tuple(spec.config.get('modules') or payload['source_digests'])
-                    semantic = NativeRepositoryAdapter(root, repo_key=repo_key, modules=manifest_modules, payload=payload).collect()
+                    semantic = NativeRepositoryAdapter(root, repo_key=repo_key, modules=manifest_modules, payload=payload, source_backend=source_backend,
+                        repl_rev=repl_rev, local_repl_path=local_repl_path).collect()
                     adapter = merge_adapters(adapter, semantic)
                     semantic_completed.update(manifest_modules)
                     semantic_modules = [m for m in semantic_modules if m not in manifest_modules]
@@ -361,7 +365,7 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
             (root / '.lake/build/lib/lean' / (m.replace('.', '/') + '.olean')).is_file())}
         from lean_exposition.lean.tools import _artifact_stamp
         artifact_state = _artifact_stamp(root) if semantic_modules and cache_dir and not build_modules else None
-        if cache_dir and not build_modules and not contributors:
+        if cache_dir and not build_modules and not contributors and source_backend == 'toolkit_text_ast':
             code_root = Path(__file__).parents[1]
             implementation = hashlib.sha256(b''.join(p.read_bytes() for p in sorted(code_root.rglob('*.py'))) +
                                             (code_root / 'lean/environment.lean').read_bytes()).hexdigest()
@@ -379,7 +383,9 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
                         'modules': semantic_modules, 'selected_sources': selected, 'acquisition_diagnostics': diagnostics,
                         'profile': profile.digest() if profile else None,
                         'slice': target_slice, 'inputs': fixed, 'implementation': implementation,
-                        'timeout': timeout, 'memory_limit_mb': memory_limit_mb}
+                        'timeout': timeout, 'memory_limit_mb': memory_limit_mb,
+                        'source_backend': source_backend, 'repl_rev': repl_rev,
+                        'local_repl_path': str(local_repl_path) if local_repl_path else None}
             key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
             bundle_cache = Path(cache_dir) / 'projects' / (key + '.json')
             if bundle_cache.is_file():
@@ -389,7 +395,8 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
         for module in dict.fromkeys(semantic_modules):
             try:
                 semantic = NativeRepositoryAdapter(root, repo_key=repo_key, modules=(module,), timeout=timeout,
-                                                    build=module in build_modules, cache_dir=cache_dir, _artifact_state=artifact_state, memory_limit_mb=memory_limit_mb).collect()
+                                                    build=module in build_modules, cache_dir=cache_dir, _artifact_state=artifact_state, memory_limit_mb=memory_limit_mb, source_backend=source_backend,
+                                                    repl_rev=repl_rev, local_repl_path=local_repl_path).collect()
                 adapter = merge_adapters(adapter, semantic)
                 semantic_completed.add(module)
             except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:

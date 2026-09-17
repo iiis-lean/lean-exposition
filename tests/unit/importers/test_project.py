@@ -36,6 +36,24 @@ class ProjectTests(unittest.TestCase):
         kwargs.setdefault('compiled_modules', ())
         return load_project(self.root, repo_key='r', **kwargs)
 
+    def test_selected_lean_source_slices_override_toolkit_fallback(self):
+        from lean_exposition.importers.native import NativeRepositoryAdapter
+        from lean_exposition.importers.toolkit import source_authors
+        text = 'theorem t : True := by trivial\n'
+        self.write('M.lean', text)
+        self.write('lean-toolchain', 'leanprover/lean4:v4.28.0')
+        payload = {'source': {'M': source_authors(text, 'M')}, 'source_backend': 'lean_interact',
+                   'toolchain': 'leanprover/lean4:v4.28.0',
+                   'source_digests': {'M': hashlib.sha256(text.encode()).hexdigest()},
+                   'compiled': [{'name': 't', 'user_name': 't', 'module': 'M', 'kind': 'theorem',
+                                 'type': [], 'value': []}]}
+        semantic = NativeRepositoryAdapter(self.root, repo_key='r', modules=('M',), payload=payload).collect()
+        expected = build_repository(semantic).workspace.declarations[0].statement.formal.text
+        with patch('lean_exposition.importers.project.NativeRepositoryAdapter.collect', return_value=semantic):
+            result = self.load(compiled_modules=('M',), source_backend='lean_interact', build=False)
+        self.assertEqual(result.workspace.declarations[0].statement.formal.text, expected)
+        self.assertTrue(any(f.authority == 'lean_source' for d in semantic.declarations for f in d.fields))
+
     def test_default_compiles_missing_and_reuses_existing_modules(self):
         self.write('A.lean', 'def a := 1\n')
         self.write('B.lean', 'def b := 2\n')

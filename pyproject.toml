@@ -12,6 +12,7 @@ dependencies = []
 
 [project.optional-dependencies]
 native = ["lean-mcp-toolkit"]
+lean-interact = ["lean-interact==0.11.1"]
 materials = ["PyYAML>=6,<7"]
 runtime = ["openai==2.15.0", "httpx==0.28.1", "jsonschema==4.26.0"]
 reader = ["fastapi==0.125.0", "uvicorn==0.34.3", "mcp==1.26.0", "jsonschema==4.26.0"]
