@@ -53,10 +53,13 @@ included in the public repository.
 
 ## Try the local demo
 
-The handwritten demo does not require model credentials:
+The handwritten demo does not require model credentials. LC source reading uses
+LeanComprehendBench as a shared dependency. While that package is maintained as a
+local checkout, install it in the same environment first (adjust the path if
+needed):
 
 ```bash
-python -m pip install -e '.[reader]'
+python -m pip install -e ../lean-comprehend-bench -e '.[reader]'
 python -m lean_exposition.app --state-dir data/reader-demo --port 8765
 ```
 

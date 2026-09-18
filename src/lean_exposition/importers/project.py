@@ -15,7 +15,7 @@ from lean_exposition.construction import (
 )
 from lean_exposition.models import DeclRef, Dependency, Provenance, Repository, Status, TextContent, ValidationError
 from .common import asset_from_bytes, qualified_id
-from .lc import LCRepositoryAdapter, LCRepositoryInput, _Snapshot
+from .lc import LCRepositoryAdapter, LCRepositoryInput
 from .materials import attach_materials, text_material
 from .merge import merge_adapters
 from .native import NativeRepositoryAdapter
@@ -307,9 +307,9 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
              (root / '.lean_constellation/index/nodes.json').exists())
     if is_lc:
         source = LCRepositoryInput(root, repo_key, revision)
-        adapter = LCRepositoryAdapter(source, providers).collect()
-        snapshot = _Snapshot(source)
-        read = snapshot.read
+        lc = LCRepositoryAdapter(source, providers)
+        adapter = lc.collect()
+        read = lc.read_source
     else:
         read = lambda path: _safe_path(root, path).read_bytes()
         if revision:

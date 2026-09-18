@@ -3,9 +3,10 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from lean_exposition.construction import build_repository
-from lean_exposition.importers.lc import LCRepositoryAdapter, LCRepositoryInput, _load_lc_facts, load_lc_workspace
+from lean_exposition.importers.lc import LCRepositoryAdapter, LCRepositoryInput, load_lc_workspace
 from lean_exposition.models.facts import ValidationError, Workspace
 
 
@@ -44,7 +45,8 @@ class LCImportTests(unittest.TestCase):
             "interfaces": []})
         base = ".lean_constellation/nodes/child/decl_graph/decls/x/"
         self.write(path, base + "decl.json", {"name": "x", "node_path": "Main.Child", "module": "Child",
-                   "kind": "def", "current_revision": 2, "public": True, "lifecycle": "active"})
+                   "kind": "def", "current_revision": 2, "public": True, "lifecycle": "active",
+                   "summary": "Catalog summary must not enter generation."})
         self.write(path, base + "revisions/1.json", {"invalid": "historical revision must not be read"})
         self.write(path, base + "revisions/2.json", {"lean_decl_name": "N.x", "change": {
             "summary": "Defines the fixture value."}, "statement": {
@@ -74,14 +76,13 @@ class LCImportTests(unittest.TestCase):
         self.assertEqual(decl.source_refs[0].start_line, 3)
         self.assertEqual(Workspace.from_json(workspace.to_json()), workspace)
 
-    def test_adapter_bundle_is_lossless_preserves_units_and_exposes_summary(self):
+    def test_adapter_preserves_facts_without_importing_either_summary(self):
         path = self.fixture("repo")
-        legacy = _load_lc_facts(LCRepositoryInput(path, "repo"))[0]
         bundle = load_lc_workspace(LCRepositoryInput(path, "repo"))
-        self.assertEqual(bundle.workspace.to_json(), legacy.to_json())
+        self.assertEqual(bundle.workspace.declarations[0].lean_name, "N.x")
         self.assertEqual(bundle.structure_policy.unit_aggregation, "preserve")
         self.assertEqual(len(bundle.workspace.units), len(bundle.workspace.declarations))
-        self.assertEqual(bundle.source_texts[0].text, "Defines the fixture value.")
+        self.assertEqual(bundle.source_texts, ())
         entry = next(item for item in bundle.dependency_coverage.entries
                      if item.evidence_domain == "lc_declared")
         self.assertEqual(entry.status, "complete")
@@ -176,5 +177,59 @@ class LCImportTests(unittest.TestCase):
         result = load_lc_workspace(LCRepositoryInput(path, 'repo'))
         self.assertEqual(len(result.workspace.declarations), 1)
         self.assertFalse(result.materials)
-        self.assertTrue(any('lc_resource_digest_mismatch' in d for d in result.diagnostics))
+        self.assertTrue(any('material_integrity_mismatch' in d for d in result.diagnostics))
         self.assertTrue(build_hierarchy(result, 'repo').nodes)
+
+    def test_shared_snapshot_is_reused_by_profile_and_custom_contributor(self):
+        import hashlib
+        from lean_exposition.construction import (
+            ContributorSpec, MaterialAssetSpec, RepositoryIdentity, RepositoryProfile,
+        )
+        from lean_exposition.importers import load_project
+        path = self.fixture('repo')
+        paper = '# Fixture\nThe value is two.\n'
+        self.write(path, 'paper.md', paper)
+        fixed = self.commit(path)
+        spec = MaterialAssetSpec('paper', 'paper.md', hashlib.sha256(paper.encode()).hexdigest(),
+            'text/markdown', 'markdown', 'explicit', 'primary', {'declarations': ['N.x']})
+        profile = RepositoryProfile('p', RepositoryIdentity('repo', fixed), 'inventory',
+            (ContributorSpec('lc', 'lc_catalog', True, {}),), (spec,), (), (), (), (), ())
+        self.write(path, 'paper.md', 'uncommitted paper')
+        self.write(path, 'Child.lean', 'uncommitted Lean')
+
+        def inspect(adapter, context):
+            self.assertEqual(context['read']('paper.md'), paper.encode())
+            with self.assertRaises(ValidationError):
+                context['read']('../paper.md')
+            return adapter
+
+        with patch('lean_exposition.importers.project.NativeRepositoryAdapter.collect',
+                   side_effect=AssertionError('LC must not use native extraction')):
+            bundle = load_project(path, repo_key='repo', profile=profile, contributors=(inspect,))
+        self.assertEqual(bundle.workspace.manifest.repositories[0].revision, fixed)
+        self.assertEqual(bundle.workspace.declarations[0].statement.formal.text, 'def x : Nat := 2')
+        self.assertIn(paper.strip(), [r.text for m in bundle.materials for r in m.records])
+
+    def test_adapter_freezes_head_for_later_source_reads(self):
+        path = self.fixture('repo')
+        adapter = LCRepositoryAdapter(LCRepositoryInput(path, 'repo'))
+        first = adapter.collect()
+        self.write(path, 'Child.lean', 'newly committed source')
+        self.commit(path)
+        self.assertEqual(adapter.collect(), first)
+        self.assertIn(b'def x : Nat := 2', adapter.read_source('Child.lean'))
+
+    def test_ambiguous_optional_material_does_not_discard_catalog(self):
+        import hashlib
+        path = self.fixture('repo')
+        base = '.lean_constellation/resources/items/paper/'
+        text = '# Paper\nA fact.\n'
+        entry = {'path': 'paper.md', 'readable_kind': 'markdown',
+                 'size_bytes': len(text.encode()), 'sha256': hashlib.sha256(text.encode()).hexdigest()}
+        self.write(path, base + 'manifest.json', {'files': [entry, entry]})
+        self.write(path, base + 'paper.md', text)
+        self.commit(path)
+        bundle = load_lc_workspace(LCRepositoryInput(path, 'repo'))
+        self.assertEqual(len(bundle.workspace.declarations), 1)
+        self.assertFalse(bundle.materials)
+        self.assertTrue(any('ambiguous material' in d for d in bundle.diagnostics))

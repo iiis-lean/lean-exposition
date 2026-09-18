@@ -37,7 +37,7 @@ require Toolkit or Lean.
 
 | Input | Selection | What is recovered |
 | --- | --- | --- |
-| LC | Auto-detected catalog, or `lc_catalog` profile contributor | Registered declarations, NL/FL, dependencies, scopes, summaries, resources |
+| LC | Auto-detected catalog, or `lc_catalog` profile contributor | Registered declarations, NL/FL, dependencies, scopes, origins, resources |
 | Source | `modules` or `source_roots`; otherwise discovered `.lean` files | Approximate declaration inventory, exact recognized slices, docstrings, context, explicit references |
 | Prebuilt Lean | `compiled_modules=('M', ...)` | Canonical names, kernel kinds, type/value constants, generated ownership, elaborated types and docstrings |
 | Compiled-first default | `compiled_modules=None`, `build=None` | Query all selected modules; reuse existing artifacts and build missing ones |
@@ -78,17 +78,41 @@ with a diagnostic so a reading tree can still be built.
 
 ## LC inputs
 
+LC catalog and resource interpretation is provided by the independent
+`lean-comprehend-bench` dependency. During local development, install both
+repositories into the same environment:
+
+```sh
+python -m pip install -e ../lean-comprehend-bench -e .
+```
+
+The editable dependency follows local reader fixes without copying code into
+Exposition. Its source snapshots remain fixed independently of that installation.
+No remote URL or machine-specific path is embedded in package metadata.
+
+`LCRepositoryAdapter` converts the shared `LCReader` records to Exposition facts
+and material contributions. The public `LCRepositoryInput`, `load_lc_workspace`,
+and `load_project` entry points remain available. A single adapter freezes its
+reader on first use and reuses it for subsequent collection and profile/custom
+contributor file reads. Create a new adapter to resolve a new HEAD.
+
 LC uses fixed Git objects, not uncommitted working-tree edits. One active catalog
 declaration produces one singleton unit; the `preserve` policy keeps this unit
 boundary. Main exports become primary outcomes. Provider repositories supplied
 through `providers` are resolved using the consumer's Lake lock. The loader does
 not run LC runtime, recovery, or compilation.
 
-Catalog statement/proof NL and FL, fine kinds, dependencies, origins, and summaries
-are retained. Readable resource manifests under `.lean_constellation/resources/items`
+Catalog statement/proof NL and FL, checks, fine kinds, dependencies, and origins
+are retained. Neither `decl.summary` nor `change.summary` enters mathematical
+writing inputs; original catalog metadata remains available through `LCReader`. Readable resource manifests under `.lean_constellation/resources/items`
 are checked for byte size and SHA-256. Exact origin ranges attach to declarations;
 otherwise material remains available at repository level. Invalid resources are
-reported locally. Images and vector drawing source are not treated as prose.
+reported locally. Shared-reader diagnostics are exposed with the `lc_reader:`
+prefix and original diagnostic fields; optional ambiguous material reads also
+produce a local diagnostic. Images and vector drawing source are not treated as
+prose. Material cache identities include both the shared parser implementation
+and the Exposition conversion implementation. Reimporting may change bundle and
+material identities; existing serialized reader content is not rewritten.
 
 The narrower `load_lc_workspace` and `load_native` APIs remain available; prefer
 `load_project` when mixing acquisition routes or needing source fallback.
@@ -136,12 +160,12 @@ in diagnostics; no unmarked replacement is performed.
 
 ## Summaries and downstream use
 
-LC catalog summaries feed the existing declaration text store. Extra generation
-remains opt-in. The existing writing preparation can collect missing texts in
-batches; the generation input now includes declaration context, elaborated type,
-and attached materials. Batches are bounded by declaration count and characters.
-Oversized single requests remain failed/missing and retain full-source access.
-Accepted records are cached and pinned for fixed EET content.
+LC and native inputs share the declaration text generation pipeline. The loader
+does not invoke models or generate summaries. Writing preparation fills the text
+store from mathematical statement/proof inputs and relevant source material,
+with explicit missing-field handling. Accepted records are cached and pinned for
+fixed EET content. Exposition retains responsibility for summary generation,
+HDG/Region construction, EET writing, and API/Agent execution.
 
 Mathematical writing views use summaries for nonfocus declarations in coarse
 scope/region contexts. Focused unit cards retain full statement/proof fields and

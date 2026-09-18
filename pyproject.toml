@@ -8,7 +8,7 @@ version = "0.0.0"
 description = "Progressive Lean exposition with shared human and agent reading interfaces."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["lean-comprehend-bench"]
 
 [project.optional-dependencies]
 native = ["lean-mcp-toolkit"]

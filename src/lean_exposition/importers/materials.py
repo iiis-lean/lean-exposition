@@ -2,14 +2,14 @@
 from dataclasses import replace
 import hashlib
 import json
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import re
 
 from lean_exposition.construction import (
     CanonicalDeclLocator, DeclarationContribution, FieldContribution,
     MaterialBinding, MaterialBundle, MaterialRecord, MaterialTarget,
 )
-from lean_exposition.models import Provenance, SourceRange, TextContent
+from lean_exposition.models import DeclRef, Provenance, SourceRange, TextContent
 
 IMPLEMENTATION = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 
@@ -75,85 +75,61 @@ def attach_materials(adapter, bundles):
                    materials=adapter.materials + bundles)
 
 
-def lc_resources(adapter, snapshots):
-    """Read immutable LC resource manifests; no LC runtime or checkout writes."""
+def lc_resources(adapter, reader):
+    """Convert shared, verified LC sections and bindings to material bundles."""
+    from lean_comprehend_bench.readers.lc import IMPLEMENTATION_DIGEST, LCError
+    from .lc import _source_asset
+    implementation = hashlib.sha256((IMPLEMENTATION + IMPLEMENTATION_DIGEST).encode()).hexdigest()
     bundles, diagnostics = [], list(adapter.diagnostics)
-    for snapshot in snapshots:
-        repo_key = snapshot.source.repo_key
-        origins = {}
-        for d in adapter.declarations:
-            if d.locator.ref.repo_key != repo_key:
+    for material in reader.list_materials():
+        if material['kind'] != 'resource' or material['status'] != 'available':
+            continue
+        path, repo = material['path'], material['repo']
+        try:
+            shared_sections = reader.material_sections(path, repo=repo)
+        except LCError as exc:
+            diagnostics.append(f'lc_material_unavailable:{repo}:{path}:{exc}')
+            continue
+        asset = _source_asset(next(p for p in material['provenance'] if p['path'] == path))
+        config = {'parser': material['entry']['readable_kind']}
+        config_digest = hashlib.sha256(json.dumps(config, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+        def record(section, *, excerpt=False):
+            lines = section['text'].splitlines()
+            start, end = section['start_line'], section['end_line']
+            span = SourceRange(asset.asset_id, start, 1, end, len(lines[-1]) + 1)
+            method = 'lc_resource' if excerpt else 'material_' + config['parser']
+            prov = (Provenance(method, path, (span,)),)
+            occurrence = f'origin:{start}:{end}' if excerpt else f'section:{start - 1}'
+            return MaterialRecord.create(asset=asset, occurrence_id=occurrence,
+                parser_implementation_digest=implementation, parser_config_digest=config_digest,
+                source_range=span, heading=None if excerpt else lines[0],
+                text='\n'.join(lines), provenance=prov)
+
+        sections = tuple(record(section) for section in shared_sections)
+        records = {r.record_id: r for r in sections}
+        bindings = []
+        for link in reader.material_bindings(path, repo=repo):
+            if link['status'] != 'available':
                 continue
-            for f in d.fields:
-                if f.field not in {'statement.nl', 'proof.nl', 'statement.formal', 'proof.formal'}:
-                    continue
-                for prov in f.provenance:
-                    if prov.method != 'lc_origin':
-                        continue
-                    origin = json.loads(prov.source_ref)
-                    key = origin.get('resource_key')
-                    if key:
-                        origins.setdefault(key, []).append((d.locator.ref, origin))
-        for path in sorted(snapshot.paths):
-            if not path.startswith('.lean_constellation/resources/items/') or not path.endswith('/manifest.json'):
-                continue
-            base = path.rsplit('/', 1)[0]
-            key = base.rsplit('/', 1)[1]
-            try:
-                manifest = snapshot.json(path)
-                metadata_path = base + '/resource.json'
-                if metadata_path in snapshot.paths:
-                    key = snapshot.json(metadata_path).get('resource_key', key)
-                for entry in manifest.get('files', []):
-                    relative = PurePosixPath(entry['path'])
-                    if relative.is_absolute() or '..' in relative.parts:
-                        diagnostics.append(f'lc_resource_unsafe_path:{path}:{relative}')
-                        continue
-                    file_path = base + '/' + str(relative)
-                    try:
-                        raw = snapshot.read(file_path)
-                        asset = snapshot.assets[file_path]
-                        if asset.sha256 != entry['sha256'] or len(raw) != entry['size_bytes']:
-                            diagnostics.append(f'lc_resource_digest_mismatch:{file_path}')
-                            continue
-                        if not entry.get('readable_kind') or relative.suffix.lower() in {'.eps', '.ps', '.svg'}:
-                            continue
-                        text = raw.decode('utf-8')
-                        local = [(ref, origin) for ref, origin in origins.get(key, ())
-                                 if (origin.get('source_path') == str(relative) or
-                                     (not origin.get('source_path') and str(relative) == manifest.get('canonical_entry')))]
-                        bundle = text_material(asset, text, parser=entry['readable_kind'])
-                        links, extra_records = [], []
-                        for ref, origin in local:
-                            start, end = origin.get('start_line'), origin.get('end_line')
-                            if start is not None and end is not None:
-                                lines = text.splitlines()
-                                if not 1 <= start <= end <= len(lines):
-                                    diagnostics.append(f'lc_resource_invalid_range:{file_path}:{start}:{end}')
-                                    continue
-                                span = SourceRange(asset.asset_id, start, 1, end, len(lines[end - 1]) + 1)
-                                prov = (Provenance('lc_resource', file_path, (span,)),)
-                                record = MaterialRecord.create(asset=asset, occurrence_id=f'origin:{start}:{end}',
-                                    parser_implementation_digest=IMPLEMENTATION,
-                                    parser_config_digest=bundle.parser_config_digest, source_range=span,
-                                    text='\n'.join(lines[start - 1:end]), provenance=prov)
-                                extra_records.append(record)
-                                selected = (record,)
-                            else:
-                                selected = bundle.records
-                            for record in selected:
-                                links.append(MaterialBinding(record.record_id, MaterialTarget('declaration', repo_key, ref=ref),
-                                                             'explains', 'exact', record.provenance))
-                        bundle = replace(bundle, records=tuple(sorted({r.record_id: r for r in (*bundle.records, *extra_records)}.values(),
-                                                                     key=lambda r: r.record_id)))
-                        if not links:
-                            links = [MaterialBinding(r.record_id, MaterialTarget('repository', repo_key, repo_key),
-                                                     'explains', 'exact', r.provenance) for r in bundle.records]
-                        bundles.append(replace(bundle, bindings=tuple(sorted(set(links), key=lambda b: (b.record_id, b.target.canonical_key(), b.relation, b.status)))))
-                    except (OSError, ValueError, KeyError, UnicodeError) as exc:
-                        diagnostics.append(f'lc_resource_failed:{file_path}:{exc}')
-            except (OSError, ValueError, KeyError) as exc:
-                diagnostics.append(f'lc_resource_failed:{path}:{exc}')
+            target = link['target']
+            if 'id' in target:
+                target = MaterialTarget('declaration', target['repo'], ref=DeclRef(target['repo'], target['id']))
+            else:
+                target = MaterialTarget('repository', target['repo'], target['repo'])
+            if link['start_line'] is not None:
+                selected = (record(reader.read_material(path, repo=repo,
+                    start_line=link['start_line'], end_line=link['end_line']), excerpt=True),)
+            else:
+                selected = sections
+            for item in selected:
+                records[item.record_id] = item
+                bindings.append(MaterialBinding(item.record_id, target, link['relation'], 'exact', item.provenance))
+        bundles.append(MaterialBundle.create(repo_key=repo, assets=(asset,),
+            records=tuple(sorted(records.values(), key=lambda r: r.record_id)),
+            bindings=tuple(sorted(set(bindings), key=lambda b: (b.record_id, b.target.canonical_key(), b.relation, b.status))),
+            parser_implementation_digest=implementation, parser_config=config,
+            binder_implementation_digest=implementation, binder_config={}))
     return attach_materials(replace(adapter, diagnostics=tuple(diagnostics)), bundles)
 
 
