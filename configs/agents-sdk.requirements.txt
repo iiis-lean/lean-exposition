@@ -1,0 +1,12 @@
+# Unified SDK + existing runtime/Reader/MCP dependencies.
+openai-agents==0.22.3
+openai==3.15.0
+fastapi==0.141.1
+starlette==1.6.0
+pydantic==2.13.5
+mcp==1.26.0
+httpx==0.28.1
+httpx2==2.13.0
+uvicorn==0.34.3
+jsonschema==4.26.0
+socksio==1.0.0

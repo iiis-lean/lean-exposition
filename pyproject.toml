@@ -14,8 +14,10 @@ dependencies = ["lean-comprehend-bench"]
 native = ["lean-mcp-toolkit"]
 lean-interact = ["lean-interact==0.11.1"]
 materials = ["PyYAML>=6,<7", "PyMuPDF>=1.24,<2"]
-runtime = ["openai==2.15.0", "httpx==0.28.1", "jsonschema==4.26.0"]
-reader = ["fastapi==0.125.0", "uvicorn==0.34.3", "mcp==1.26.0", "jsonschema==4.26.0"]
+runtime = ["openai==3.15.0", "httpx==0.28.1", "jsonschema==4.26.0"]
+reader = ["fastapi==0.141.1", "uvicorn==0.34.3", "mcp==1.26.0", "jsonschema==4.26.0"]
+
+agents-sdk = ["openai-agents==0.22.3", "openai==3.15.0", "pydantic==2.13.5", "httpx2==2.13.0", "starlette==1.6.0", "socksio==1.0.0"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
