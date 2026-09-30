@@ -26,7 +26,7 @@ def decl_card(workspace, ref, *, proof=False, text_store=None, locale=None,
             "completion_state": declaration.completion_status.state if declaration.completion_status else None,
             "extraction_status": {"state": declaration.extraction_status.state, "reason": declaration.extraction_status.reason}}
     card["source_context"] = [text.text for text in declaration.source_context
-                              if any(p.method in {"source_scope_context", "lean_interact_scope"} for p in text.provenance)]
+                              if any(p.method in {"source_scope_context", "lean_interact_scope", "toolkit_text_ast_scope"} for p in text.provenance)]
     card["elaborated_type"] = next((text.text for text in declaration.source_context
                                     if any(p.method == "lean_compiler_type" for p in text.provenance)), None)
     card["additional_materials"] = [asdict(text) for text in declaration.source_context
@@ -38,7 +38,8 @@ def decl_card(workspace, ref, *, proof=False, text_store=None, locale=None,
         record_id = (text_record_ids or {}).get(_record_key(declaration.ref))
         record = (text_store.pinned(record_id, declaration.ref, locale=locale, profile=profile)
                   if record_id is not None else
-                  text_store.active(declaration.ref, locale=locale, profile=profile))
+                  text_store.active(declaration.ref, locale=locale, profile=profile)
+                  if text_record_ids is None else None)
         if record is not None:
             card["summary"] = record["summary"]
             card["text_record_id"] = record["record_id"]
@@ -47,6 +48,21 @@ def decl_card(workspace, ref, *, proof=False, text_store=None, locale=None,
             if proof and card.get("proof") and card["proof"]["nl"]["status"] != "present" and record["proof_nl"] is not None:
                 card["proof"]["nl"] = {"text": record["proof_nl"], "status": "generated", "reason": None}
     return card
+
+
+def mathematical_source_text(text):
+    """Remove only the explicit LC projection wrapper, preserving Lean context."""
+    if not text or "-- lean-constellation: declaration-source-begin" not in text:
+        return text
+    body = text.split("-- lean-constellation: declaration-source-begin", 1)[1].lstrip()
+    # LC-generated target docstrings repeat NL, dependencies and file locations.
+    # Remove that exact wrapper, never arbitrary user comments or assumptions.
+    start = body.find("/--\n# lean-constellation target")
+    if start >= 0:
+        end = body.find("-/", start)
+        if end >= 0:
+            body = body[:start] + body[end + 2:]
+    return body.strip()
 
 
 def _content(content):
@@ -201,7 +217,7 @@ def writing_view(workspace, hierarchy, node_id, *, mathematical=False,
     return _mathematical_projection(result, node, nodes) if mathematical else result
 
 
-def _mathematical_projection(view, node, nodes):
+def _mathematical_projection(view, node, nodes, *, exact_source=False):
     """Lossless dependency incidence coding plus source-supported proof selection.
 
     Full DeclCard stays unchanged. At coarse layers a complete supplied NL proof
@@ -217,41 +233,54 @@ def _mathematical_projection(view, node, nodes):
     result["dependency_refs"] = [{"repo_key": key[0], "local_id": key[1]} for key in references]
     result["dependency_encoding"] = {"columns": ["provider_ref_index", "consumer_ref_index", "part_index", "evidence_index"],
                                      "parts": ["statement", "proof"], "evidence_kinds": evidence,
-                                     "direction": "provider_to_consumer", "edge_ids": "available in scope query"}
+                                     "direction": "provider_to_consumer", "edge_ids": "retained in raw source records"}
     for kind in ("incoming", "outgoing", "internal"):
         result[kind] = [[positions[ref_key(edge["provider_decl"])], positions[ref_key(edge["consumer_decl"])],
                          int(edge["part"] == "proof"), evidence.index(edge["evidence_kind"])] for edge in result[kind]]
+    inside = {ref_key(ref) for ref in node["decl_refs"]}
+    providers = {ref_key(edge["provider_decl"]) for edge in view["incoming"]}
     focus = {ref_key(ref) for ref in result.get("primary_outcomes", [])}
     cards = []
     missing = {}
     for card in result["cards"]:
+        if ref_key(card["ref"]) not in inside | providers:
+            continue
         if not card.get("loaded"):
             repo = card["ref"]["repo_key"]
             missing[repo] = missing.get(repo, 0) + 1
             continue
         compact = {key: value for key, value in card.items() if key not in {"source_refs", "owner", "module", "extraction_status", "source_available"}}
-        inside = {ref_key(ref) for ref in node["decl_refs"]}
         compact["writing_role"] = "local_declaration" if ref_key(card["ref"]) in inside else "incoming_provider_interface"
         compact["primary_outcome"] = bool(card.get("primary_outcome") and ref_key(card["ref"]) in inside)
         compact["local_public"] = bool(card.get("local_public") and card.get("owner") == node.get("source_scope"))
-        if compact.get("summary") and node["kind"] != "unit" and ref_key(card["ref"]) not in focus:
+        if compact.get("summary") and node["kind"] != "unit" and ref_key(card["ref"]) in inside:
             for field in ("statement", "proof", "additional_materials", "elaborated_type", "source_context"):
                 compact.pop(field, None)
-            compact["detail_projection"] = "summary; full declaration remains available through decl_card"
+            compact["detail_projection"] = "overview_summary"
             cards.append(compact)
             continue
         proof = compact.get("proof")
-        if node["kind"] != "unit" and proof and proof["nl"].get("text") and ref_key(card["ref"]) not in focus:
-            compact["proof"] = {"nl": proof["nl"], "formal_omitted": "Complete source NL proof supplied; formal implementation remains in declaration query."}
+        if not exact_source and node["kind"] != "unit" and proof and proof["nl"].get("text") and ref_key(card["ref"]) not in focus:
+            compact["proof"] = {"nl": proof["nl"], "formal_omitted": "Complete source NL proof supplied; formal implementation is retained in the raw declaration."}
+        if ref_key(card["ref"]) not in inside:
+            compact.pop("proof", None)
+        compact["detail_projection"] = "local_full" if ref_key(card["ref"]) in inside else "dependency_statement"
+        # Existing statements and proofs already supply the mathematical source;
+        # catalog resource attachments can contain an entire paper.
+        if any(v.get("text") for v in compact.get("statement", {}).values() if isinstance(v, dict)):
+            compact.pop("additional_materials", None)
         for part in ("statement", "proof"):
             content = compact.get(part)
+            if content and content.get("formal", {}).get("text"):
+                content["formal"]["text"] = mathematical_source_text(content["formal"]["text"])
             if content and content.get("nl", {}).get("text") and content.get("formal", {}).get("text") == content["nl"]["text"]:
                 content["formal"] = {"same_as": "nl", "status": "present"}
         cards.append(compact)
     result["cards"] = cards
     result.pop("decl_refs", None)
+    result.pop("complete_scope_query", None)
     result["unloaded_external_counts"] = {**result.get("unloaded_external_counts", {}), **missing}
     result["material_policy"] = ("Selected mathematical interfaces and statement/proof dependency incidence. "
-        "At coarse layers complete source NL proofs replace duplicate formal implementations except focused outcomes. "
-        "Outgoing consumers are future uses, never results delivered by this scope. Missing external bodies are not reconstructed. The full source and edge identifiers remain in bound queries.")
+        "At coarse layers local generated summaries describe the scope; dependencies retain exact statement interfaces. "
+        "Outgoing consumers are future uses, never results delivered by this scope. Missing external bodies are not reconstructed. Full source and edge identifiers are retained in the raw declaration records.")
     return result

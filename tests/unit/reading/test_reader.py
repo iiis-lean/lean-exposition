@@ -26,6 +26,13 @@ class StagedEetExecutor:
         self.release_validation = threading.Event()
 
     def execute(self, prompt, schema, *, trace_label=None):
+        if trace_label == 'decl-text':
+            rows = json.loads(prompt.split('\n\nINPUT\n', 1)[1])['declarations']
+            return ExecutionResult('succeeded', data={'records': [
+                {'ref': row['ref'], 'summary': 'Successor arithmetic.',
+                 'statement_nl': 'A successor bound.' if row['need_statement_nl'] else None,
+                 'proof_nl': 'Use successor positivity.' if row['need_proof_nl'] else None}
+                for row in rows]})
         if trace_label.startswith('eet.draft.'):
             with self.lock:
                 self.draft_count += 1
@@ -93,8 +100,11 @@ class ReaderTests(unittest.TestCase):
 
     def prepare_async(self):
         # A second fixed instance has only top-level child content initially.
-        store = ContentStore(Workspace.from_json(json.dumps(self.fixture['workspace'])), self.fixture['hierarchy'], Path(self.tmp.name) / 'async.json')
-        store.publish({id: self.fixture['blocks'][id] for id in ('root', 'setup', 'conclusion')})
+        store = ContentStore(Workspace.from_json(json.dumps(self.fixture['workspace'])), self.fixture['hierarchy'], Path(self.tmp.name) / 'async.json', locale='en')
+        store.publish({key: {**self.fixture['blocks'][key],
+            'lead_in': self.fixture['blocks'][key]['lead_in'] or 'Fix a natural number.',
+            'lead_out': self.fixture['blocks'][key]['lead_out'] or 'The successor is larger.'}
+            for key in ('root', 'setup', 'conclusion')})
         self.service.stores[store.instance_id] = store
         self.store = store
         # Existing reader's immutable full manifest belongs to the first store;
@@ -266,18 +276,33 @@ class ReaderTests(unittest.TestCase):
         result = self.call('inspect', ref='job-nonexistent', detail='job')
         self.assertEqual(result['error']['code'], 'not_found')
 
+    def wrap_runtime(self, runtime):
+        class Executor:
+            def execute(inner, prompt, schema, *, trace_label=None):
+                if trace_label == 'decl-text':
+                    rows = json.loads(prompt.split('\n\nINPUT\n', 1)[1])['declarations']
+                    return ExecutionResult('succeeded', data={'records': [
+                        {'ref': row['ref'], 'summary': 'Successor arithmetic.',
+                         'statement_nl': 'A bound.' if row['need_statement_nl'] else None,
+                         'proof_nl': 'By positivity.' if row['need_proof_nl'] else None} for row in rows]})
+                if trace_label == 'eet.validate':
+                    return ExecutionResult('succeeded', data={'accepted': True, 'issues': []})
+                payload = runtime(prompt, schema)
+                return ExecutionResult('succeeded', data={**payload, 'title': 'Successor arithmetic'})
+        return Executor()
+
     def test_async_dedup_and_stale_completion_caches_without_applying(self):
         store = self.prepare_async()
         started, release = threading.Event(), threading.Event()
         self.addCleanup(release.set)
         calls = []
         def runtime(prompt, schema):
-            node = json.loads(prompt.split('\n', 1)[1])['scope_view']['node']['id']
+            node = json.loads(prompt.split('\n\nINPUT\n', 1)[1])['scope_view']['node']['id']
             calls.append(node)
             started.set()
             release.wait(3)
             return self.fixture['blocks'][node]
-        store.runtime = runtime
+        store.model_executor = self.wrap_runtime(runtime)
         job = self.action('expand', 'setup')['job']
         self.assertTrue(started.wait(2))
         duplicate = self.action('expand', 'setup')['job']
@@ -300,9 +325,9 @@ class ReaderTests(unittest.TestCase):
         def runtime(prompt, schema):
             started.set()
             release.wait(3)
-            node = json.loads(prompt.split('\n', 1)[1])['scope_view']['node']['id']
+            node = json.loads(prompt.split('\n\nINPUT\n', 1)[1])['scope_view']['node']['id']
             return self.fixture['blocks'][node]
-        store.runtime = runtime
+        store.model_executor = self.wrap_runtime(runtime)
         view = self.current()
         job = self.action('expand', 'setup')['job']['job_id']
         self.assertTrue(started.wait(2))
@@ -318,7 +343,7 @@ class ReaderTests(unittest.TestCase):
         store = self.prepare_async()
         def runtime(*_):
             raise RuntimeError('controlled failure')
-        store.runtime = runtime
+        store.model_executor = self.wrap_runtime(runtime)
         view = self.current()
         job = self.action('expand', 'setup')['job']['job_id']
         self.assertEqual(self.wait_job(job)['status'], 'failed')
@@ -361,10 +386,10 @@ class ReaderTests(unittest.TestCase):
         store = self.prepare_async()
         calls = []
         def runtime(prompt, schema):
-            node = json.loads(prompt.split('\n', 1)[1])['scope_view']['node']['id']
+            node = json.loads(prompt.split('\n\nINPUT\n', 1)[1])['scope_view']['node']['id']
             calls.append(node)
             return self.fixture['blocks'][node]
-        store.runtime = runtime
+        store.model_executor = self.wrap_runtime(runtime)
         self.call('apply_action', expected_view=self.current(), action='set_budget', target='root', budget_codepoints=0)
         view = self.current()
         job = self.action('expand', 'setup')['job']['job_id']

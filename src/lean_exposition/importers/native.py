@@ -188,9 +188,6 @@ def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()
             if not module or module in module_repositories:
                 continue
             prefix = module.split('.')[0].lower()
-            if prefix in {'lean', 'init', 'std'}:
-                module_repositories[module] = lean_repo.repo_key
-                continue
             path = module.replace('.', '/') + '.lean'
             if (root / path).is_file():
                 module_repositories[module] = repo_key
@@ -201,18 +198,16 @@ def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()
                         module_repositories[module] = external[package['name'].lower()].repo_key
                         break
                 if module not in module_repositories:
-                    repository = external.get(prefix)
-                    module_repositories[module] = repository.repo_key if repository else repo_key + '/external/' + prefix
+                    # Module ownership precedes standard-library prefixes: a
+                    # project or package can define its own Lean.* module.
+                    module_repositories[module] = (lean_repo.repo_key
+                        if prefix in {'lean', 'init', 'std'} else repo_key + '/external/' + prefix)
 
     def dep_ref(dep):
         module = dep.get('module') or ''
         if module in module_repositories:
             return DeclRef(module_repositories[module], dep['name'])
-        prefix = module.split('.')[0].lower()
-        repository = external.get(prefix)
-        if prefix in {'lean', 'init', 'std'}:
-            repository = lean_repo
-        return DeclRef(repository.repo_key if repository else repo_key + '/external/' + prefix, dep['name'])
+        return DeclRef(repo_key + '/external/unknown', dep['name'])
 
     authors = {}
     for module, response in payload['source'].items():
@@ -262,8 +257,10 @@ def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()
                 doc_range = source_range(asset.asset_id, doc.get('range'))
                 nl = TextContent(slice_source(text, doc_range) if doc_range else doc['content'],
                                  'present', (Provenance('lean_docstring', name, (doc_range,) if doc_range else ()),))
-        deps_type = tuple(Dependency(dep_ref(d), 'lean_type', origin) for d in fact['type'])
-        deps_value = tuple(Dependency(dep_ref(d), 'lean_value', origin) for d in fact.get('value') or [])
+        deps_type = tuple(Dependency(dep_ref(d), 'lean_type', origin, d.get('module') or None)
+                          for d in fact['type'])
+        deps_value = tuple(Dependency(dep_ref(d), 'lean_value', origin, d.get('module') or None)
+                           for d in fact.get('value') or [])
         kind = author['kind'] if author else fact['kind']
         proof = None
         if span:
@@ -299,12 +296,13 @@ def normalize_native(project, *, repo_key, modules, payload, primary_outcomes=()
             proof=proof, kernel_kind=fact['kind'], source_refs=(span,) if span else (),
             source_context=context, local_public=bool(author and author.get('modifiers', {}).get('visibility', 'regular') != 'private'),
             generated_from=DeclRef(repo_key, fact['generator']) if fact.get('generator') else None))
-    git_root = subprocess.run(['git', 'rev-parse', '--show-toplevel'], cwd=root, text=True, capture_output=True)
-    revision = None
-    if git_root.returncode == 0 and Path(git_root.stdout.strip()).resolve() == root:
-        revision_result = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, text=True, capture_output=True)
-        if revision_result.returncode == 0:
-            revision = revision_result.stdout.strip()
+    revision = payload.get('project_revision')
+    if 'project_revision' not in payload:
+        git_root = subprocess.run(['git', 'rev-parse', '--show-toplevel'], cwd=root, text=True, capture_output=True)
+        if git_root.returncode == 0 and Path(git_root.stdout.strip()).resolve() == root:
+            revision_result = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, text=True, capture_output=True)
+            if revision_result.returncode == 0:
+                revision = revision_result.stdout.strip()
     digest = hashlib.sha256(json.dumps(sorted((a.path, a.sha256) for a in assets)).encode()).hexdigest()
     repository = Repository(repo_key, toolchain, root_id, revision, digest,
                             tuple(DeclRef(repo_key, n) for n in primary_outcomes))

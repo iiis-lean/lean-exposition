@@ -1,0 +1,96 @@
+\documentclass{article}
+\usepackage{iclr2027_conference,times}
+\usepackage{hyperref}
+\usepackage{url}
+
+\title{Proofs to Build On:\\
+Connecting Formal Verification with\\
+Mathematical Understanding in Lean}
+\author{Anonymous authors}
+% Keep anonymous submission mode; do not enable \iclrfinalcopy.
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Advances in AI-assisted theorem proving and autoformalization are making formal proofs more widely available. Yet machine-checkable proofs do not by themselves explain how a mathematical argument is organized or how its intermediate results can be reused. We present a framework that connects the construction of formal proofs with the understanding of their mathematical content. For formalization, Lean Constellation supports translating existing mathematical arguments into Lean and developing proofs of new statements, organizing the resulting declarations into hierarchical units with explicit interfaces and links to source materials. For understanding these results, Lean Exposition builds a hierarchical dependency graph and an expandable mathematical exposition from either Lean Constellation outputs or existing Lean repositories. Readers can move from an overview to detailed explanations of individual results and their roles in the overall proof, with links to the corresponding Lean declarations. To evaluate how effectively these presentations support understanding, we introduce LeanComprehendBench, covering structured formalizations, native Lean repositories, and large-scale projects. Its tasks assess understanding of results, assumptions, and proof relationships, as well as the use of intermediate results. Experiments on this benchmark show that our framework improves understanding of formalized mathematics while reducing reading costs compared with existing methods.
+\end{abstract}
+
+\noindent\textit{Working draft: the final abstract sentence is a proposed result claim awaiting experiments. Benchmark tasks and evaluation are under development. The following text records a proposed paper and evaluation plan, not completed findings.}
+
+\section{Introduction}
+\label{sec:introduction}
+The introduction will motivate project-level understanding as a challenge beyond proof checking. It will connect LC's production of structured formal artifacts with Exposition's support for reading and reuse, and state the contributions supported by the eventual experiments. A single overview figure will show both LC outputs and independent Lean repositories entering Exposition.
+
+\section{Related Work}
+\label{sec:related}
+This section will position the framework relative to formalization and proof systems, mathematical retrieval and explanation, and hierarchical reading and comprehension evaluation. The comparison will distinguish project-level understanding from theorem lookup and proof generation; dependency graphs alone will not be presented as a new contribution.
+
+\section{From Formalization to Progressive Exposition}
+\label{sec:method}
+\subsection{Lean Constellation}
+LC will be described as a system for constructing and organizing formal proofs, including hierarchical units, explicit interfaces, and source links. The account will distinguish Lean checking from correspondence with an informal argument and from the faithfulness of generated explanations. Its outputs can benefit multiple reading methods, and are not a prerequisite for using Exposition.
+
+\subsection{Lean Exposition}
+This part will explain how LC and native Lean inputs enter a common representation, how declaration units and dependencies support hierarchical organization, and how expandable explanations connect an overview to supporting details. The focus will be the reading mechanism and continuity across expansion, with source traceability, graph queries, and optional recommendations. Extraction plumbing, sorting diagnostics, and serial/parallel generation details will be deferred unless needed to explain a central result.
+
+\section{LeanComprehendBench}
+\label{sec:benchmark}
+The benchmark is currently a resource collection and reading-tool implementation; questions, reference answers, scoring, and the evaluation suite remain under development. The main checkout registers Coverage, Erdos1025, Sensitivity, and Zeta23. A separate expansion checkout reports resource-level acceptance for 21 cases: 11 LC projects, nine other native projects, and Zeta23; integration into the main checkout still requires review.
+
+The LC collection includes Coverage, Erdos1025, Erdos946, Erdos1091, Uniform, Tree, MulticolorTriangleRamsey, BalancedDigraphs, CubeFree, SixFlow, and Andrews--Dhar D3. The native collection includes Sensitivity, AgreeToDisagree, Counting Hadamard, ThreeGap, Kurosh, ProbabilityApproximation, PFR, Combinatorial Games, and Sphere Eversion. S6 and Euler/Navier--Stokes are additional large-project candidates supported by separate preparation work, not yet registered in this benchmark checkout. Final evaluation membership will depend on a fixed, auditable mathematical scope and validated questions rather than resource availability alone.
+
+Cases preserve pinned source repositories, analysis targets, available author materials, and source mappings. Registration and successful material parsing do not imply complete verified proofs or ready-to-read EETs. In particular, the recorded Erdos946 scope retains a missing provider proof/external assumption, Erdos1091 covers a specific subproblem, and Sphere Eversion has known failures in three unused modules. Scope and proof status must remain visible. Generated summaries, embeddings, HDG, and EET are method artifacts, not benchmark reference answers.
+
+We plan three question families: results and assumptions; relationships within an argument; and application of intermediate results to bounded new situations. Each family can include shallow and deeper questions, with local lookup controls alongside cross-branch reasoning. Questions will be independent of EET wording and node identifiers. Reference answers and supporting evidence will be established from source mathematics. Development and held-out projects will be separated by source family, and final questions will not be selected according to whether our method wins.
+
+\section{Evaluation Plan}
+\label{sec:evaluation}
+\subsection{Reader Methods and Experimental Settings}
+The main comparison will use a common Reader Agent, with the same model, reasoning configuration, answer format, and raw-source permissions, connected to different reading tools. Tool schemas need not be identical. Adapters must preserve each method's meaningful retrieval or navigation capability, rather than flattening every method into a single text search call. Retrieval and graph outputs become Reader observations; generated static articles become searchable reading artifacts. External systems with their own reasoning loops will be labeled as adapted components or evaluated separately as full systems, with all internal calls counted.
+
+Our constructed comparators are (i) a Files-Agent with directory browsing, search, paginated reading, and notes; (ii) keyword/embedding hybrid retrieval with access to supporting context; and (iii) HDG-only access to structure, dependencies, and source material without EET explanations. The full Exposition method adds expandable explanations and reading assistance. HDG-only is a shared-system control, not an independent GraphRAG baseline. All groups may access author-provided prose and LC source metadata.
+
+For external baselines, we will first assess a mature hierarchical method such as RAPTOR or ReadAgent, and consider GraphRAG as a complementary graph-based comparator. Serena, PaperQA, Danus, and STORM remain optional candidates subject to faithful adaptation and common-task coverage. Static writing methods can generate an article from the permitted sources for the common Reader; the article must not be derived from our EET. Specialized material subsets and changes to the original method will be disclosed. This shortlist is a plan, not a claim of implemented baselines.
+
+The primary setting is open-book: the Reader sees a question and may consult materials while answering. We will compare several reasonable material-reading allowances, record actual use, and allow early stopping. A common tokenizer will measure material delivered to the Reader, including prose, code, graph responses, and repeated tool reads. Model context capacity and history handling will be held constant where possible. Shared call/time safety limits will be reported, but tool-call count alone is not an information budget. API output-token caps will not be used to enforce reading allowances. A standard answer opportunity will remain after source access ends; failures, timeouts, and missing answers will remain in the denominator.
+
+\subsection{Comprehension Scores and Resource Costs}
+Each question will have a predeclared scoring rule normalized to $[0,1]$. Closed-form, multiple-choice, and canonical short-answer items will use deterministic checking where valid, with explicit normalization and partial-credit rules. Open explanations will be scored by a separate Judge Agent against source-grounded reference answers and rubrics covering necessary conditions, valid reasoning, and correct application. The judge will not see the method identity or hidden Reader reasoning, and reference answers will never be accessible to the Reader. Equivalent valid answers must be accepted; lexical similarity to EET is not a correctness criterion. Rule and judge components for mixed questions will have fixed weights.
+
+The proposed primary score averages question scores within each family, then families within each project, then projects, so projects with many questions do not dominate. Empty families and exclusions will be declared rather than silently imputed. We will also report per-family scores, exact accuracy for objective items, and completion/failure rates. Repeated runs and project-level uncertainty estimates will be considered after a pilot. A stratified human audit will check judge agreement, bias, and difficult disagreements before large-scale scoring; model confidence is not a substitute for correctness.
+
+Cost reporting separates material access from model computation. We will record delivered material tokens; actual model input/output usage and separately reported reasoning/cache usage; model and tool calls; elapsed answer time; and monetary cost at recorded provider prices. Reasoning and cached tokens will not be added twice when already included in provider totals. Internal calls by retrieval or other helper agents also count. Tool compute and index storage will be reported separately when material. Shared judge costs are evaluation overhead, not Reader costs, and will be disclosed separately.
+
+For each method, we will report preprocessing cost $C_{\mathrm{build}}$, online costs $C_{\mathrm{read},i}$, and amortized cost over $N$ independent questions on the same project:
+\[
+\overline{C}(N)=\frac{C_{\mathrm{build}}+\sum_{i=1}^{N}C_{\mathrm{read},i}}{N}.
+\]
+Cold-start and warm-artifact results will be distinguished. Offline construction cannot see held-out questions; question-specific generation is an online cost. LC formalization is a separate source-production cost, rather than a charge applied only to Exposition when all readers share the LC input. The main plots will show comprehension against reading allowance and actual expenditure, with cost at comparable quality only where observed runs support that comparison. Monetary, token, and wall-time results will not be collapsed into a single arbitrary efficiency score.
+
+\subsection{Mechanism and Supporting Comparisons}
+The first mechanism comparison holds EET content fixed and contrasts searchable static access with dynamic expansion; the static version retains both summaries and detailed content. Additional controls enable or disable recommendations and runtime HDG queries. These isolate access effects, while HDG-only versus full EET measures a combined representation and explanation benefit.
+
+To test LC's contribution, paired original and LC-restructured developments, initially suitable Ten Proofs examples, will be crossed with multiple reading methods on common mathematical questions. Correspondence and scope must be checked first. Added prose, new lemmas, or changed proofs mean that the initial comparison measures the whole structured artifact, not pure hierarchy alone.
+
+An extended setting hides the questions during pre-reading, then compares answering with retained context against answering in a fresh context carrying only fixed-length notes. Both conditions prohibit further source access; note construction is charged, and each question starts independently from the same prepared state. This is a memory setting applicable to multiple methods, not an additional baseline by itself.
+
+Supporting studies will compare serial/parallel EET construction in time, cost, coverage, faithfulness, and continuity; examine loading/export scalability and artifact reuse; and diagnose ordering or filtering effects on representative projects. These engineering measures and interface examples will not be treated as evidence of comprehension gains. Most detailed diagnostics will be placed in the appendix.
+
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+The final discussion will separate supported understanding and cost findings from remaining limits in source coverage, generated-text faithfulness, scoring reliability, and preprocessing expense. Agent-reader results will not be presented as evidence of improved human comprehension without a human study. The conclusion will connect structured formalization and progressive reading using only completed evidence.
+
+\section*{AI Use Statement}
+\noindent\textit{To be completed from actual use records under the ICLR 2027 policy.}
+\section*{Reproducibility Statement}
+\noindent\textit{To describe fixed sources, environments, prompts, method artifacts, scoring, and costs after implementation.}
+% Add an ethics statement where appropriate, then verified references.
+% \bibliography{references}
+% \bibliographystyle{iclr2027_conference}
+
+\appendix
+\section{Supplementary Materials and Experimental Details}
+The appendix will contain the pinned project inventory and status, task/rubric examples, scoring audits, baseline adaptations and prompts, additional memory-setting results, LC correspondence checks, construction diagnostics, and qualitative failures. Exact projects, question counts, models, budgets, and external baselines remain to be finalized.
+
+\end{document}

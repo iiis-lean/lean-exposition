@@ -5,6 +5,8 @@ import os
 import shutil
 import sys
 import threading
+import tempfile
+from copy import deepcopy
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Callable
@@ -53,6 +55,8 @@ class CodexAgentExecutor(AgentExecutor):
         sdk_loader: Callable[[], object] | None = None,
     ) -> None:
         self.config = config
+        self._temporary_home = None if config.codex_home else tempfile.TemporaryDirectory(prefix="lean-exposition-codex-")
+        self._codex_home = config.codex_home or self._temporary_home.name
         self._sdk_loader = sdk_loader or self._load_sdk
         self._jobs = ThreadedAgentJobs()
 
@@ -85,7 +89,7 @@ class CodexAgentExecutor(AgentExecutor):
         return self._jobs.result(handle, timeout)
 
     def _submit(self, prompt, output_schema, thread_id):
-        schema = dict(output_schema) if output_schema is not None else None
+        schema = deepcopy(output_schema) if output_schema is not None else None
         return self._jobs.submit(
             lambda register: self._run(prompt, schema, thread_id, register)
         )
@@ -93,9 +97,8 @@ class CodexAgentExecutor(AgentExecutor):
     def _run(self, prompt, schema, thread_id, register) -> AgentResult:
         sdk = self._sdk_loader()
         environment = dict(os.environ)
-        if self.config.codex_home:
-            self._prepare_codex_home()
-            environment["CODEX_HOME"] = self.config.codex_home
+        self._prepare_codex_home()
+        environment["CODEX_HOME"] = self._codex_home
         codex_config = sdk.CodexConfig(
             codex_bin=self.config.codex_bin or shutil.which("codex"),
             cwd=self.config.cwd,
@@ -179,6 +182,8 @@ class CodexAgentExecutor(AgentExecutor):
         config = dict(self.config.codex_config)
         config.update(
             {
+                "project_doc_max_bytes": 0,
+                "web_search": "disabled",
                 "features.shell_tool": False,
                 "features.view_image": False,
                 "features.apply_patch_freeform": False,
@@ -212,7 +217,9 @@ class CodexAgentExecutor(AgentExecutor):
             ) from exc
 
     def _prepare_codex_home(self) -> None:
-        home = Path(self.config.codex_home or "")
+        home = Path(self._codex_home)
+        if (home / "config.toml").exists():
+            raise ValueError("Agent home must be isolated from inherited Codex configuration.")
         home.mkdir(parents=True, exist_ok=True, mode=0o700)
         if not self.config.auth_path:
             return

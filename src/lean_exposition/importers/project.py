@@ -20,6 +20,7 @@ from .materials import attach_materials, text_material
 from .merge import merge_adapters
 from .native import NativeRepositoryAdapter
 from .references import add_text_references
+from .reference_roots import add_project_text_references
 from .source import consume_text_ast_json, provisional_source_adapter
 from .toolkit import source_response
 
@@ -284,6 +285,8 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
     Native inputs default to all selected modules with semantic extraction.
     build=None builds missing artifacts; True runs incremental builds for all;
     False only reads artifacts. compiled_modules=() explicitly selects source-only.
+    Source-only references use local import sources and fixed Lake dependency
+    revisions; unavailable sources remain partial and are never fetched.
     Acquisition failures are diagnostics; malformed final data remains
     an error. This function never clones projects or invokes generation; Lake
     builds may resolve dependencies using the project configuration.
@@ -360,8 +363,12 @@ def load_project(project, *, repo_key=None, profile=None, target_slice=None, mod
             except (OSError, ValueError, UnicodeError) as exc:
                 diagnostics.append(f'source_failed:{path}:{exc}')
         if files:
-            adapter = add_text_references(provisional_source_adapter(files, repo_key=repo_key, toolchain=toolchain,
-                        revision=revision, primary_outcome_names=tuple(primary_outcomes)), texts)
+            adapter = provisional_source_adapter(files, repo_key=repo_key, toolchain=toolchain,
+                        revision=revision, primary_outcome_names=tuple(primary_outcomes))
+            if compiled_modules is not None and not compiled_modules:
+                adapter = add_project_text_references(adapter, root, texts, cache_dir=cache_dir)
+            else:
+                adapter = add_text_references(adapter, texts)
         else:
             selected_names = tuple(dict.fromkeys(n for c in plan.contributors for n in c.config.get('selected_declarations', ()))) if plan else ()
             adapter = _published_base(repo_key, selected_names, toolchain=toolchain, revision=revision)

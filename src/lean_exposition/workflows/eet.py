@@ -5,7 +5,8 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any, Callable, Iterable
 
-from lean_exposition.exposition.writing import mathematical_draft_instructions
+from lean_exposition.exposition.writing import mathematical_input
+from lean_exposition.runtime.api import input_characters
 from lean_exposition.runtime import ApiError, ExecutionResult, prompt_digest, stable_prompt
 
 from .common import (
@@ -14,6 +15,7 @@ from .common import (
     cache_report,
     structured_call,
     successful_data,
+    checked_call,
 )
 
 
@@ -82,8 +84,10 @@ def stitch_instructions(locale: str) -> str:
 
 
 VALIDATION_INSTRUCTIONS = (
-    "Perform a brief final check of a proposed mathematical exposition sibling group. Check only "
-    "the supplied hypotheses and claims, readable LaTeX, I/S/O roles, adjacent continuity, and raw IDs. "
+    "Check the proposed exposition against source_materials, resolving each card by ref in source_declarations; "
+    "then check group continuity separately. Check that prose follows the requested locale. "
+    "Compare quantifiers, hypotheses, definitions, numerical values, directions of inequalities, and proof claims "
+    "with the supplied mathematical source. Check readable LaTeX, I/S/O roles, notation continuity, and raw IDs. "
     "Do not reconstruct any proof or rewrite prose. Return accepted=true with an empty issue list when "
     "no concrete defect is visible; otherwise report at most four concise defects in JSON."
 )
@@ -97,6 +101,7 @@ class EetDraftRequest:
     context: dict[str, Any]
     schema: dict[str, Any]
     max_input_characters: int | None = None
+    source_material: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -109,12 +114,14 @@ class EetGroupResult:
     cancelled: bool = False
     issues: tuple[str, ...] = ()
     strategy: str = "concurrent"
+    repairs: tuple[WorkflowCall, ...] = ()
+    earlier_reviews: tuple[WorkflowCall, ...] = ()
 
     @property
     def succeeded(self) -> bool:
         if self.cancelled or self.issues or not self.final_drafts:
             return False
-        if any(call.execution.status != "succeeded" for call in self.drafts):
+        if any(call.execution.status != "succeeded" for call in (*self.drafts, *self.repairs)):
             return False
         if self.stitching is not None and (
             self.stitching.execution.status != "succeeded"
@@ -134,6 +141,7 @@ class EetGroupResult:
         calls = [*self.drafts]
         if self.stitching is not None:
             calls.append(self.stitching)
+        calls.extend((*self.earlier_reviews, *self.repairs))
         if self.validation is not None:
             calls.append(self.validation)
         report = cache_report(calls)
@@ -188,16 +196,9 @@ class EetWorkflow:
     def draft(self, request: EetDraftRequest) -> WorkflowCall:
         if request.locale not in {"zh", "en"}:
             raise ValueError("locale must be zh or en")
-        context = deepcopy(request.context)
-        writing_convention = context.pop("writing_convention", {})
-        prefix = mathematical_draft_instructions(request.locale, writing_convention)
-        dynamic = {
-            "locale": request.locale,
-            "scope_view": request.material,
-            "write_context": context,
-        }
+        prefix, dynamic = mathematical_input(request.locale, request.material, request.context)
         prompt = stable_prompt(prefix, dynamic)
-        if request.max_input_characters is not None and len(prompt) > request.max_input_characters:
+        if request.max_input_characters is not None and input_characters(prompt, request.schema, self.executor) > request.max_input_characters:
             return WorkflowCall(
                 stage=f"eet.draft.{request.node_id}",
                 execution=ExecutionResult(
@@ -235,6 +236,7 @@ class EetWorkflow:
         requests: Iterable[EetDraftRequest],
         *,
         progress: Callable[[int, int], None] | None = None,
+        cancelled: Callable[[], bool] = lambda: False,
     ) -> tuple[WorkflowCall, ...]:
         requests = tuple(requests)
         if not requests:
@@ -244,7 +246,11 @@ class EetWorkflow:
             raise ValueError("a sibling group must use one locale")
         results: list[WorkflowCall | None] = [None] * len(requests)
         with ThreadPoolExecutor(max_workers=min(self.max_workers, len(requests))) as pool:
-            futures = {pool.submit(self.draft, request): index for index, request in enumerate(requests)}
+            def draft_unless_cancelled(request):
+                if cancelled():
+                    return WorkflowCall(f"eet.draft.{request.node_id}", ExecutionResult("cancelled"), "", "")
+                return self.draft(request)
+            futures = {pool.submit(draft_unless_cancelled, request): index for index, request in enumerate(requests)}
             completed = 0
             for future in as_completed(futures):
                 results[futures[future]] = future.result()
@@ -271,6 +277,7 @@ class EetWorkflow:
         prepared: dict[str, dict[str, Any]],
         local_validator: Callable[[str, dict[str, Any]], Any] | None = None,
         progress: Callable[[int, int], None] | None = None,
+        cancelled: Callable[[], bool] = lambda: False,
     ) -> tuple[tuple[WorkflowCall, ...], dict[str, Any]]:
         """Draft in reading order, exposing only locally accepted outcomes."""
         by_node = {request.node_id: request for request in requests}
@@ -279,6 +286,8 @@ class EetWorkflow:
         local_checks = {}
         completed = len(prepared)
         for node_id in ordered_node_ids:
+            if cancelled():
+                break
             if node_id in prepared:
                 outcomes.append(self._preceding_outcome(node_id, prepared[node_id]))
                 continue
@@ -316,6 +325,7 @@ class EetWorkflow:
         parent_lead_in: str | None,
         parent_lead_out: str | None,
         writing_convention: dict[str, Any] | None = None,
+        max_input_characters: int = 360000,
     ) -> WorkflowCall:
         editability = self._junction_editability(ordered_node_ids, drafts)
         try:
@@ -332,6 +342,7 @@ class EetWorkflow:
                 },
                 schema=STITCH_SCHEMA,
                 stage="eet.stitch",
+                max_input_characters=max_input_characters,
             )
         except Exception as exc:
             return self._exception_call("eet.stitch", exc)
@@ -346,9 +357,25 @@ class EetWorkflow:
         local_checks: dict[str, Any] | None = None,
         writing_convention: dict[str, Any] | None = None,
         strategy: str = "concurrent",
+        source_materials: dict[str, Any] | None = None,
+        max_input_characters: int = 360000,
     ) -> WorkflowCall:
         try:
-            return structured_call(
+            # Share exact mathematical text once. Each scope retains role/relationship fields.
+            scopes = deepcopy(source_materials or {})
+            declarations = {}
+            for material in scopes.values():
+                for card in material.get("cards", []):
+                    key = (card["ref"]["repo_key"], card["ref"]["local_id"])
+                    record = declarations.setdefault(key, {"ref": card["ref"]})
+                    for field in ("statement", "proof", "source_context", "elaborated_type", "additional_materials"):
+                        if field in card:
+                            value = card.pop(field)
+                            if field in record and record[field] != value:
+                                raise ValueError("inconsistent source fields for one declaration")
+                            record[field] = value
+                    card["source_fields_by_ref"] = True
+            call = structured_call(
                 self.validator_executor,
                 prefix=VALIDATION_INSTRUCTIONS,
                 dynamic={
@@ -359,10 +386,20 @@ class EetWorkflow:
                     "local_checks": local_checks or {},
                     "writing_convention": writing_convention or {},
                     "generation_strategy": strategy,
+                    "source_materials": scopes,
+                    "source_declarations": list(declarations.values()),
                 },
                 schema=VALIDATION_SCHEMA,
                 stage="eet.validate",
+                max_input_characters=max_input_characters,
             )
+            def validate_result(data):
+                if bool(data["accepted"]) == bool(data["issues"]):
+                    raise ValueError("acceptance and issues disagree")
+                if any(issue["node_id"] not in ordered_node_ids or not issue["message"].strip()
+                       for issue in data["issues"]):
+                    raise ValueError("review must identify an input node and concrete defect")
+            return checked_call(call, VALIDATION_SCHEMA, validate_result)
         except Exception as exc:
             return self._exception_call("eet.validate", exc)
 
@@ -380,6 +417,8 @@ class EetWorkflow:
         local_validator: Callable[[str, dict[str, Any]], Any] | None = None,
         cancelled: Callable[[], bool] = lambda: False,
         progress: Callable[[str, int, int], None] | None = None,
+        source_materials: dict[str, Any] | None = None,
+        max_input_characters: int | None = None,
     ) -> EetGroupResult:
         requests = tuple(requests)
         prepared = deepcopy(prepared or {})
@@ -395,10 +434,18 @@ class EetWorkflow:
             raise ValueError("a sibling group must use one locale")
         node_ids = list(ordered_node_ids or [request.node_id for request in requests])
         request_ids = [request.node_id for request in requests]
+        if len(request_ids) != len(set(request_ids)) or set(request_ids) & set(prepared):
+            raise ValueError("model and prepared draft IDs must be unique and disjoint")
         if len(node_ids) != len(set(node_ids)) or set(node_ids) != set(request_ids) | set(prepared):
             raise ValueError("ordered_node_ids must exactly cover model and prepared drafts")
         if not node_ids:
             raise ValueError("at least one draft is required")
+        by_node = {request.node_id: request for request in requests}
+        requests = tuple(by_node[node_id] for node_id in node_ids if node_id in by_node)
+        budget = min((r.max_input_characters for r in requests if r.max_input_characters is not None), default=360000)
+        if max_input_characters is not None:
+            budget = min(budget, max_input_characters)
+        sources = source_materials if source_materials is not None else {r.node_id: r.source_material or r.material for r in requests}
         if cancelled():
             return EetGroupResult((), None, None, cancelled=True, strategy=strategy)
         if progress:
@@ -408,6 +455,7 @@ class EetWorkflow:
         elif strategy == "concurrent":
             drafts = self.draft_siblings(
                 requests,
+                cancelled=cancelled,
                 progress=(lambda done, total: progress("drafting", len(prepared) + done, len(node_ids)))
                 if progress
                 else None,
@@ -417,6 +465,7 @@ class EetWorkflow:
             drafts, early_local_checks = self.draft_siblings_sequentially(
                 requests,
                 ordered_node_ids=node_ids,
+                cancelled=cancelled,
                 prepared=prepared,
                 local_validator=local_validator,
                 progress=(lambda done, total: progress("drafting", done, total)) if progress else None,
@@ -439,7 +488,7 @@ class EetWorkflow:
             issues = (("local validation rejected: " + ", ".join(early_rejected)),) if early_rejected else ()
             return EetGroupResult(
                 drafts, None, None, ordered_current, early_local_checks,
-                issues=issues, strategy=strategy,
+                issues=issues, strategy=strategy, cancelled=cancelled(),
             )
         if cancelled():
             return EetGroupResult(drafts, None, None, ordered_current, cancelled=True, strategy=strategy)
@@ -456,6 +505,7 @@ class EetWorkflow:
                 parent_lead_in=parent_lead_in,
                 parent_lead_out=parent_lead_out,
                 writing_convention=writing_convention,
+                max_input_characters=budget,
             )
             if stitching.execution.status != "succeeded":
                 return EetGroupResult(drafts, stitching, None, tuple(zip(node_ids, data)), strategy=strategy)
@@ -508,8 +558,51 @@ class EetWorkflow:
             local_checks=local_checks,
             writing_convention=writing_convention,
             strategy=strategy,
+            source_materials=sources,
+            max_input_characters=budget,
         )
-        return EetGroupResult(drafts, stitching, validation, tuple(zip(node_ids, data)), local_checks, strategy=strategy)
+        repairs = []
+        earlier_reviews = []
+        issues = (validation.execution.data or {}).get("issues", [])
+        # One targeted round handles terminal notation/continuity conflicts that boundary
+        # stitching cannot edit. Mathematical/unsupported claims require a new reviewed job.
+        repair_ids = {issue["node_id"] for issue in issues}
+        if (validation.execution.status == "succeeded" and issues
+                and all(issue["category"] == "continuity" for issue in issues)
+                and all(key in by_node and "lead_in" not in current[key] for key in repair_ids)
+                and (stitching is None or successful_data(stitching).get("coherent"))):
+            for key in node_ids:
+                if key not in repair_ids:
+                    continue
+                if cancelled():
+                    return EetGroupResult(drafts, stitching, validation, tuple(zip(node_ids, data)),
+                        local_checks, cancelled=True, strategy=strategy, repairs=tuple(repairs), earlier_reviews=tuple(earlier_reviews))
+                request = by_node[key]
+                context = {**request.context, "targeted_revision": {
+                    "policy": "Resolve only the identified notation/continuity defect. Preserve mathematical claims and source conditions.",
+                    "issues": [issue for issue in issues if issue["node_id"] == key],
+                    "current_draft": data[node_ids.index(key)],
+                    "ordered_neighbors": [{"node_id": n, "draft": d} for n, d in zip(node_ids, data) if n != key],
+                }}
+                repair = self.draft(replace(request, context=context))
+                repairs.append(replace(repair, stage="eet.repair." + key))
+                if repair.execution.status != "succeeded":
+                    break
+                check = local_validator(key, repair.execution.data) if local_validator else True
+                local_checks[key] = check
+                if not self._local_accepted(check):
+                    break
+                data[node_ids.index(key)] = deepcopy(repair.execution.data)
+            else:
+                if not cancelled():
+                    earlier_reviews.append(validation)
+                    validation = self.validate(locale=locale, ordered_node_ids=node_ids, drafts=data,
+                        stitching=successful_data(stitching) if stitching else {"coherent": True, "junctions": [], "issues": []},
+                        local_checks=local_checks, writing_convention=writing_convention, strategy=strategy,
+                        source_materials=sources,
+                        max_input_characters=budget)
+        return EetGroupResult(drafts, stitching, validation, tuple(zip(node_ids, data)), local_checks,
+                              strategy=strategy, repairs=tuple(repairs), earlier_reviews=tuple(earlier_reviews), cancelled=cancelled())
 
     @staticmethod
     def _local_accepted(check: Any) -> bool:

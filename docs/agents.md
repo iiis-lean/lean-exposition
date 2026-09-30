@@ -10,7 +10,7 @@ so installations that use only API execution do not need it. A local SDK source
 checkout can be selected with `sdk_python_root`. The executor denies approvals,
 uses a read-only sandbox, disables shell and patch features, and ignores host
 skills and plugins. A workflow may bind only the MCP servers explicitly listed
-in `mcp_servers`, and every server requires an `enabled_tools` allowlist.
+in `mcp_servers`, and every server requires an `enabled_tools` allowlist. The executor creates an isolated home when none is supplied, rejects an inherited `config.toml`, disables project instruction discovery and web search, and deep-copies the output schema. Supply credentials explicitly for an isolated session.
 
 `PiAgentExecutor` talks directly to `pi --mode rpc`; it has no runtime dependency
 on the harness-delegation project. It waits for `agent_settled`, verifies the
@@ -19,7 +19,7 @@ session file. During Pi's retry backoff it sends `abort_retry` and never replays
 an ambiguous prompt. Command timeouts therefore fail closed. Extensions, skills,
 prompt templates, project context files, shell, and file writes are disabled.
 The default tool set is empty; the only permitted built-ins are the explicit
-read-only tools `read`, `grep`, `find`, and `ls`.
+read-only tools `read`, `grep`, `find`, and `ls`. The requested output schema is included in the actual Pi prompt and validated again locally. Pi does not support writing jobs: no writing MCP bridge is implemented.
 
 Credentials are named by environment variable and are never included in result
 objects. The checked-in Pi example uses Pi's official `deepseek-v4-flash` model

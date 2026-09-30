@@ -139,31 +139,39 @@ def mathematical_instructions(locale):
 
 def mathematical_prompt(locale, material, context):
     from lean_exposition.runtime import stable_prompt
+    prefix, dynamic = mathematical_input(locale, material, context)
+    return stable_prompt(prefix, dynamic)
 
-    return stable_prompt(
-        mathematical_instructions(locale),
-        {"locale": locale, "scope_view": material, "write_context": context},
-    )
+
+def mathematical_input(locale, material, context):
+    """Render a task with one copy of each shared mathematical interface."""
+    context, material = deepcopy(context), deepcopy(material)
+    convention = context.pop("writing_convention", {})
+    shared = {ref_key(card["ref"]): card for card in convention.get("shared_source_interfaces", [])}
+    for card in material.get("cards", []):
+        source = shared.get(ref_key(card["ref"]), {})
+        fields = [field for field in ("statement", "summary", "source_context", "elaborated_type")
+                  if field in card and field in source and card[field] == source[field]]
+        for field in fields:
+            card.pop(field)
+        if fields:
+            card["shared_source_fields"] = fields
+    if convention.get("ordered_child_plan"):
+        context.pop("child_plan", None)
+    return mathematical_draft_instructions(locale, convention), {
+        "locale": locale, "scope_view": material, "write_context": context}
 
 
 def mathematical_draft_instructions(locale, writing_convention):
     """Keep group-wide writing context in one byte-stable provider prefix."""
     return (
         mathematical_instructions(locale)
+        + " Shared_source_fields are supplied once by the matching ref in shared_source_interfaces. "
+          "Use the source's existing notation consistently. If a new symbol is necessary, define it locally "
+          "without assigning a second name to an object already named in the shared source."
         + "\n\nSHARED WRITING CONVENTION\n"
         + json.dumps(writing_convention or {}, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     )
-
-
-def _bounded(value, max_string=10000):
-    """Explicit clipping, never silently substitute a guessed mathematical body."""
-    if isinstance(value, str) and len(value) > max_string:
-        return value[:max_string] + "\n[Source text truncated; use the bound declaration query for continuation.]"
-    if isinstance(value, dict):
-        return {key: _bounded(item, max_string) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_bounded(item, max_string) for item in value]
-    return value
 
 
 class WritingJobs:
@@ -203,7 +211,8 @@ class WritingJobs:
             jobs[job_id] = {"job_id": job_id, "instance_id": self.instance_id, "locale": self.locale,
                            "parent_id": parent_id, "base_manifest_id": base, "children": list(children),
                            "generation_strategy": generation_strategy,
-                           "accepted": {}, "step": 0, "draft": None, "draft_id": None, "status": "active"}
+                           "accepted": {}, "step": 0, "draft": None, "draft_id": None, "status": "active",
+                           "decl_text_records": self.manifest(base).get("decl_text_records", {}) if base else {}}
             self._save()
             return job_id
 
@@ -240,13 +249,9 @@ class WritingJobs:
 
     @staticmethod
     def _shared_interface(cards):
-        statement = cards.get("statement") or {}
-        return {
-            "ref": cards.get("ref"),
-            "name": cards.get("name"),
-            "statement": statement,
-            "proof_available": cards.get("proof_available"),
-        }
+        return {key: deepcopy(cards[key]) for key in
+                ("ref", "name", "statement", "summary", "source_context", "elaborated_type", "proof_available")
+                if key in cards}
 
     def _writing_convention(self, parent, children, materials):
         child_plan = [
@@ -272,7 +277,7 @@ class WritingJobs:
             for key in sorted(occurrences)
             if len(occurrences[key]) > 1
         ]
-        return _bounded({
+        return {
             "established_parent_setting": parent.get("lead_in") if parent else None,
             "superseded_parent_synopsis_for_terminology": parent.get("synopsis") if parent else None,
             "superseded_parent_synopsis_policy": (
@@ -281,7 +286,7 @@ class WritingJobs:
             "future_parent_goal": parent.get("lead_out") if parent else None,
             "ordered_child_plan": child_plan,
             "shared_source_interfaces": shared,
-        }, 12000)
+        }
 
     def _job_preview(self, job, draft=None):
         from .content import PARTS
@@ -300,6 +305,19 @@ class WritingJobs:
                 "includes_parent_ending": bool(parent and complete),
                 "original_parent_synopsis": parent["synopsis"] if parent else None}
 
+    def _step_context(self, job, node_id):
+        blocks = self.manifest(job["base_manifest_id"])["blocks"] if job["base_manifest_id"] else {}
+        blocks.update(job["accepted"])
+        context = self._canonical_context(node_id, blocks)
+        parent = blocks.get(job["parent_id"]) if job["parent_id"] else None
+        materials = {child: self._writing_material(child, mathematical=True,
+                     text_record_ids=job.get("decl_text_records")) for child in job["children"]}
+        context.update(allowed_node_anchors=sorted(self._allowed(node_id)[1]), child_index=job["step"],
+                       ordered_children=job["children"],
+                       writing_convention=self._writing_convention(parent, job["children"], materials),
+                       preview=self._job_preview(job, job["draft"]))
+        return context
+
     def get_step(self, job_id):
         from .content import submission_schema
         with self.lock:
@@ -308,31 +326,18 @@ class WritingJobs:
                 return {"job_id": job_id, "status": job["status"], "manifest_id": job.get("manifest_id"),
                         "preview": self._job_preview(job)}
             node_id = job["children"][job["step"]]
-            blocks = self.manifest(job["base_manifest_id"])["blocks"] if job["base_manifest_id"] else {}
-            blocks.update(job["accepted"])
-            context = self._canonical_context(node_id, blocks)
-            parent = blocks.get(job["parent_id"]) if job["parent_id"] else None
-            materials = {child: self._writing_material(child, mathematical=True,
-                                                       text_record_ids=job.get("decl_text_records"))
-                         for child in job["children"]}
-            context.update(allowed_node_anchors=sorted(self._allowed(node_id)[1]), child_index=job["step"], ordered_children=job["children"],
-                           child_plan=[{"node_id": child, "title": self.nodes[child]["title"],
-                                        "declaration_count": len(self.nodes[child]["decl_refs"])} for child in job["children"]],
-                           writing_convention=self._writing_convention(parent, job["children"], materials),
-                           preview=self._job_preview(job, job["draft"]))
-            context = _bounded(context, 1200)
+            context = self._step_context(job, node_id)
             if len(json.dumps(context, ensure_ascii=False)) > 12000:
                 context = {"path": context["path"], "context_query_required": True,
                            "query": {"query": "path", "node_id": node_id},
                            "future_goal_is_not_a_premise": True}
-            material = self._agent_material(node_id)
+            material = self._agent_material(node_id, text_record_ids=job.get("decl_text_records"))
             return {"job_id": job_id, "status": job["status"], "node_id": node_id, "step": job["step"],
                     "locale": self.locale, "draft_id": job["draft_id"], "draft": deepcopy(job["draft"]),
-                    "context": context, "material": material, "schema": submission_schema(self.kind(node_id), include_title=True),
-                    "preview": self._job_preview(job, job["draft"])}
+                    "context": context, "material": material, "schema": submission_schema(self.kind(node_id), include_title=True)}
 
-    def _agent_material(self, node_id):
-        material = _bounded(self._writing_material(node_id, mathematical=True), 2000)
+    def _agent_material(self, node_id, *, text_record_ids=None):
+        material = self._writing_material(node_id, mathematical=True, text_record_ids=text_record_ids)
         if len(json.dumps(material, ensure_ascii=False)) <= 36000:
             return material
         return {"node": material["node"], "source_query_required": True,
@@ -343,6 +348,30 @@ class WritingJobs:
         with self.lock:
             job = self._job(job_id, active=True)
             node_id = job["children"][job["step"]]
+            if job.get("agent_review_required") and not job.get("source_queries", {}).get(node_id):
+                raise self._writing_error("Read at least one bound source query for the current node before drafting.")
+            if job.get("agent_review_required"):
+                required_queries = []
+                if self._agent_material(node_id, text_record_ids=job.get("decl_text_records")).get("source_query_required"):
+                    required_queries.append("scope")
+                if len(json.dumps(self._step_context(job, node_id), ensure_ascii=False)) > 12000:
+                    required_queries.append("path")
+                pages = job.get("query_pages", {}).get(node_id, [])
+                for query in required_queries:
+                    complete = False
+                    for page_limit in {page["limit"] for page in pages if page["query"] == query}:
+                        by_offset = {page["offset"]: page["next_offset"] for page in pages
+                                     if page["query"] == query and page["limit"] == page_limit}
+                        position = 0
+                        while position in by_offset:
+                            position = by_offset[position]
+                            if position is None:
+                                complete = True
+                                break
+                        if complete:
+                            break
+                    if not complete:
+                        raise self._writing_error("Complete the required " + query + " query pages before drafting.")
             block = self.validate_submission(node_id, payload)
             diagnostics = prose_diagnostics(block, self.locale)
             if diagnostics["errors"]:
@@ -353,6 +382,7 @@ class WritingJobs:
                     "preview": self._job_preview(job, block), "diagnostics": diagnostics, "advanced": False}
 
     def accept_draft(self, job_id, draft_id):
+        from lean_exposition.workflows.eet import EetWorkflow
         with self.lock:
             job = self._job(job_id, active=True)
             if job["draft_id"] is None or job["draft_id"] != draft_id:
@@ -363,9 +393,37 @@ class WritingJobs:
                 raise self._writing_error("Base manifest changed; job is stale and drafts remain unpublished.")
             node_id = job["children"][job["step"]]
             accepted = {**job["accepted"], node_id: deepcopy(job["draft"])}
-            if len(accepted) == len(job["children"]):
-                # Validate every member before the single CAS publication.
-                manifest_id = self.publish(accepted, expected_manifest_id=job["base_manifest_id"], _complete_job=job_id)
+            final = len(accepted) == len(job["children"])
+            review = bool(final and job.get("agent_review_required"))
+            snapshot = deepcopy(job)
+        # Network review never holds the global content lock. Recheck the revision after it returns.
+        evidence = None
+        if review:
+            if self.model_executor is None:
+                raise self._writing_error("Independent source validation requires a structured executor.")
+            call = EetWorkflow(self.model_executor).validate(locale=self.locale,
+                ordered_node_ids=snapshot["children"],
+                drafts=[accepted[key] for key in snapshot["children"]],
+                stitching={"coherent": True, "junctions": [], "issues": []},
+                writing_convention=self._step_context(snapshot, node_id)["writing_convention"],
+                strategy="sequential",
+                source_materials={key: self._source_material(key) for key in snapshot["children"]},
+                max_input_characters=self.max_input_characters)
+            evidence = {"source_review": {"status": call.execution.status, "data": call.execution.data,
+                         "input_digest": call.execution.input_digest, "prompt_digest": call.prompt_digest}}
+            with self.lock:
+                self._job(job_id)["source_review"] = evidence
+                self._save()
+            if (call.execution.status != "succeeded" or not call.execution.data.get("accepted")
+                    or call.execution.data.get("issues")):
+                raise self._writing_error("Independent source review rejected this group; revise the retained draft.")
+        with self.lock:
+            job = self._job(job_id, active=True)
+            if job["draft_id"] != draft_id or job["accepted"] != snapshot["accepted"]:
+                raise self._writing_error("Draft changed during source review; review the latest revision.")
+            if final:
+                manifest_id = self.publish(accepted, review_evidence=evidence,
+                    expected_manifest_id=job["base_manifest_id"], _complete_job=job_id)
                 job.update(accepted=accepted, step=len(job["children"]), draft=None, draft_id=None,
                            status="published", manifest_id=manifest_id)
             else:
@@ -382,10 +440,10 @@ class WritingJobs:
             return {"job_id": job_id, "status": "cancelled", "drafts_retained": True}
 
     def query_job(self, job_id, query, *, node_id=None, decl_ref=None, provider_ref=None, consumer_ref=None, offset=0, limit=12000):
-        """Page serialized source material by Unicode characters; no filesystem query."""
+        """Return complete JSON field entries; offsets count entries, not JSON characters."""
         with self.lock:
             job = self._job(job_id, active=True)
-            if query not in {"decl", "scope", "path", "dependency_path"} or type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 16000:
+            if query not in {"decl", "scope", "path", "dependency_path"} or type(offset) is not int or offset < 0 or type(limit) is not int or not 1024 <= limit <= 16000:
                 raise self._writing_error("Invalid bound query or text page.")
             bound = job["parent_id"] or self.hierarchy["root_id"]
             allowed_nodes = {bound}
@@ -430,25 +488,62 @@ class WritingJobs:
                         target, limit=None,
                         text_record_ids=job.get("decl_text_records"),
                     )
+                    from .views import _mathematical_projection
+                    value = _mathematical_projection(value, self.nodes[target], self.nodes, exact_source=True)
                     value["availability"] = "Source interfaces only; future ancestor conclusions are not current premises."
                 else:
-                    blocks = self.manifest(job["base_manifest_id"])["blocks"] if job["base_manifest_id"] else {}
-                    value = self._canonical_context(target, {**blocks, **job["accepted"]})
-            text = json.dumps(value, ensure_ascii=False, sort_keys=True)
-            if query == "decl":
-                interface = {key: value.get(key) for key in ("ref", "name", "loaded", "theorem_like", "proof_available", "missing_reason")}
-            elif query == "scope":
-                interface = {"node": value["node"], "primary_outcomes": value["primary_outcomes"],
-                             "declaration_count": value["card_count"],
-                             "relation_counts": {kind: len(value[kind]) for kind in ("incoming", "outgoing", "internal")},
-                             "cards": [{key: card.get(key) for key in ("ref", "name", "loaded", "proof_available")} for card in value["cards"][:24]]}
-            else:
-                interface = value if len(text) <= 16000 else {"path": value.get("path"), "found": value.get("found")}
-            return {"job_id": job_id, "query": query, "interface": interface,
-                    "data": value if offset == 0 and len(text) <= limit else None,
-                    "text": text[offset:offset + limit], "offset": offset,
-                    "next_offset": offset + limit if offset + limit < len(text) else None,
-                    "total_characters": len(text), "encoding": "JSON text, paged by Unicode characters"}
+                    value = self._step_context(job, target)
+            entries = []
+            def flatten(item, path):
+                if isinstance(item, dict) and item:
+                    for key, child in item.items():
+                        flatten(child, path + [key])
+                elif isinstance(item, list) and item:
+                    for index, child in enumerate(item):
+                        flatten(child, path + [index])
+                elif isinstance(item, str) and len(json.dumps(item, ensure_ascii=False)) > limit // 2:
+                    start = 0
+                    while start < len(item):
+                        end = min(start + limit // 4, len(item))
+                        if end < len(item):
+                            boundary = max(item.rfind("\n", start, end), item.rfind(" ", start, end))
+                            if boundary > start + limit // 8:
+                                end = boundary + 1
+                        entries.append({"path": path, "value": item[start:end],
+                                        "text_offset": start, "text_length": len(item)})
+                        start = end
+                else:
+                    entries.append({"path": path, "value": item})
+            flatten(value, [])
+            if offset > len(entries):
+                raise self._writing_error("Page offset is outside the query result.")
+            result = {"job_id": job_id, "query": query, "entries": [], "offset": offset,
+                      "next_offset": None, "total_entries": len(entries),
+                      "encoding": "Complete JSON fields; path locates each value. Follow next_offset with the same limit."}
+            for index in range(offset, len(entries)):
+                candidate = {**result, "entries": result["entries"] + [entries[index]],
+                             "next_offset": index + 1 if index + 1 < len(entries) else None}
+                if len(json.dumps(candidate, ensure_ascii=False)) > limit:
+                    if not result["entries"]:
+                        raise self._writing_error("A field exceeds the query envelope budget; increase limit.")
+                    break
+                result = candidate
+            current_node = job["children"][job["step"]]
+            current_refs = {ref_key(ref) for ref in self.nodes[current_node]["decl_refs"]}
+            relevant = ((query == "decl" and ref_key(decl_ref) in current_refs)
+                        or (query == "scope" and (node_id or current_node) == current_node))
+            has_math = any(entry["path"] and entry["path"][-1] in {"text", "summary"}
+                           and any(key in entry["path"] for key in ("statement", "proof", "summary"))
+                           and isinstance(entry["value"], str) and entry["value"].strip() for entry in result["entries"])
+            if query in {"scope", "path"} and (node_id or current_node) == current_node:
+                job.setdefault("query_pages", {}).setdefault(current_node, []).append(
+                    {"query": query, "offset": offset, "next_offset": result["next_offset"], "limit": limit})
+                self._save()
+            if relevant and has_math:
+                job.setdefault("source_queries", {}).setdefault(current_node, []).append(
+                    {"query": query, "offset": offset, "next_offset": result["next_offset"]})
+                self._save()
+            return result
 
     def _dependency_path(self, provider_ref, consumer_ref, related):
         from dataclasses import asdict
@@ -500,64 +595,60 @@ class WritingJobs:
         material = material or self._writing_material(node_id, mathematical=True)
         context = {**context, "allowed_node_anchors": sorted(self._allowed(node_id)[1])}
         prompt = mathematical_prompt(self.locale, material, context)
-        if len(prompt) > self.max_input_characters:
+        from lean_exposition.runtime.api import input_characters
+        if input_characters(prompt, submission_schema(self.kind(node_id), include_title=True), self.model_executor or self.runtime) > self.max_input_characters:
             raise self._writing_error(f"Prefetched mathematical material exceeds {self.max_input_characters} characters; split the scope or explicitly supply a smaller source-supported writing task. No model call was made.")
         return self.validate_submission(node_id, self.runtime(prompt, submission_schema(self.kind(node_id), include_title=True)))
 
     def run_writing_job(self, parent_id, *, generation_strategy=None, cancelled=lambda: False, progress=None, publication_control=None):
-        """Run one explicit API generation strategy, with a callable fallback."""
-        strategy = self.resolve_generation_strategy(generation_strategy)
-        if self.model_executor is not None:
-            return self._run_model_writing_job(
-                parent_id, generation_strategy=strategy,
-                cancelled=cancelled, progress=progress,
-                publication_control=publication_control,
-            )
-        if strategy != "sequential":
-            raise self._writing_error("Concurrent generation requires a structured model executor.")
-        return self._run_sequential_writing_job(parent_id, cancelled=cancelled)
+        """All automatic writers share preparation, review and publication gates."""
+        if self.model_executor is None:
+            if self.runtime is None:
+                raise self._writing_error("No content runtime configured.")
+            from lean_exposition.workflows.adapters import CallableExecutor
+            self.model_executor = CallableExecutor(self.runtime)
+        return self._run_model_writing_job(parent_id,
+            generation_strategy=self.resolve_generation_strategy(generation_strategy),
+            cancelled=cancelled, progress=progress, publication_control=publication_control)
 
-    def _run_sequential_writing_job(self, parent_id, *, cancelled=lambda: False):
-        """Compatibility path for the explicit draft/review interface and small fakes."""
-        with self._generation_lock(parent_id or self.hierarchy["root_id"]):
-            if self.state["latest_manifest"]:
-                if parent_id is None or all(child in self.manifest()["blocks"] for child in self.nodes[parent_id]["children"]):
-                    return self.state["latest_manifest"]
-            job_id = self.create_writing_job(parent_id, generation_strategy="sequential")
-            while True:
-                if cancelled():
-                    self.cancel_writing_job(job_id)
-                    raise self._writing_error("Generation cancelled; drafts retained.")
-                step = self.get_step(job_id)
-                if step["status"] == "published":
-                    return step["manifest_id"]
-                if step["draft_id"] is None:
-                    job = self._job(job_id)
-                    blocks = self.manifest(job["base_manifest_id"])["blocks"] if job["base_manifest_id"] else {}
-                    context = self._canonical_context(step["node_id"], {**blocks, **job["accepted"]})
-                    context.update(ordered_children=job["children"], child_index=job["step"],
-                                   child_plan=[{"node_id": child, "title": self.nodes[child]["title"],
-                                                "decl_refs": self.nodes[child]["decl_refs"]} for child in job["children"]],
-                                   writing_convention=self._writing_convention(
-                                       blocks.get(parent_id) if parent_id else None,
-                                       job["children"],
-                                       {child: self._writing_material(child, mathematical=True,
-                                                                      text_record_ids=job.get("decl_text_records"))
-                                        for child in job["children"]},
-                                   ),
-                                   preview=self._job_preview(job, job["draft"]))
-                    block = self._generate_mathematical(step["node_id"], context)
-                    payload = {key: value for key, value in block.items() if key not in {"node_id", "kind"}}
-                    draft = self.submit_draft(job_id, payload)
-                    draft_id = draft["draft_id"]
-                else:
-                    draft_id = step["draft_id"]
-                if cancelled():
-                    self.cancel_writing_job(job_id)
-                    raise self._writing_error("Generation cancelled; drafts retained.")
-                result = self.accept_draft(job_id, draft_id)
-                if result["status"] == "published":
-                    return result["manifest_id"]
+    def prepare_writing_job(self, job_id, *, cancelled=lambda: False):
+        """Prepare generated mathematical text once, preserving every inherited pin."""
+        from .texts import ensure_decl_texts
+        from lean_exposition.models import DeclRef
+        with self.lock:
+            job = self._job(job_id, active=True)
+            children = list(job["children"])
+            pins = dict(job.get("decl_text_records", {}))
+        if self.model_executor is None:
+            raise self._writing_error("A structured executor is required for summary preparation and source review.")
+        refs = {}
+        for child in children:
+            for card in self._writing_material(child, mathematical=True, text_record_ids=pins).get("cards", []):
+                if card.get("loaded"):
+                    ref = DeclRef(**card["ref"])
+                    refs[ref_key(ref)] = ref
+        needed = []
+        for key, ref in refs.items():
+            # Pinned records are the evidence of already published parent prose.
+            from .texts import _ref_key
+            record_id = pins.get(_ref_key(ref))
+            if record_id is not None:
+                self.decl_text_store.pinned(record_id, ref, locale=self.locale, profile=self.text_profile)
+            else:
+                needed.append(ref)
+        outcome = ensure_decl_texts(self.workspace, self.decl_text_store, needed,
+            locale=self.locale, executor=self.model_executor, profile=self.text_profile,
+            cancelled=cancelled)
+        with self.lock:
+            job = self._job(job_id, active=True)
+            job["decl_text_records"] = {**pins, **outcome["record_ids"]}
+            job["decl_text_failures"] = outcome["failed"]
+            job["decl_text_failure_reasons"] = outcome["failure_reasons"]
+            job["decl_text_batches"] = outcome["batches"]
+            self._save()
+        if outcome["failed"]:
+            raise self._writing_error("Required declaration summaries are missing; see per-declaration failure reasons.")
+        return dict(job["decl_text_records"])
 
     def _run_model_writing_job(
         self,
@@ -600,45 +691,15 @@ class WritingJobs:
             if progress:
                 progress("queued", 0, len(children))
 
-            preliminary_materials = {
-                child: self._writing_material(child, mathematical=True)
-                for child in children
-            }
-            text_record_ids = {}
-            if self.decl_text_store is not None:
-                from .texts import ensure_decl_texts
-                from lean_exposition.models import DeclRef
+            if cancelled():
+                self.cancel_writing_job(job_id)
+                raise self._writing_error("Generation cancelled before declaration preparation.")
 
-                refs = []
-                seen = set()
-                for material in preliminary_materials.values():
-                    for card in material.get("cards", []):
-                        if not card.get("loaded"):
-                            continue
-                        key = ref_key(card["ref"])
-                        if key not in seen:
-                            seen.add(key)
-                            refs.append(DeclRef(*key))
-                try:
-                    text_outcome = ensure_decl_texts(
-                        self.workspace, self.decl_text_store, refs,
-                        locale=self.locale, executor=self.model_executor,
-                        profile=self.text_profile,
-                    )
-                except Exception as exc:
-                    self._fail_pipeline_job(
-                        job_id, "declaration_texts",
-                        "Declaration text preparation raised " + type(exc).__name__ + ".",
-                    )
-                    raise self._writing_error(
-                        "Declaration text preparation failed; no exposition content was published."
-                    ) from exc
-                text_record_ids = text_outcome["record_ids"]
-                with self.lock:
-                    job = self._job(job_id)
-                    job["decl_text_records"] = dict(text_record_ids)
-                    job["decl_text_failures"] = list(text_outcome["failed"])
-                    self._save()
+            try:
+                text_record_ids = self.prepare_writing_job(job_id, cancelled=cancelled)
+            except Exception as exc:
+                self._fail_pipeline_job(job_id, "declaration_texts", "Declaration text preparation failed: " + type(exc).__name__)
+                raise self._writing_error("Declaration text preparation failed; no exposition content was published.") from exc
 
             base_blocks = self.manifest(base)["blocks"] if base else {}
             parent = base_blocks.get(parent_id) if parent_id else None
@@ -649,7 +710,7 @@ class WritingJobs:
                     child, mathematical=True, text_record_ids=text_record_ids,
                 )
                 for child in children
-            } if self.decl_text_store is not None else preliminary_materials
+            }
             child_plan = [
                 {
                     "node_id": child,
@@ -684,7 +745,8 @@ class WritingJobs:
                 )
                 material = materials[child]
                 prompt = mathematical_prompt(self.locale, material, context)
-                if len(prompt) > self.max_input_characters:
+                from lean_exposition.runtime.api import input_characters
+                if input_characters(prompt, submission_schema(self.kind(child), include_title=True), self.model_executor) > self.max_input_characters:
                     self._fail_pipeline_job(
                         job_id,
                         "input_budget",
@@ -702,6 +764,7 @@ class WritingJobs:
                         context,
                         submission_schema(self.kind(child), include_title=True),
                         self.max_input_characters,
+                        source_material=self._source_material(child),
                     )
                 )
 
@@ -738,6 +801,8 @@ class WritingJobs:
             try:
                 result = workflow.generate_group(
                     requests,
+                    source_materials={child: self._source_material(child) for child in children},
+                    max_input_characters=self.max_input_characters,
                     locale=self.locale,
                     ordered_node_ids=children,
                     prepared=prepared,

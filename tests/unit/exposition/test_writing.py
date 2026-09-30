@@ -23,6 +23,26 @@ def bind_current_hierarchy(workspace, hierarchy):
     return value
 
 
+def query_fields(store, job, query, **kwargs):
+    limit = kwargs.pop("limit", 12000)
+    fields, offset = {}, 0
+    while True:
+        page = store.query_job(job, query, offset=offset, limit=limit, **kwargs)
+        assert len(json.dumps(page, ensure_ascii=False)) <= limit
+        assert "text" not in page and "data" not in page
+        for entry in page["entries"]:
+            key = tuple(entry["path"])
+            if "text_offset" in entry:
+                assert len(fields.get(key, "")) == entry["text_offset"]
+                fields[key] = fields.get(key, "") + entry["value"]
+            else:
+                assert key not in fields
+                fields[key] = entry["value"]
+        if page["next_offset"] is None:
+            return fields
+        offset = page["next_offset"]
+
+
 class WritingTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -78,6 +98,8 @@ class WritingTests(unittest.TestCase):
         self.assertEqual(set(restarted.manifest(base)['blocks']), {'root'})
 
     def test_branch_cas_rejects_stale_and_preserves_draft(self):
+        for key in ("definition", "bound", "result"):
+            self.fixture['blocks'][key]['title'] = "Mathematical result"
         self.store.publish({key: self.fixture['blocks'][key] for key in ['root', 'setup', 'conclusion']})
         left = self.store.create_writing_job('setup')
         right = self.store.create_writing_job('conclusion')
@@ -114,27 +136,18 @@ class WritingTests(unittest.TestCase):
         self.assertEqual(loaded.create_writing_job('root'), job)
         self.assertEqual(loaded.get_step(job)['node_id'], 'conclusion')
         loaded.runtime = lambda *_: (_ for _ in ()).throw(RuntimeError('controlled'))
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ContentError):
             loaded.generate_children('root')
         self.assertEqual(loaded.state['latest_manifest'], base)
-        loaded.cancel_writing_job(job)
-        self.assertEqual(loaded.get_step(job)['status'], 'cancelled')
+        self.assertEqual(loaded.get_step(job)['status'], 'failed')
         self.assertIn('setup', loaded.state['writing_jobs'][job]['accepted'])
 
     def test_queries_are_bound_and_paged_and_new_sections_nonempty(self):
         self.store.publish({'root': self.fixture['blocks']['root']})
         job = self.store.create_writing_job('root')
-        full = self.store.query_job(job, 'scope', limit=16000)
-        pieces = []
-        offset = 0
-        while True:
-            page = self.store.query_job(job, 'scope', offset=offset, limit=47)
-            self.assertLessEqual(len(page['text']), 47)
-            pieces.append(page['text'])
-            if page['next_offset'] is None:
-                break
-            offset = page['next_offset']
-        self.assertEqual(''.join(pieces), full['text'])
+        full = query_fields(self.store, job, 'scope', limit=16000)
+        small = query_fields(self.store, job, 'scope', limit=1024)
+        self.assertEqual(small, full)
         for kwargs in [{'query': '../auth.json'}, {'query': 'decl', 'decl_ref': {'repo_key': 'other', 'local_id': 'x'}},
                        {'query': 'scope', 'node_id': 'absent'}, {'query': 'scope', 'limit': 16001}]:
             with self.assertRaises(ContentError):
@@ -163,15 +176,15 @@ class WritingBoundaryTests(unittest.TestCase):
     def test_ancestor_interfaces_dependency_direction_and_api_budget_fail_before_call(self):
         self.store.publish({key: self.fixture['blocks'][key] for key in ['root', 'setup', 'conclusion']})
         job = self.store.create_writing_job('conclusion')
-        ancestor = json.loads(self.store.query_job(job, 'scope', node_id='root')['text'])
-        self.assertEqual(ancestor['node']['id'], 'root')
-        path = json.loads(self.store.query_job(job, 'dependency_path', provider_ref={'repo_key': 'demo', 'local_id': 'definition'},
-                                              consumer_ref={'repo_key': 'demo', 'local_id': 'result'})['text'])
-        self.assertTrue(path['found'])
-        self.assertEqual(path['edges'][0]['part'], 'statement')
-        reverse = json.loads(self.store.query_job(job, 'dependency_path', provider_ref={'repo_key': 'demo', 'local_id': 'result'},
-                                                 consumer_ref={'repo_key': 'demo', 'local_id': 'definition'})['text'])
-        self.assertFalse(reverse['found'])
+        ancestor = query_fields(self.store, job, 'scope', node_id='root')
+        self.assertEqual(ancestor[('node', 'id')], 'root')
+        path = query_fields(self.store, job, 'dependency_path', provider_ref={'repo_key': 'demo', 'local_id': 'definition'},
+                                              consumer_ref={'repo_key': 'demo', 'local_id': 'result'})
+        self.assertTrue(path[('found',)])
+        self.assertEqual(path[('edges', 0, 'part')], 'statement')
+        reverse = query_fields(self.store, job, 'dependency_path', provider_ref={'repo_key': 'demo', 'local_id': 'result'},
+                                                 consumer_ref={'repo_key': 'demo', 'local_id': 'definition'})
+        self.assertFalse(reverse[('found',)])
         self.store.runtime = lambda *_: self.fail('over-budget source must not call the model')
         with self.assertRaisesRegex(ContentError, '360000'):
             self.store._generate_mathematical('result', {}, {'source': 'x' * 360001})
@@ -187,10 +200,22 @@ class WritingBoundaryTests(unittest.TestCase):
         step = store.get_step(job)
         self.assertLess(len(json.dumps(step['material'])), 36000)
         captured = []
-        store.runtime = lambda prompt, schema: captured.append(prompt) or self.fixture['blocks']['root']
+        from test_texts import FakeExecutor
+        def runtime(prompt, schema):
+            captured.append(prompt)
+            if "records" in schema["properties"]:
+                return FakeExecutor().run_json(prompt, schema)
+            if "accepted" in schema["properties"]:
+                return {"accepted": True, "issues": []}
+            return self.fixture['blocks']['root']
+        store.runtime = runtime
         store.generate_root()
-        self.assertIn('known proof ' * 2000, captured[0])
-        self.assertIn('$$', captured[0])
+        source_review = next(p for p in captured if '"source_materials"' in p)
+        self.assertIn('known proof ' * 2000, source_review)
+        self.assertTrue(store.manifest()['decl_text_records'])
+        draft = next(p for p in captured if '"scope_view"' in p)
+        self.assertNotIn('known proof ' * 2000, draft)
+        self.assertIn('$$', draft)
 
     def test_future_consumer_is_not_a_scope_result_or_default_card(self):
         from copy import deepcopy
@@ -214,10 +239,15 @@ class WritingBoundaryTests(unittest.TestCase):
         self.assertFalse(any(card['primary_outcome'] for card in cards.values()))
         seen = []
         hierarchy = bind_current_hierarchy(workspace, hierarchy)
-        store = ContentStore(workspace, hierarchy, Path(self.tmp.name) / 'future', locale='en',
-                             runtime=lambda prompt, schema: seen.append(prompt) or {'title': 'The weak bound', 'short_description': 'The successor does not decrease its input.', 'evidence_refs': []})
+        def runtime(prompt, schema):
+            if 'records' in schema['properties']:
+                from test_texts import FakeExecutor
+                return FakeExecutor().run_json(prompt, schema)
+            seen.append(prompt)
+            return {'title': 'The weak bound', 'short_description': 'The successor does not decrease its input.', 'evidence_refs': []}
+        store = ContentStore(workspace, hierarchy, Path(self.tmp.name) / 'future', locale='en', runtime=runtime)
         store.name_regions()
-        prompt_material = json.loads(seen[0].rsplit('\n', 1)[1])['scope_view']
+        prompt_material = json.loads(seen[0].rsplit('\n', 1)[1])['material']['scope_view']
         self.assertEqual({card['ref']['local_id'] for card in prompt_material['cards']}, {'bound', 'definition'})
 
     def test_new_technical_entry_keeps_anchor_without_lean_proof_narration(self):

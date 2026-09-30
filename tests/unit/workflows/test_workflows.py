@@ -56,7 +56,9 @@ class FakeTools:
         handlers,
         max_steps=8,
         trace_label=None,
+        **limits,
     ):
+        self.limits = limits
         self.calls.append((prompt, tuple(tools), max_steps, trace_label))
         tool = tuple(tools)[0]
         result = handlers[tool.name](query="finite sets")
@@ -78,11 +80,11 @@ def _example(schema):
     if "accepted" in properties:
         return {"accepted": True, "issues": []}
     if "labels" in properties:
-        return {"labels": [{"item_id": "x", "label": "high", "confidence": 0.8, "evidence": ["e"]}]}
+        return {"labels": [{"item_id": "x", "label": "high", "confidence": 0.8, "evidence": ["evidence"]}]}
     if "decisions" in properties:
-        return {"decisions": [{"item_id": "x", "label": "high", "agreement": 1, "needs_human_review": False, "reason": "agrees"}]}
+        return {"decisions": [{"item_id": "x", "label": "high", "needs_human_review": False, "reason": "agrees"}]}
     if "preferred_candidate" in properties:
-        return {"preferred_candidate": "b", "scores": [], "reason": "local"}
+        return {"preferred_candidate": "a", "scores": [{"candidate": "a", "coherence": 4, "prerequisite_timing": 4, "locality": 4}], "reason": "local"}
     if "answers" in properties:
         return {"answers": ["yes"], "confidence": 0.9, "evidence_refs": ["r"]}
     return {key: "text" for key in schema.get("required", [])}
@@ -388,8 +390,10 @@ class WorkflowTests(unittest.TestCase):
         executor = FakeStructured()
         workflow = SourceOrderEvaluationWorkflow(executor)
         blind = workflow.blind_review(candidates=[{"candidate": "a"}], rubric={})
-        reading = workflow.reading_comparison(condition={"text": "x"}, questions=["q"])
-        self.assertEqual(blind.execution.data["preferred_candidate"], "b")
+        reading = workflow.reading_comparison(condition={"text": "x", "evidence_refs": ["r"]}, questions=["q"])
+        self.assertEqual(blind.execution.status, "succeeded")
+        self.assertEqual(blind.execution.data["preferred_candidate"], "a")
+        self.assertEqual(reading.execution.status, "succeeded")
         self.assertEqual(reading.execution.data["answers"], ["yes"])
         self.assertEqual([call[2] for call in executor.calls], ["source_order.blind_review", "source_order.reading_comparison"])
 

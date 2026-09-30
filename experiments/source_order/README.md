@@ -102,3 +102,21 @@ reasoning and produced no structured preference. Both preselected Uniform Reader
 conditions succeeded, but their self-reported confidence differed by only 0.01
 and has no independent correctness oracle. The deterministic product order
 therefore remains unchanged.
+
+## Fixed small-project scope census
+
+`census.py` compares the current fused solver with stable source-priority Kahn
+using the same declarations, aggregation, project dependencies and accepted
+protected constraints. It records every scope, including identical orders and
+failed inputs, and rebuilds contiguous Regions separately for each order.
+
+```bash
+PYTHONPATH=src:experiments/source_order /root/miniconda3/envs/benchmark/bin/python experiments/source_order/census.py
+PYTHONPATH=src:experiments/source_order /root/miniconda3/envs/benchmark/bin/python -m unittest experiments/source_order/test_census.py
+```
+
+The fixed local checkout paths and candidate rule are written into `policy.json`
+before acquisition. Native acquisition never builds; incomplete compiled
+acquisition is excluded from the primary census. Search budget exhaustion is
+reported as unknown because the production solver does not expose it. These
+structural statistics do not measure mathematical exposition quality.

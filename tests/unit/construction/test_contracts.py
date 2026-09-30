@@ -17,6 +17,17 @@ from lean_exposition.models import (
 
 
 class ConstructionTests(unittest.TestCase):
+    def test_dependency_module_conflicts_survive_assembly_and_roundtrip(self):
+        deps = tuple(Dependency(self.external, 'text_reference', self.provenance, module)
+                     for module in ('Mathlib.Data.Set.Basic', 'Mathlib.Data.Set.Countable', None))
+        declaration = self.declaration()
+        declaration = replace(declaration, fields=tuple(
+            replace(field, value=deps) if field.field == 'statement.deps' else field
+            for field in declaration.fields))
+        bundle = build_repository(self.adapter(declarations=(declaration,)))
+        restored = RepositoryBuildBundle.from_json(bundle.to_json())
+        self.assertEqual(restored.workspace.declarations[0].statement.deps, deps)
+
     def setUp(self):
         self.ref = DeclRef("demo", "Demo.answer")
         self.external = DeclRef("library", "Nat")

@@ -1,0 +1,139 @@
+% Build: xelatex -interaction=nonstopmode -halt-on-error research_plan_zh.tex
+\documentclass[UTF8,10pt,fontset=none]{ctexart}
+\usepackage[a4paper,margin=18mm]{geometry}
+\setCJKmainfont{Noto Serif CJK SC}
+\setCJKsansfont{Noto Sans CJK SC}
+\setmainfont{Latin Modern Roman}
+\usepackage{tabularx,booktabs,array,xcolor,amsmath}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,urlcolor=blue}
+\definecolor{accent}{HTML}{254B65}
+\ctexset{section={format=\large\bfseries\color{accent}}}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\renewcommand{\arraystretch}{1.12}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\planTableStart}{\small}
+\begin{document}
+\begin{center}
+{\LARGE\bfseries 论文与实验计划}\par
+{\small 讨论稿\quad 2026年9月19日}
+\end{center}
+\section*{英文标题与摘要（原文）}
+{\large\bfseries Proofs to Build On: Connecting Formal Verification with Mathematical Understanding in Lean}\par
+\begingroup\small
+Advances in AI-assisted theorem proving and autoformalization are making formal proofs more widely available. Yet machine-checkable proofs do not by themselves explain how a mathematical argument is organized or how its intermediate results can be reused. We present a framework that connects the construction of formal proofs with the understanding of their mathematical content. For formalization, Lean Constellation supports translating existing mathematical arguments into Lean and developing proofs of new statements, organizing the resulting declarations into hierarchical units with explicit interfaces and links to source materials. For understanding these results, Lean Exposition builds a hierarchical dependency graph and an expandable mathematical exposition from either Lean Constellation outputs or existing Lean repositories. Readers can move from an overview to detailed explanations of individual results and their roles in the overall proof, with links to the corresponding Lean declarations. To evaluate how effectively these presentations support understanding, we introduce LeanComprehendBench, covering structured formalizations, native Lean repositories, and large-scale projects. Its tasks assess understanding of results, assumptions, and proof relationships, as well as the use of intermediate results. Experiments on this benchmark show that our framework improves understanding of formalized mathematics while reducing reading costs compared with existing methods.
+\endgroup
+
+{\small\color{accent}说明：摘要末句为待实验验证的预期结论；题目、标准答案及正式评测尚在建设中。}
+
+\section*{整体主线}
+\textbf{LC：构建并组织经过Lean检查的形式化成果；Lean Exposition：将这些成果及独立Lean项目转化为可逐步展开的数学解释；Benchmark：检验理解质量与阅读成本。}
+
+论文正文可按“引言与相关工作 → LC及Exposition方法 → Benchmark → 评测 → 讨论与结论”组织。主实验聚焦理解；LC收益用配对实验连接两个系统。Lean检查不等于自然语言解释已被形式验证，Agent结果也不直接证明人类收益。
+
+\section*{资料来源与当前状态}
+\begin{tabularx}{\textwidth}{@{}p{23mm}Y@{}}
+\toprule
+来源 & 项目与状态 \\
+\midrule
+LC项目 & Coverage、Erdos1025、Erdos946、Erdos1091、Uniform、Tree、MulticolorTriangleRamsey、BalancedDigraphs、CubeFree、SixFlow、Andrews--Dhar D3。\\
+原生项目 & Sensitivity、AgreeToDisagree、Counting Hadamard、ThreeGap、Kurosh、ProbabilityApproximation、PFR、Combinatorial Games、Sphere Eversion。\\
+大型项目 & Zeta23已登记；S6、Euler/Navier--Stokes有独立准备工作，作为后续扩展候选。\\
+接入进度 & 主仓登记4例；独立扩展目录报告21例材料验收通过（11 LC、9原生、Zeta23），待主仓整合确认。材料可读不等于完整证明、EET或题目已完成。\\
+\bottomrule
+\end{tabularx}
+
+{\small 已知边界保留：Erdos946存在provider证明／外部假设限制；Erdos1091限于特定子问题；Sphere Eversion有3个未使用模块编译失败。正式纳入范围须逐例固定。}
+
+\newpage
+\begingroup\small
+\section*{主实验：同题、同资料权限，比较不同阅读方式}
+统一Reader模型、推理配置和答题格式；各方法通过不同的外挂工具提供材料。检索／图查询直接返回观察，静态生成文章提供搜索与阅读。自带Agent循环的外部系统应明确标注“组件适配”或另做完整系统比较，在线内部调用也计入模型用量。
+
+\begin{tabularx}{\textwidth}{@{}p{25mm}p{42mm}Y@{}}
+\toprule
+类型 & 方法 & 能力与比较目的 \\
+\midrule
+自行构建 & Files-Agent & 目录、搜索、分页阅读、笔记；衡量直接使用原始材料的能力。\\
+自行构建 & Hybrid Retrieval & 关键词与embedding检索，读取上下文；标准检索对照。\\
+系统对照 & HDG-only & 图结构、依赖查询与源码访问，不提供EET；不是独立GraphRAG。\\
+已有论文候选 & LightRAG、HippoRAG 2 & 图检索与关联检索，核查作为Reader工具的忠实适配；非原生Lean分析器。\\
+经典层次对照 & RAPTOR & 2024年摘要树方法，可保留经典对照；ReadAgent不再列为优先主表候选。\\
+新增调研 & 2025--2026论文框架 & Sol调研长文阅读、仓库导航与代码理解；须有论文及实现证据，最终名单未定。\\
+完整方法 & Lean Exposition & HDG、EET、渐进展开与阅读辅助；检验完整方法。\\
+\bottomrule
+\end{tabularx}
+
+\section*{题目与评分}
+\begin{tabularx}{\textwidth}{@{}p{31mm}Y@{}}
+\toprule
+题目类型 & 考察重点 \\
+\midrule
+结果与条件 & 理解结论及适用假设，辨析给定情形是否满足条件。\\
+论证与关系 & 解释中间引理的作用，整合跨分支依赖与整体证明路线。\\
+应用与有限迁移 & 选择并使用中间结果，说明所需条件和推理依据。\\
+\bottomrule
+\end{tabularx}
+
+每类兼顾深浅题，保留局部查找对照；题目不依赖EET措辞或节点编号。标准答案来自来源数学内容，测试题不按“我们是否获胜”筛选，原版／LC版本按同一来源家族划分。
+
+\begin{tabularx}{\textwidth}{@{}p{31mm}Y@{}}
+\toprule
+评分部分 & 暂定方案 \\
+\midrule
+客观答案 & 选择题、可规范化标准答案采用规则检查；提前规定等价答案和部分分。\\
+解释性答案 & 独立Judge Agent依据标准答案与rubric评分，检查条件、论证、应用；隐藏方法身份，接受有效等价答案。\\
+主指标 & 每题归一化到0--1；建议依次按题型、项目取平均，避免大项目或题量多的项目主导。具体权重待定。\\
+可靠性与补充 & 人工分层抽查Judge一致性；同时报告客观题准确率、各类得分、完成率、失败率。缺答和超时不从分母删除。\\
+\bottomrule
+\end{tabularx}
+
+\section*{评测设置}
+\begin{tabularx}{\textwidth}{@{}p{31mm}Y@{}}
+\toprule
+设置 & 信息条件与用途 \\
+\midrule
+主实验：开卷 & 先看到问题，允许持续查阅；比较多个合理的材料读取额度，以及实际消耗。\\
+扩展：预读闭卷 & 预读时隐藏具体问题；答题时不再查来源，分别保留上下文或仅携带定长笔记进入新上下文。笔记构建计成本。\\
+公平性 & 各组可用相同原始资料和LC已有说明；允许不同工具。固定context／历史处理策略，调用次数不单独充当公平预算。\\
+\bottomrule
+\end{tabularx}
+
+\endgroup
+\newpage
+\section*{主比较指标与资源限制}
+\begin{tabularx}{\textwidth}{@{}p{32mm}Y@{}}
+\toprule
+指标 & 定义与记录方式 \\
+\midrule
+材料信息量 & 工具实际交付的源码、文本、摘要、图结果等token总数，使用统一tokenizer；重复读取计入。\\
+模型用量 & 累计输入与输出token；区分缓存和reasoning口径，避免重复计数。材料在历史中重复输入的开销与首次读取量分开。\\
+交互轮数 & Reader一次模型调用为一轮；最终答题也计入。工具调用另记，辅助／子Agent调用单列并纳入总模型用量。\\
+\bottomrule
+\end{tabularx}
+
+\textbf{共同限制：最多$T$轮Reader调用、最多获取$B$个材料token。} 初步建议总轮数中预留一轮最终答题：最多$T-1$轮阅读，然后回答；材料额度提前耗尽也转入答题。具体档位通过预实验选择，不使用API输出token上限。一次并行工具批次的全部返回都受同一材料额度约束。
+
+主表比较相同额度下的理解得分，并报告实际信息量、模型token和轮数；时间、美元费用及冷启动摊销不作为主比较指标。材料token不等于实际输入价格：历史重传和缓存会改变模型输入开销。Judge用量作为评测开销单列，不算Reader用量。
+
+\textbf{构建开销单独汇报我们的系统。} 主阅读比较以各方法离线产物已准备好为条件，不比较预处理成本。另用小表记录代表项目的离线构建token／调用数，以及一次动态展开的典型用量。预构建不可看到测试题；运行期间实际发生的动态生成不能隐去，应与Reader用量分栏。若存在嵌套Agent循环，须另设共同的总调用边界，避免仅限制顶层轮数。
+
+\section*{辅助实验：每组回答一个问题}
+\begin{tabularx}{\textwidth}{@{}p{33mm}Y@{}}
+\toprule
+对照 & 要验证什么 \\
+\midrule
+同EET静态／动态 & 同一内容静态可搜索与逐步展开，隔离访问机制收益；静态版本保留概要及细节。\\
+推荐开／关 & 相同访问权限下，推荐是否减少无效阅读或提高理解。\\
+运行时图查询开／关 & 阅读时关系查询的增量；不声称消除了生成阶段的图信息。\\
+原版／LC配对 & Ten Proofs等共同数学成果，交叉多种阅读方法；先核对对应关系，初轮测整个成果包收益，不全归因于结构。\\
+保留context／定长笔记 & 未知题预读之后，比较知识保留与有限记忆下的复用；各题独立开始，不泄漏前题答案。\\
+\bottomrule
+\end{tabularx}
+
+\textbf{附录／工程报告：} 串行与并行EET、加载及导出规模、排序、依赖过滤和缓存复用等内部诊断。它们不再与主要机制消融并列，也不直接作为理解效果证据。
+
+\section*{下一步与未决项}
+先以少量LC、原生及配对项目打通题目、参考答案和评分，核查一个成熟外部baseline，再做小规模预实验。随后固定测试集与资源档位，开展主实验，再补机制及LC配对比较。\textbf{最终项目子集、题数、模型、预算、评分权重及外部方法名单均待确定；本文件不表示已运行这些实验。}
+\end{document}

@@ -72,4 +72,11 @@ def merge_adapters(source, semantic):
         coverage=tuple(replace(c, ref=remap(c.ref)) for c in (*source.coverage, *semantic.coverage)),
         dependency_locks=unique((*source.dependency_locks, *semantic.dependency_locks),
                                 lambda x: (x.repo_key, x.dependency_repo_key)),
-        diagnostics=tuple(diagnostics), materials=source.materials + semantic.materials)
+        source_texts=tuple(replace(t, ref=remap(t.ref))
+                           for t in (*source.source_texts, *semantic.source_texts)),
+        diagnostics=tuple(diagnostics),
+        materials=tuple(replace(material, bindings=tuple(
+            replace(binding, target=replace(binding.target, ref=remap(binding.target.ref)))
+            if binding.target.kind == 'declaration' else binding
+            for binding in material.bindings))
+            for material in (*source.materials, *semantic.materials)))

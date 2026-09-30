@@ -39,7 +39,7 @@ TOOL = FunctionTool(
 class Item(SimpleNamespace):
     def model_dump(self, **kwargs):
         return {
-            key: value
+            key: json.loads(json.dumps(value, default=lambda item: item.model_dump()))
             for key, value in vars(self).items()
             if not callable(value)
         }
@@ -219,7 +219,7 @@ class StructuredExecutorTests(ExecutorFixture, unittest.TestCase):
                     self.assertEqual(call["reasoning_effort"], "high")
                 self.assertIn(canonical_json(SCHEMA), prompt)
                 self.assertIn("```json", prompt)
-                self.assertIn('"name the region"', prompt)
+                self.assertTrue(prompt.endswith("\n\nTASK\nname the region"))
                 example = prompt.split("VALID FORMAT EXAMPLE\n```json\n", 1)[1].split(
                     "\n```", 1
                 )[0]

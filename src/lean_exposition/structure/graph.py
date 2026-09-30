@@ -32,6 +32,7 @@ class EvidenceOccurrence:
     part: str
     evidence_kind: str
     provenance: tuple[Provenance, ...]
+    provider_module: str | None = None
 
 
 @dataclass(frozen=True)
@@ -262,7 +263,8 @@ class DependencyGraph:
                     for dep in content.deps:
                         if dep.evidence_kind in kinds:
                             occurrences[dep.provider, decl.ref].append(
-                                EvidenceOccurrence(part, dep.evidence_kind, dep.provenance))
+                                EvidenceOccurrence(part, dep.evidence_kind, dep.provenance,
+                                                   dep.provider_module))
         edges = tuple(DependencyEdge(provider, consumer, tuple(sorted(values, key=repr)))
                       for (provider, consumer), values in sorted(occurrences.items(),
                           key=lambda item: (_ref_key(item[0][0]), _ref_key(item[0][1]))))

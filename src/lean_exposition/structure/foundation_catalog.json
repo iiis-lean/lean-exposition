@@ -1,4 +1,102 @@
 {
+  "module_rules": [
+    {
+      "module_prefixes": [
+        "Init",
+        "Lean",
+        "Std"
+      ],
+      "provider_name": "lean",
+      "reason": "Confirmed external Lean standard-library implementation and basic logical infrastructure.",
+      "rule_id": "lean_standard_library",
+      "source": "reviewed:semantic-text-dependencies-2026-09-18"
+    },
+    {
+      "module_prefixes": [
+        "Mathlib.Data.Fin.Basic",
+        "Mathlib.Data.Fin.SuccPred",
+        "Mathlib.Data.Fin.Tuple.Basic"
+      ],
+      "provider_name": "mathlib",
+      "reason": "Reviewed finite index coercions, successor/predecessor and tuple operations.",
+      "rule_id": "mathlib_fin_basics",
+      "source": "reviewed:semantic-text-dependencies-2026-09-18"
+    },
+    {
+      "module_prefixes": [
+        "Mathlib.Data.Finset.Attach",
+        "Mathlib.Data.Finset.BooleanAlgebra",
+        "Mathlib.Data.Finset.Card",
+        "Mathlib.Data.Finset.Dedup",
+        "Mathlib.Data.Finset.Defs",
+        "Mathlib.Data.Finset.Disjoint",
+        "Mathlib.Data.Finset.Empty",
+        "Mathlib.Data.Finset.Erase",
+        "Mathlib.Data.Finset.Filter",
+        "Mathlib.Data.Finset.Image",
+        "Mathlib.Data.Finset.Insert",
+        "Mathlib.Data.Finset.Range",
+        "Mathlib.Data.Finset.Union"
+      ],
+      "provider_name": "mathlib",
+      "reason": "Reviewed finite-set representation, elementary membership, cardinality and set operations; density, ordering and extremum modules remain visible.",
+      "rule_id": "mathlib_finset_basics",
+      "source": "reviewed:semantic-text-dependencies-2026-09-18"
+    },
+    {
+      "module_prefixes": [
+        "Mathlib.Data.Fintype.Basic",
+        "Mathlib.Data.Fintype.Card",
+        "Mathlib.Data.Fintype.Defs",
+        "Mathlib.Data.Fintype.Pi",
+        "Mathlib.Data.Fintype.Prod",
+        "Mathlib.Data.Fintype.Sets"
+      ],
+      "provider_name": "mathlib",
+      "reason": "Reviewed finite-type enumeration and elementary cardinality interfaces; equivalence constructions and big operators remain visible.",
+      "rule_id": "mathlib_fintype_basics",
+      "source": "reviewed:semantic-text-dependencies-2026-09-18"
+    },
+    {
+      "module_prefixes": [
+        "Mathlib.Data.Multiset.AddSub",
+        "Mathlib.Data.Multiset.Defs",
+        "Mathlib.Data.Multiset.MapFold",
+        "Mathlib.Data.Multiset.Range",
+        "Mathlib.Data.Multiset.ZeroCons"
+      ],
+      "provider_name": "mathlib",
+      "reason": "Reviewed multiset representation and elementary list-like operations; unreviewed multiset modules remain visible.",
+      "rule_id": "mathlib_multiset_basics",
+      "source": "reviewed:semantic-text-dependencies-2026-09-18"
+    },
+    {
+      "module_prefixes": [
+        "Mathlib.Data.Set.Basic",
+        "Mathlib.Data.Set.BooleanAlgebra",
+        "Mathlib.Data.Set.CoeSort",
+        "Mathlib.Data.Set.Defs",
+        "Mathlib.Data.Set.Disjoint",
+        "Mathlib.Data.Set.Image",
+        "Mathlib.Data.Set.Insert",
+        "Mathlib.Data.Set.Operations",
+        "Mathlib.Data.Set.Prod"
+      ],
+      "provider_name": "mathlib",
+      "reason": "Reviewed set representation, membership and elementary operations; cardinality, countability, finiteness and pairwise mathematics remain visible.",
+      "rule_id": "mathlib_set_basics",
+      "source": "reviewed:semantic-text-dependencies-2026-09-18"
+    },
+    {
+      "module_prefixes": [
+        "Mathlib.Tactic"
+      ],
+      "provider_name": "mathlib",
+      "reason": "Tactic implementation and certificates checked by Lean.",
+      "rule_id": "mathlib_tactic",
+      "source": "reviewed:semantic-text-dependencies-2026-09-18"
+    }
+  ],
   "providers": [
     {
       "entries": [

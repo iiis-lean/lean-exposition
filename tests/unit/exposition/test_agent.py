@@ -15,6 +15,8 @@ class WritingMCPTests(unittest.TestCase):
         from mcp import ClientSession
         from mcp.client.streamable_http import streamable_http_client
         trace = []
+        from test_concurrent_publish import EetExecutor
+        self.store.model_executor = EetExecutor(self.fixture["blocks"])
         job = self.store.create_writing_job()
         with writing_mcp(self.store, job, trace) as url:
             async def exercise():
@@ -30,7 +32,7 @@ class WritingMCPTests(unittest.TestCase):
                         step = await call('get_step', {})
                         self.assertEqual(step['node_id'], 'root')
                         source = await call('query_decl', {'repo_key': 'demo', 'local_id': 'definition'})
-                        self.assertEqual(source['interface']['ref']['local_id'], 'definition')
+                        self.assertIn({'path': ['ref', 'local_id'], 'value': 'definition'}, source['entries'])
                         draft = await call('submit_draft', {'payload': self.fixture['blocks']['root']})
                         self.assertIsNone(self.store.state['latest_manifest'])
                         published = await call('accept_draft', {'draft_id': draft['draft_id']})

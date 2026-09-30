@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import time
 from typing import Any, Callable, Iterable, Protocol
 
 from lean_exposition.runtime import (
+    ApiError,
     ExecutionResult,
     FunctionTool,
     canonical_json,
     prompt_digest,
     stable_prompt,
 )
+from lean_exposition.runtime.api import input_characters
 
 
 class StructuredExecutorLike(Protocol):
@@ -28,6 +30,9 @@ class ToolExecutorLike(Protocol):
         tools: Iterable[FunctionTool],
         handlers: dict[str, Callable[..., Any]],
         max_steps: int = 8,
+        max_tool_calls: int = 32,
+        max_input_characters: int = 360000,
+        max_tool_result_characters: int = 60000,
         trace_label: str | None = None,
     ) -> ExecutionResult: ...
 
@@ -54,8 +59,12 @@ def structured_call(
     dynamic: Any,
     schema: dict[str, Any],
     stage: str,
+    max_input_characters: int | None = None,
 ) -> WorkflowCall:
     prompt = stable_prompt(prefix, dynamic)
+    if max_input_characters is not None and input_characters(prompt, schema, executor) > max_input_characters:
+        return WorkflowCall(stage, ExecutionResult("failed", error=ApiError("input_budget")),
+                            prompt_digest(prefix.rstrip()), prompt_digest(prompt))
     started = time.monotonic()
     result = executor.execute(prompt, schema, trace_label=stage)
     duration = time.monotonic() - started
@@ -78,17 +87,20 @@ def tool_call(
     handlers: dict[str, Callable[..., Any]],
     max_steps: int,
     stage: str,
+    limits: dict[str, int] | None = None,
 ) -> WorkflowCall:
     prompt = stable_prompt(prefix, dynamic)
     started = time.monotonic()
-    result = executor.execute(
-        prompt,
-        schema,
-        tools=tools,
-        handlers=handlers,
-        max_steps=max_steps,
-        trace_label=stage,
-    )
+    options = {"tools": tools, "handlers": handlers, "max_steps": max_steps,
+               "trace_label": stage, **(limits or {})}
+    import inspect
+    try:
+        parameters = inspect.signature(executor.execute).parameters
+        if not any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()):
+            options = {key: value for key, value in options.items() if key in parameters}
+    except (TypeError, ValueError):
+        pass
+    result = executor.execute(prompt, schema, **options)
     duration = time.monotonic() - started
     return WorkflowCall(
         stage=stage,
@@ -136,3 +148,23 @@ def prompt_payload(call: WorkflowCall) -> str:
             "cached_tokens": call.cached_tokens,
         }
     )
+
+
+def checked_call(call: WorkflowCall, schema, validate) -> WorkflowCall:
+    """Keep provider evidence while rejecting locally invalid task results."""
+    if call.execution.status != "succeeded":
+        return call
+    import jsonschema
+    try:
+        jsonschema.validate(call.execution.data, schema)
+        validate(call.execution.data)
+    except (ValueError, TypeError, KeyError, jsonschema.ValidationError) as exc:
+        return replace(call, execution=replace(call.execution, status="failed",
+            error=ApiError("output_contract", exception_type=type(exc).__name__)))
+    return call
+
+
+def exact_ids(rows, field, expected):
+    actual = [row[field] for row in rows]
+    if len(actual) != len(set(actual)) or set(actual) != set(expected):
+        raise ValueError("result IDs must cover the input exactly once")

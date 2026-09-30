@@ -53,8 +53,12 @@ class WritingQualityTests(unittest.TestCase):
             def __init__(inner, bound):
                 self.assertNotEqual(bound.codex_home, config.codex_home)
             def start(inner, prompt, schema):
+                inner.prompt, inner.schema = prompt, schema
                 return None
             def result(inner, handle, timeout=None):
+                if 'records' in inner.schema['properties']:
+                    from test_texts import FakeExecutor as SummaryExecutor
+                    return AgentResult(status='succeeded', data=SummaryExecutor().run_json(inner.prompt, inner.schema))
                 return AgentResult(status='succeeded', data={'title': 'Finite sets', 'short_description': 'Counting finite sets.', 'evidence_refs': []})
         def fake_agent(store, job, factory, *, trace, record_request):
             seen.append(store._job(job)['parent_id'])

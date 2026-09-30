@@ -28,7 +28,47 @@ def prompt_digest(prompt: str) -> str:
     return hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
 
-def request_digest(prompt: str, schema: dict[str, Any], config: ApiConfig) -> str:
+def generation_config(executor) -> dict[str, Any]:
+    """Public generation identity, excluding credentials and transport secrets."""
+    config = getattr(executor, "config", None)
+    fields = ("model", "base_url", "protocol", "structured_output_mode",
+              "reasoning", "extra_body", "max_output_tokens")
+    if config is not None:
+        return {key: copy.deepcopy(config.get(key) if isinstance(config, dict)
+                                  else getattr(config, key, None)) for key in fields}
+    target = getattr(executor, "runtime", executor)
+    identity = {"executor": type(executor).__module__ + "." + type(executor).__qualname__,
+                "model": getattr(executor, "model", None)}
+    if callable(target) and hasattr(target, "__qualname__"):
+        identity["callable"] = target.__module__ + "." + target.__qualname__
+        import inspect
+        try:
+            identity["callable_source"] = hashlib.sha256(inspect.getsource(target).encode()).hexdigest()
+        except (OSError, TypeError):
+            pass
+    return identity
+
+
+def request_input(prompt, schema, executor, *, tools=()):
+    """The serialized model input, using the same wrapper as the wire request."""
+    config = getattr(executor, "config", None)
+    if isinstance(config, ApiConfig):
+        provider_prompt = _provider_prompt(prompt, schema, config.structured_output_mode)
+        wire_prompt = ([{"role": "user", "content": provider_prompt}]
+                       if tools or isinstance(executor, ApiToolExecutor) else provider_prompt)
+        args = _request_arguments(config, wire_prompt, schema, tools=tools)
+        return {key: args[key] for key in
+                ("input", "messages", "text", "response_format", "tools") if key in args}
+    return {"input": prompt, "schema": schema,
+            "tools": [{"name": t.name, "description": t.description,
+                       "parameters": t.parameters} for t in tools]}
+
+
+def input_characters(prompt, schema, executor, *, tools=()):
+    return len(canonical_json(request_input(prompt, schema, executor, tools=tools)))
+
+
+def request_digest(prompt: str, schema: dict[str, Any], config: ApiConfig, *, tools=(), limits=None) -> str:
     payload = {
         "prompt": prompt,
         "schema": schema,
@@ -40,6 +80,9 @@ def request_digest(prompt: str, schema: dict[str, Any], config: ApiConfig) -> st
         "extra_body": config.extra_body,
         "prompt_cache_key": config.prompt_cache_key,
     }
+    if limits is not None:
+        payload["tool_contract"] = {"tools": [{"name": t.name, "description": t.description,
+            "parameters": t.parameters} for t in sorted(tools, key=lambda t: t.name)], "limits": limits}
     if config.structured_output_mode != "native_schema":
         payload["structured_output_mode"] = config.structured_output_mode
     return hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
@@ -154,6 +197,9 @@ class ApiToolExecutor(StructuredExecutor):
         tools: Iterable[FunctionTool],
         handlers: dict[str, Callable[..., Any]],
         max_steps: int = 8,
+        max_tool_calls: int = 32,
+        max_input_characters: int = 360000,
+        max_tool_result_characters: int = 60000,
         trace_label: str | None = None,
     ) -> ExecutionResult:
         return self._execute_tools(
@@ -162,6 +208,8 @@ class ApiToolExecutor(StructuredExecutor):
             tuple(tools),
             handlers,
             max_steps,
+            {"max_tool_calls": max_tool_calls, "max_input_characters": max_input_characters,
+             "max_tool_result_characters": max_tool_result_characters},
             trace_label,
             threading.Event(),
             lambda stop: True,
@@ -177,6 +225,9 @@ class ApiToolExecutor(StructuredExecutor):
         tools = tuple(options.pop("tools"))
         handlers = dict(options.pop("handlers"))
         max_steps = options.pop("max_steps", 8)
+        limits = {key: options.pop(key, default) for key, default in
+                  (("max_tool_calls", 32), ("max_input_characters", 360000),
+                   ("max_tool_result_characters", 60000))}
         trace_label = options.pop("trace_label", None)
         schema = copy.deepcopy(schema)
         tools = copy.deepcopy(tools)
@@ -189,12 +240,14 @@ class ApiToolExecutor(StructuredExecutor):
                 tools,
                 handlers,
                 max_steps,
+                limits,
                 trace_label,
                 cancelled,
                 register,
             ),
             timeout=self.config.timeout,
-            initial_result=_pending_result(prompt, schema, self.config, trace_label),
+            initial_result=_pending_result(prompt, schema, self.config, trace_label,
+                tools=tools, limits={"max_steps": max_steps, **limits}),
         )
 
     def _execute_tools(
@@ -204,17 +257,22 @@ class ApiToolExecutor(StructuredExecutor):
         tools,
         handlers,
         max_steps,
+        limits,
         trace_label,
         cancelled,
         register_stop,
     ):
         trace = _Trace(
             trace_label=trace_label,
-            input_digest=request_digest(prompt, schema, self.config),
+            input_digest=request_digest(prompt, schema, self.config, tools=tools,
+                                        limits={"max_steps": max_steps, **limits}),
         )
         try:
             _check_schema(schema)
             ordered_tools = _validate_tools(tools, handlers, max_steps)
+            for key, value in limits.items():
+                if type(value) is not int or value < (0 if key == "max_tool_calls" else 1):
+                    raise ValueError("invalid tool resource limit: " + key)
             provider_prompt = _provider_prompt(
                 prompt, schema, self.config.structured_output_mode
             )
@@ -227,6 +285,9 @@ class ApiToolExecutor(StructuredExecutor):
                 for step in range(1, max_steps + 1):
                     if cancelled.is_set():
                         raise _Failure("cancelled")
+                    wire = _request_arguments(self.config, history, schema, tools=ordered_tools)
+                    if len(canonical_json(wire)) > limits["max_input_characters"]:
+                        raise _Failure("input_budget")
                     response = _create_response(
                         client, self.config, history, schema, tools=ordered_tools
                     )
@@ -244,6 +305,8 @@ class ApiToolExecutor(StructuredExecutor):
                     for call in calls:
                         if cancelled.is_set():
                             raise _Failure("cancelled")
+                        if len(trace.tool_events) >= limits["max_tool_calls"]:
+                            raise _Failure("tool_call_limit")
                         call_id, name, encoded_arguments = _call_parts(call, self.config.protocol)
                         tool = next((item for item in ordered_tools if item.name == name), None)
                         if tool is None or name not in handlers:
@@ -265,6 +328,8 @@ class ApiToolExecutor(StructuredExecutor):
                         trace.tool_events.append(
                             ToolEvent(step, call_id, name, arguments, tool_result)
                         )
+                        if len(canonical_json(tool_result)) > limits["max_tool_result_characters"]:
+                            raise _Failure("tool_result_budget")
                         _append_tool_result(history, self.config.protocol, call_id, tool_result)
                 raise _Failure("tool_step_limit")
         except Exception as exc:
@@ -297,7 +362,7 @@ def _client(config: ApiConfig, factory):
         raise
 
 
-def _create_response(client, config, prompt_or_history, schema, *, tools=()):
+def _request_arguments(config, prompt_or_history, schema, *, tools=()):
     cache = {"prompt_cache_key": config.prompt_cache_key} if config.prompt_cache_key else {}
     if config.protocol == "responses":
         kwargs: dict[str, Any] = {
@@ -328,11 +393,11 @@ def _create_response(client, config, prompt_or_history, schema, *, tools=()):
                     "parameters": tool.parameters,
                 }
                 if config.structured_output_mode == "native_schema":
-                    definition["strict"] = True
+                    definition["strict"] = _strict_tool_schema(tool.parameters)
                 kwargs["tools"].append(definition)
         if config.extra_body:
             kwargs["extra_body"] = config.extra_body
-        return client.responses.create(**kwargs)
+        return kwargs
     messages = (
         prompt_or_history
         if isinstance(prompt_or_history, list)
@@ -365,7 +430,7 @@ def _create_response(client, config, prompt_or_history, schema, *, tools=()):
                 "parameters": tool.parameters,
             }
             if config.structured_output_mode == "native_schema":
-                function["strict"] = True
+                function["strict"] = _strict_tool_schema(tool.parameters)
             kwargs["tools"].append(
                 {
                     "type": "function",
@@ -374,6 +439,13 @@ def _create_response(client, config, prompt_or_history, schema, *, tools=()):
             )
     if config.extra_body:
         kwargs["extra_body"] = config.extra_body
+    return kwargs
+
+
+def _create_response(client, config, prompt_or_history, schema, *, tools=()):
+    kwargs = _request_arguments(config, prompt_or_history, schema, tools=tools)
+    if config.protocol == "responses":
+        return client.responses.create(**kwargs)
     return client.chat.completions.create(**kwargs)
 
 
@@ -452,7 +524,7 @@ def _provider_prompt(prompt: str, schema: dict[str, Any], mode: str) -> str:
         "VALID FORMAT EXAMPLE\n"
         f"```json\n{canonical_json(example)}\n```"
     )
-    return stable_prompt(prefix, {"task": prompt})
+    return prefix + "\n\nTASK\n" + prompt
 
 
 def _schema_example(schema: dict[str, Any]) -> Any:
@@ -525,8 +597,22 @@ def _check_schema(schema: dict[str, Any]) -> None:
     jsonschema.Draft202012Validator.check_schema(schema)
 
 
+def _strict_tool_schema(schema):
+    """Optional local arguments stay optional: explicitly opt out of strict wire mode."""
+    if isinstance(schema, list):
+        return all(_strict_tool_schema(item) for item in schema)
+    if not isinstance(schema, dict):
+        return True
+    if schema.get("type") == "object" or "properties" in schema:
+        if schema.get("additionalProperties") is not False:
+            return False
+        if set(schema.get("required", ())) != set(schema.get("properties", {})):
+            return False
+    return all(_strict_tool_schema(value) for value in schema.values())
+
+
 def _validate_tools(tools, handlers, max_steps):
-    if max_steps < 1:
+    if type(max_steps) is not int or max_steps < 1:
         raise ValueError("max_steps must be positive")
     ordered = tuple(sorted(tools, key=lambda tool: tool.name))
     names = [tool.name for tool in ordered]
@@ -598,14 +684,14 @@ def _usage(reports: list[dict[str, Any]]) -> ApiUsage:
     )
 
 
-def _pending_result(prompt, schema, config, trace_label):
+def _pending_result(prompt, schema, config, trace_label, *, tools=(), limits=None):
     return ExecutionResult(
         status="queued",
         requested_model=config.model,
         protocol=config.protocol,
         structured_output_mode=config.structured_output_mode,
         trace_label=trace_label,
-        input_digest=request_digest(prompt, schema, config),
+        input_digest=request_digest(prompt, schema, config, tools=tools, limits=limits),
     )
 
 

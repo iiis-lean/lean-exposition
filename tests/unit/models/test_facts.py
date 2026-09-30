@@ -35,6 +35,24 @@ class FactTests(unittest.TestCase):
         changed = replace(self.workspace, declarations=tuple(reversed(self.workspace.declarations)))
         self.assertEqual(changed.digest(), hashlib.sha256(changed.to_json().encode()).hexdigest())
 
+    def test_absent_provider_module_preserves_identity_and_present_module_binds_it(self):
+        from dataclasses import asdict
+        old_data = asdict(self.workspace)
+        for decl in old_data['declarations']:
+            for part in ('statement', 'proof'):
+                if decl[part] is not None:
+                    for dependency in decl[part]['deps']:
+                        del dependency['provider_module']
+        old_json = json.dumps(old_data, ensure_ascii=False, sort_keys=True, indent=2) + '\n'
+        self.assertEqual(self.workspace.digest(), hashlib.sha256(old_json.encode()).hexdigest())
+        self.assertEqual(Workspace.from_json(old_json), self.workspace)
+        a, b = self.workspace.declarations
+        dependency = replace(b.statement.deps[0], provider_module='Library.Module')
+        changed = replace(self.workspace, declarations=(a, replace(b,
+            statement=replace(b.statement, deps=(dependency,)))))
+        self.assertNotEqual(changed.digest(), self.workspace.digest())
+        self.assertEqual(Workspace.from_json(changed.to_json()), changed)
+
     def test_roundtrip_preserves_definition_body_and_content_states(self):
         restored = Workspace.from_json(self.workspace.to_json())
         self.assertEqual(restored, self.workspace)

@@ -1,13 +1,13 @@
 """Conservative dependency filtering for mathematical analysis views.
 
-The complete dependency graph remains the source of truth.  This module only
-records version-bound foundation decisions and derives keep/hide decisions for
-an analysis view.  It deliberately has no effect on structure construction or
-narrative ordering.
+The complete dependency graph remains the source of truth. Version-bound
+declaration decisions and reviewed provider/module rules derive an analysis
+view without changing structure construction or narrative ordering.
 """
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields
+from functools import cached_property
 import hashlib
 import json
 from pathlib import Path
@@ -141,10 +141,38 @@ class ProviderFoundation:
 
 
 @dataclass(frozen=True)
+class SourceModuleRule:
+    """Reviewed background modules, independent of exact catalog revisions."""
+
+    rule_id: str
+    provider_name: str
+    module_prefixes: tuple[str, ...]
+    reason: str
+    source: str
+
+    def validate(self) -> None:
+        _require(bool(self.rule_id.strip()), "source module rule needs an ID")
+        _require(self.provider_name in {"lean", "mathlib"},
+                 "source module rules require an explicitly reviewed provider")
+        _require(bool(self.module_prefixes) and all(p.strip() for p in self.module_prefixes),
+                 "source module rule needs nonempty prefixes")
+        _require(tuple(sorted(set(self.module_prefixes))) == self.module_prefixes,
+                 "source module prefixes must be unique and sorted")
+        _require(bool(self.reason.strip()) and self.source.startswith("reviewed:"),
+                 "source module rule needs reviewed evidence and reason")
+
+    def matches(self, provider_name: str, module: str) -> bool:
+        return self.provider_name == provider_name and any(
+            module == prefix or module.startswith(prefix + ".")
+            for prefix in self.module_prefixes)
+
+
+@dataclass(frozen=True)
 class FoundationCatalog:
     """Global catalog supporting multiple exact revisions of each provider."""
 
     providers: tuple[ProviderFoundation, ...]
+    module_rules: tuple[SourceModuleRule, ...] = ()
 
     def validate(self) -> None:
         identities = set()
@@ -158,6 +186,11 @@ class FoundationCatalog:
             item.identity.revision or "", item.identity.input_digest or "",
         )))
         _require(self.providers == expected, "foundation providers must be canonically sorted")
+        ids = []
+        for rule in self.module_rules:
+            rule.validate()
+            ids.append(rule.rule_id)
+        _require(ids == sorted(set(ids)), "source module rule IDs must be unique and sorted")
 
     def to_json(self) -> str:
         self.validate()
@@ -216,11 +249,11 @@ class DependencyAnalysis:
     catalog_digest: str
     decisions: tuple[DependencyDecision, ...]
 
-    @property
+    @cached_property
     def kept_pairs(self) -> frozenset[tuple[DeclRef, DeclRef]]:
         return frozenset((item.provider, item.consumer) for item in self.decisions if item.keep)
 
-    @property
+    @cached_property
     def hidden_pairs(self) -> frozenset[tuple[DeclRef, DeclRef]]:
         return frozenset((item.provider, item.consumer) for item in self.decisions if not item.keep)
 
@@ -238,6 +271,8 @@ class DependencyAnalysisPolicy:
     def __init__(self, catalog: FoundationCatalog):
         catalog.validate()
         self.catalog = catalog
+        self.digest = _digest({"catalog": catalog.digest(),
+                               "implementation": _IMPLEMENTATION_DIGEST})
 
     def decide(self, workspace: Workspace, target_repo_key: str, edge) -> DependencyDecision:
         provider, consumer = edge.provider, edge.consumer
@@ -250,27 +285,38 @@ class DependencyAnalysisPolicy:
             return DependencyDecision(provider, consumer, True, "other_project")
         repositories = {repo.repo_key: repo for repo in workspace.manifest.repositories}
         repository = repositories.get(provider.repo_key)
-        if repository is None or repository.version_status != "fixed":
+        if repository is None or repository.version_status != "fixed" or not repository.toolchain:
             return DependencyDecision(provider, consumer, True, "provider_unresolved")
+        if provider in repository.primary_outcomes:
+            return DependencyDecision(provider, consumer, True, "important_outcome")
         foundation = self.catalog.match(repository)
-        if foundation is None:
-            reason = ("catalog_identity_mismatch" if self.catalog.has_provider_name(repository)
-                      else "catalog_missing")
-            return DependencyDecision(provider, consumer, True, reason)
         entry = next((item for item in foundation.entries
-                      if item.local_id == provider.local_id), None)
-        if entry is None:
-            return DependencyDecision(provider, consumer, True, "foundation_unknown")
-        if entry.classification == "reviewed_keep":
+                      if item.local_id == provider.local_id), None) if foundation else None
+        if entry is not None and entry.classification == "reviewed_keep":
             return DependencyDecision(provider, consumer, True, "reviewed_keep",
                                       entry.classification)
         occurrence_parts = frozenset(occurrence.part for occurrence in edge.occurrences)
-        if not occurrence_parts or not occurrence_parts <= set(entry.parts):
+        if entry is not None and (not occurrence_parts or not occurrence_parts <= set(entry.parts)):
             return DependencyDecision(provider, consumer, True,
                                       "foundation_not_applicable_to_occurrence",
                                       entry.classification)
-        return DependencyDecision(provider, consumer, False, "ambient_foundation",
-                                  entry.classification)
+        modules = {getattr(occurrence, "provider_module", None) for occurrence in edge.occurrences}
+        if len(modules - {None}) > 1:
+            return DependencyDecision(provider, consumer, True, "provider_module_conflict")
+        if occurrence_parts and occurrence_parts <= DEPENDENCY_PARTS and len(modules) == 1 and None not in modules:
+            module = next(iter(modules))
+            rule = next((rule for rule in self.catalog.module_rules
+                         if rule.matches(provider_name, module)), None)
+            if rule is not None:
+                return DependencyDecision(provider, consumer, False,
+                                          "source_module:" + rule.rule_id, "reviewed_source_module")
+        if entry is not None:
+            return DependencyDecision(provider, consumer, False, "ambient_foundation",
+                                      entry.classification)
+        reason = ("foundation_unknown" if foundation is not None else
+                  "catalog_identity_mismatch" if self.catalog.has_provider_name(repository)
+                  else "catalog_missing")
+        return DependencyDecision(provider, consumer, True, reason)
 
     def analyze(self, workspace: Workspace, target_repo_key: str,
                 edges: Iterable[object]) -> DependencyAnalysis:
@@ -281,7 +327,7 @@ class DependencyAnalysisPolicy:
         decisions = tuple(self.decide(workspace, target_repo_key, edge) for edge in edges)
         pairs = [(item.provider, item.consumer) for item in decisions]
         _require(len(pairs) == len(set(pairs)), "dependency analysis needs unique edge pairs")
-        return DependencyAnalysis(target_repo_key, self.catalog.digest(), decisions)
+        return DependencyAnalysis(target_repo_key, self.digest, decisions)
 
 
 def load_foundation_catalog(path: str | Path | None = None) -> FoundationCatalog:
@@ -367,7 +413,7 @@ def merge_foundation_catalog(catalog: FoundationCatalog,
     result = FoundationCatalog(tuple(sorted(values, key=lambda item: (
         item.identity.provider_name, item.identity.toolchain,
         item.identity.revision or "", item.identity.input_digest or "",
-    ))))
+    ))), catalog.module_rules)
     result.validate()
     return result
 
@@ -426,3 +472,7 @@ def _decode(expected, value, path):
             except TypeError as exc:
                 raise ValidationError(f"{path}: {exc}") from exc
     raise ValidationError(f"{path}: expected {expected}")
+
+
+# Bind caches to the actual loaded policy implementation as well as its rules.
+_IMPLEMENTATION_DIGEST = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()

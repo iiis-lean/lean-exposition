@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from dataclasses import replace
 from enum import Enum
 import tempfile
+from pathlib import Path
 import threading
 import time
 from types import SimpleNamespace
@@ -137,6 +138,15 @@ class CodexAgentExecutorTests(unittest.TestCase):
         )
         self.assertEqual(options["approval_mode"], "deny")
         self.assertEqual(options["sandbox"], "read-only")
+
+    def test_host_configuration_is_not_inherited(self):
+        with tempfile.TemporaryDirectory() as root:
+            executor = CodexAgentExecutor(CodexAgentConfig(model="test", cwd=root), sdk_loader=lambda: FAKE_SDK)
+            self.assertNotEqual(executor._codex_home, root)
+            self.assertEqual(executor._thread_config()["project_doc_max_bytes"], 0)
+            Path(executor._codex_home, "config.toml").write_text("# host resources")
+            with self.assertRaisesRegex(ValueError, "isolated"):
+                executor._prepare_codex_home()
 
     def test_resume_and_active_controls(self):
         with tempfile.TemporaryDirectory() as root:

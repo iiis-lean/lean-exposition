@@ -25,6 +25,9 @@ class EetExecutor:
         self.before_validation = None
 
     def execute(self, prompt, schema, *, trace_label=None):
+        if trace_label == "decl-text":
+            from test_texts import FakeExecutor
+            return ExecutionResult("succeeded", data=FakeExecutor().run_json(prompt, schema))
         if trace_label == self.raise_stage:
             raise RuntimeError("secret provider response")
         with self.lock:
@@ -143,7 +146,7 @@ class ConcurrentPublicationTests(unittest.TestCase):
     def test_manifest_race_fails_cas_and_keeps_generated_group_unpublished(self):
         executor = EetExecutor(self.fixture["blocks"])
         store, base = self.make(executor)
-        executor.before_validation = lambda: store.publish({"definition": self.fixture["blocks"]["definition"]})
+        executor.before_validation = lambda: store.publish({"definition": {**self.fixture["blocks"]["definition"], "title": "Definition"}})
         with self.assertRaisesRegex(ContentError, "base manifest changed"):
             store.generate_children("root")
         self.assertNotEqual(store.state["latest_manifest"], base)

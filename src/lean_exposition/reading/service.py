@@ -341,6 +341,7 @@ class ReaderService:
     def _inspect(self, reader_id, ref, detail="summary", view_id=None,
                  dependency_view="analysis", cursor=None, limit=50):
         reader, store, view, rendered = self._view(reader_id, view_id)
+        text_records = store.manifest(view["manifest_id"]).get("decl_text_records", {})
         if detail == "job":
             job = self.state["jobs"].get(ref) if isinstance(ref, str) else None
             if job is None or job["reader_id"] != reader_id:
@@ -372,13 +373,14 @@ class ReaderService:
         offset = self._offset(cursor, view["view_id"], "inspect", context)
         if detail == "interfaces" and not group:
             if node is None:
-                card = store._decl_view(declaration_ref)
+                card = store._decl_view(declaration_ref, text_record_ids=text_records)
                 items = [{"relation_kind": "external_declaration", "ref": declaration_ref,
                           "loaded": card["loaded"], "name": card.get("name")}]
             else:
                 value = store._scope_material(
                     node_id, limit=0,
                     full_dependencies=dependency_view == "full",
+                    text_record_ids=text_records,
                 )
                 items = [{"relation_kind": kind, **edge} for kind in ("incoming", "outgoing", "internal") for edge in value[kind]]
                 items += [{"relation_kind": "primary_outcome", "ref": ref} for ref in value["primary_outcomes"]]
@@ -387,7 +389,7 @@ class ReaderService:
         else:
             items = []
             for declaration_ref in refs:
-                card = store._decl_view(declaration_ref, proof=True)
+                card = store._decl_view(declaration_ref, proof=True, text_record_ids=text_records)
                 if detail in {"nl", "lean"}:
                     field = "nl" if detail == "nl" else "formal"
                     for part in ("statement", "proof"):

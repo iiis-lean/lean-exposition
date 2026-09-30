@@ -84,7 +84,7 @@ def exposition_prompt(material, context):
 
 
 def content_digest(locale, max_input_characters, generation_strategy, text_profile=None,
-                   dependency_analysis_digest=None):
+                   dependency_analysis_digest=None, generation_config=None):
     """Identify the exact current prompt, schema, locale and writing configuration."""
     from lean_exposition.workflows.eet import (
         STITCH_SCHEMA,
@@ -105,6 +105,11 @@ def content_digest(locale, max_input_characters, generation_strategy, text_profi
         "prompt": prompt,
         "schemas": schemas,
         "metadata_schema": METADATA_SCHEMA,
+        "generation_config": generation_config,
+        "material_implementation": {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                                    for name in ("views.py", "texts.py", "writing.py")},
+        "workflow_implementation": {name: hashlib.sha256((Path(__file__).parents[1] / "workflows" / name).read_bytes()).hexdigest()
+                                    for name in ("eet.py", "naming.py", "common.py")},
         "group_workflow": {
             "draft_instructions": mathematical_draft_instructions(locale, {}) if locale else None,
             "stitch_instructions": stitch_instructions(locale) if locale else None,
@@ -136,9 +141,13 @@ class ContentStore(WritingJobs):
         self.workspace = workspace
         self.hierarchy = deepcopy(hierarchy.to_dict() if hasattr(hierarchy, "to_dict") else hierarchy)
         self.nodes = {n["id"]: n for n in self.hierarchy["nodes"]}
-        self.model_executor = executor or (runtime if hasattr(runtime, "execute") else None)
+        self.model_executor = executor or (runtime if hasattr(runtime, "execute") else getattr(runtime, "executor", None))
+        if self.model_executor is None and callable(runtime):
+            from lean_exposition.workflows.adapters import CallableExecutor
+            self.model_executor = CallableExecutor(runtime)
         if decl_text_store is not None and decl_text_store.workspace.digest() != workspace.digest():
             raise ContentError("Declaration text store belongs to a different Workspace.")
+        from .texts import open_decl_text_store
         self.decl_text_store = decl_text_store
         self.text_profile = text_profile
         if dependency_analysis is None:
@@ -176,6 +185,15 @@ class ContentStore(WritingJobs):
         })[:24]
         saved = json.loads(self.path.read_text()) if self.path.exists() else None
         self.locale = saved.get("locale") if saved else locale
+        if self.locale and self.decl_text_store is None:
+            text_file = (saved or {}).get("decl_text_file", "decl-texts-" + workspace_digest[:24] + ".json")
+            text_path = Path(text_file)
+            self.decl_text_store = open_decl_text_store(workspace,
+                text_path if text_path.is_absolute() else self.path.parent / text_path)
+        from lean_exposition.runtime.api import generation_config
+        self.generation_config = (generation_config(self.model_executor or runtime)
+                                  if self.model_executor is not None or runtime is not None else
+                                  (saved or {}).get("generation_config"))
         if saved and locale is not None and locale != self.locale:
             raise ContentError("Content file belongs to a different locale.")
         saved_strategy = saved.get("generation_strategy") if saved else None
@@ -192,6 +210,7 @@ class ContentStore(WritingJobs):
             self.locale, self.max_input_characters, self.generation_strategy,
             self.text_profile if self.decl_text_store is not None else None,
             dependency_analysis_digest,
+            self.generation_config,
         )
         self.instance_id = "instance-" + digest({
             "workspace_digest": workspace_digest,
@@ -211,6 +230,10 @@ class ContentStore(WritingJobs):
             "locale": self.locale,
             "generation_strategy": self.generation_strategy,
             "content_digest": self.content_digest,
+            "generation_config": self.generation_config,
+            "decl_text_file": (str(self.decl_text_store.path.resolve().relative_to(self.path.parent.resolve()))
+                               if self.decl_text_store and self.decl_text_store.path.resolve().is_relative_to(self.path.parent.resolve())
+                               else str(self.decl_text_store.path.resolve()) if self.decl_text_store else None),
             "latest_manifest": None,
             "manifests": {},
             "drafts": {},
@@ -263,6 +286,13 @@ class ContentStore(WritingJobs):
             profile=self.text_profile, text_record_ids=text_record_ids,
             dependency_analysis=self.dependency_analysis,
         )
+
+    def _source_material(self, node_id):
+        """Exact source for validation, independent of generated summaries."""
+        from .views import _mathematical_projection
+        view = scope_view(self.workspace, self.hierarchy, node_id, limit=None,
+                          dependency_analysis=self.dependency_analysis)
+        return _mathematical_projection(view, self.nodes[node_id], self.nodes, exact_source=True)
 
     def dependency_edges(self, *, full=False):
         edges = self.hierarchy.get("edges", [])
@@ -338,11 +368,13 @@ class ContentStore(WritingJobs):
         if expected_kind and expected_kind != kind:
             raise ContentError("Submission kind differs from the bound writing job.")
         try:
-            jsonschema.validate(payload, submission_schema(kind, include_title="title" in payload))
+            jsonschema.validate(payload, submission_schema(kind, include_title=bool(self.locale) or "title" in payload))
         except jsonschema.ValidationError as exc:
             raise ContentError(exc.message) from exc
-        if self.locale and kind == "section" and any(not payload[part].strip() for part in PARTS[kind]):
-            raise ContentError("New mathematical sections require nonempty lead_in, synopsis and lead_out.")
+        if self.locale and any(not payload[part].strip() for part in PARTS[kind]):
+            raise ContentError("Mathematical entries require nonempty " + ", ".join(PARTS[kind]) + ".")
+        if self.locale and kind != "section" and not payload["title"].strip():
+            raise ContentError("Mathematical entries require a nonempty title.")
         for anchor in payload["anchors"]:
             self._validate_targets(node_id, anchor["targets"])
         return {"node_id": node_id, "kind": kind, **deepcopy(payload)}
@@ -388,12 +420,15 @@ class ContentStore(WritingJobs):
                 pinned = (self.manifest().get("decl_text_records", {})
                           if self.state["latest_manifest"] else {})
                 if _complete_job is not None:
-                    pinned.update(self.state["writing_jobs"][_complete_job].get("decl_text_records", {}))
+                    additions = self.state["writing_jobs"][_complete_job].get("decl_text_records", {})
                 else:
-                    pinned.update(self.decl_text_store.pin(
+                    additions = self.decl_text_store.pin(
                         [decl.ref for decl in self.workspace.declarations],
                         locale=self.locale, profile=self.text_profile,
-                    ))
+                    )
+                if any(ref in pinned and pinned[ref] != record for ref, record in additions.items()):
+                    raise ContentError("A fixed content package cannot replace an existing declaration text record.")
+                pinned.update(additions)
                 manifest["decl_text_records"] = pinned
             inherited_review = self.manifest().get("review_evidence") if self.state["latest_manifest"] else None
             evidence = review_evidence if review_evidence is not None else inherited_review
@@ -437,13 +472,9 @@ class ContentStore(WritingJobs):
             return self.run_writing_job(None, generation_strategy=generation_strategy,
                                         cancelled=cancelled, progress=progress,
                                         publication_control=publication_control)
-        root = self.hierarchy["root_id"]
-        with self._generation_lock(root):
-            with self.lock:
-                if self.state["latest_manifest"]:
-                    return self.state["latest_manifest"]
-            block = self._generate(root, {"role": "root", "fixed_parent": None})
-            return self.publish({root: block})
+        if self.state["latest_manifest"]:
+            return self.state["latest_manifest"]
+        raise ContentError("Automatic generation requires an explicit en or zh locale in a new content package.")
 
     def generate_children(self, node_id, *, generation_strategy=None, cancelled=lambda: False, progress=None, publication_control=None):
         """Generate one sibling group with the content package's fixed strategy."""
@@ -451,40 +482,13 @@ class ContentStore(WritingJobs):
             return self.run_writing_job(node_id, generation_strategy=generation_strategy,
                                         cancelled=cancelled, progress=progress,
                                         publication_control=publication_control)
-        with self._generation_lock(node_id):
-            manifest = self.manifest()
-            parent = manifest["blocks"].get(node_id)
-            if parent is None or parent["kind"] != "section" or not self.nodes[node_id]["children"]:
-                raise ContentError("Target is not an expandable published section.")
-            children = self.nodes[node_id]["children"]
-            if all(child in manifest["blocks"] for child in children):
-                return manifest["manifest_id"]
-            with self.lock:
-                accepted = deepcopy(self.state["drafts"].get(node_id, {}))
-            previous = parent["lead_in"]
-            for index, child in enumerate(children):
-                if cancelled():
-                    raise ContentError("Generation cancelled.")
-                block = manifest["blocks"].get(child) or accepted.get(child)
-                if block is None:
-                    block = self._generate(child, {
-                        "parent_id": node_id, "fixed_parent": parent,
-                        "previous_fixed_boundary": previous, "ordered_children": children,
-                        "child_index": index, "parent_ending_is_not_a_child_premise": True,
-                        "preview": self.preview(parent, accepted),
-                    })
-                    accepted[child] = block
-                    with self.lock:
-                        self.state["drafts"][node_id] = deepcopy(accepted)
-                        self._save()
-                previous = block.get("lead_out", block.get("proof", block.get("content", "")))
-            if cancelled():
-                raise ContentError("Generation cancelled.")
-            result = self.publish(accepted)
-            with self.lock:
-                self.state["drafts"].pop(node_id, None)
-                self._save()
-            return result
+        manifest = self.manifest()
+        parent = manifest["blocks"].get(node_id)
+        if parent is None or parent["kind"] != "section" or not self.nodes[node_id]["children"]:
+            raise ContentError("Target is not an expandable published section.")
+        if all(child in manifest["blocks"] for child in self.nodes[node_id]["children"]):
+            return manifest["manifest_id"]
+        raise ContentError("Automatic generation requires an explicit en or zh locale in a new content package.")
 
     @staticmethod
     def preview(parent, accepted):
@@ -500,6 +504,22 @@ class ContentStore(WritingJobs):
             if self.state["latest_manifest"]:
                 raise ContentError("Display metadata is frozen after first content publication.")
         selected = set(node_ids) if node_ids is not None else {n["id"] for n in self.nodes.values() if (n["kind"] != "unit" if self.locale else n["kind"] == "region")}
+        naming_pins = None
+        if self.locale and selected:
+            from .texts import ensure_decl_texts
+            from lean_exposition.workflows.adapters import CallableExecutor
+            executor = self.model_executor or (CallableExecutor(self.runtime) if self.runtime else None)
+            if executor is None:
+                raise ContentError("No metadata runtime configured.")
+            outcome = ensure_decl_texts(self.workspace, self.decl_text_store,
+                [decl.ref for decl in self.workspace.declarations], locale=self.locale,
+                executor=executor, profile=self.text_profile)
+            with self.lock:
+                self.state["metadata_text_preparation"] = outcome
+                self._save()
+            if outcome["failed"]:
+                raise ContentError("Required declaration summaries are missing; naming was not started.")
+            naming_pins = outcome["record_ids"]
         def visit(node_id):
             for child in self.nodes[node_id]["children"]:
                 visit(child)
@@ -515,10 +535,17 @@ class ContentStore(WritingJobs):
             try:
                 if self.runtime is None:
                     raise ContentError("No metadata runtime configured.")
-                prompt = ("Write display metadata in " + ("Chinese" if self.locale == "zh" else "English") + ". ") + "Name this fixed mathematical region. Title/description are display metadata, not a synopsis or importance score. Name only results and objects delivered inside this node; outgoing consumers are future uses, not this scope outcomes. Prefer concise mathematical terminology over Lean or source-scope identifiers. Return JSON.\n" + json.dumps(
-                    {"scope_view": self._writing_material(node_id, mathematical=bool(self.locale)),
-                     "child_metadata": {c: self.state["metadata"].get(c) for c in self.nodes[node_id]["children"]}}, ensure_ascii=False)
-                payload = self.runtime(prompt, METADATA_SCHEMA)
+                from lean_exposition.workflows.naming import NamingWorkflow
+                from lean_exposition.workflows.adapters import CallableExecutor
+                executor = self.model_executor or CallableExecutor(self.runtime)
+                call = NamingWorkflow(executor, locale=self.locale or "en").name(
+                    kind="region" if self.nodes[node_id]["kind"] == "region" else "scope",
+                    material={"scope_view": self._writing_material(node_id, mathematical=bool(self.locale), text_record_ids=naming_pins),
+                              "child_metadata": {c: self.state["metadata"].get(c) for c in self.nodes[node_id]["children"]}},
+                    max_input_characters=self.max_input_characters)
+                if call.execution.status != "succeeded":
+                    raise ContentError("Region naming failed its output contract or input budget.")
+                payload = call.execution.data
                 jsonschema.validate(payload, METADATA_SCHEMA)
                 self._validate_targets(node_id, payload["evidence_refs"])
                 with self.lock:

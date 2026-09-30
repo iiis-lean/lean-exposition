@@ -81,7 +81,8 @@ class PiAgentExecutor(AgentExecutor):
         return self._jobs.result(handle, timeout)
 
     def _submit(self, prompt, output_schema, session_file):
-        schema = dict(output_schema) if output_schema is not None else None
+        from copy import deepcopy
+        schema = deepcopy(output_schema) if output_schema is not None else None
         return self._jobs.submit(
             lambda register: self._run(prompt, schema, session_file, register)
         )
@@ -97,7 +98,11 @@ class PiAgentExecutor(AgentExecutor):
             initial_messages = rpc.command("get_messages").get("messages") or []
             session = _pi_session(initial_state, self.config.cwd)
             register(_PiController(rpc))
-            rpc.command("prompt", {"message": prompt})
+            from lean_exposition.runtime.api import canonical_json
+            effective_prompt = prompt if schema is None else (
+                "Return exactly one JSON value matching this schema. No Markdown fences or commentary.\n"
+                + canonical_json(schema) + "\n\nTASK\n" + prompt)
+            rpc.command("prompt", {"message": effective_prompt})
 
             current_assistant: dict[str, Any] | None = None
 

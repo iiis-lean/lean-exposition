@@ -73,6 +73,7 @@ class Dependency:
     provider: DeclRef
     evidence_kind: str  # e.g. lc_declared, lean_type, lean_value, text_reference
     provenance: tuple[Provenance, ...]
+    provider_module: str | None = None
 
 
 @dataclass(frozen=True)
@@ -166,14 +167,26 @@ class Workspace:
 
     def to_json(self) -> str:
         self.validate()
-        return json.dumps(asdict(self), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        return json.dumps(self._fact_data(), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+
+    def _fact_data(self):
+        data = asdict(self)
+        # Absent optional source observations add no fact and do not invalidate
+        # existing Workspace-bound bundles. Present modules change the digest.
+        for decl in data["declarations"]:
+            for part in ("statement", "proof"):
+                if decl[part] is not None:
+                    for dependency in decl[part]["deps"]:
+                        if dependency["provider_module"] is None:
+                            del dependency["provider_module"]
+        return data
 
     @cached_property
     def _identity_digest(self) -> str:
         self.validate()
         result = hashlib.sha256()
         encoder = json.JSONEncoder(ensure_ascii=False, sort_keys=True, indent=2)
-        for chunk in encoder.iterencode(asdict(self)):
+        for chunk in encoder.iterencode(self._fact_data()):
             result.update(chunk.encode())
         result.update(b"\n")
         return result.hexdigest()
@@ -335,6 +348,8 @@ def _validate(workspace):
             ref(dependency.provider)
             _nonempty(dependency.evidence_kind, "dependency evidence_kind")
             provenance(dependency.provenance)
+            if dependency.provider_module is not None:
+                _nonempty(dependency.provider_module, "dependency provider_module")
 
     for repo in repos.values():
         _nonempty(repo.repo_key, "repo_key")

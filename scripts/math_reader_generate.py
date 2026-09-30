@@ -63,8 +63,11 @@ class RecordedRuntime:
             index = self.counter
             self.counter += 1
         start = time.monotonic()
+        from lean_exposition.runtime.api import request_input, request_digest
         atomic_json(self.directory / f'call-{index:04d}-request.json',
-                    {'prompt': prompt, 'schema': schema, 'input_digest': digest({'prompt': prompt, 'schema': schema}),
+                    {'prompt': prompt, 'schema': schema, 'input_digest': request_digest(prompt, schema, self.config),
+                     'effective_input': request_input(prompt, schema, self),
+                     'structured_output_mode': self.config.structured_output_mode, 'skills': [],
                      'model': self.config.model, 'protocol': self.config.protocol,
                      'reasoning': self.config.reasoning, 'extra_body': self.config.extra_body,
                      'max_output_tokens': self.config.max_output_tokens,
@@ -75,7 +78,7 @@ class RecordedRuntime:
         if result.status == 'succeeded' and trace_label and trace_label.startswith('eet.draft.'):
             node_id = trace_label.removeprefix('eet.draft.')
             with self.lock:
-                self.provenance[node_id] = {'model': self.config.model, 'protocol': self.config.protocol,
+                self.provenance[node_id] = {'status': 'draft', 'model': self.config.model, 'protocol': self.config.protocol,
                     'reasoning': self.config.reasoning, 'max_output_tokens': self.config.max_output_tokens,
                     'request': f'calls/call-{index:04d}-request.json',
                     'result': f'calls/call-{index:04d}-result.json',
@@ -122,6 +125,9 @@ def record_fixed_sources(store, recorded):
         if metadata.get('technical') and metadata.get('source_missing') and store.kind(node_id) == 'content':
             recorded.provenance.setdefault(node_id, {'provider': 'fixed_source', 'model_call': False,
                 'reason': 'source_missing', 'locale': store.locale, 'decl_refs': node['decl_refs']})
+    for node_id, evidence in recorded.provenance.items():
+        if node_id in store.manifest()["blocks"]:
+            evidence.update(status="published", manifest_id=store.state["latest_manifest"])
     atomic_json(recorded.provenance_path, recorded.provenance)
 
 

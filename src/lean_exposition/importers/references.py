@@ -1,140 +1,123 @@
 """Conservative explicit Lean references, without elaboration or a Lean process."""
-from collections import defaultdict
 from dataclasses import replace
-import re
+import hashlib
 
 from lean_exposition.construction import CoverageContribution, FieldContribution
-from lean_exposition.models import Dependency, Provenance, TextContent
-
-_SEGMENT = r"(?:«[^»\n]+»|[^\W\d][\w'₀-₉]*)"
-NAME = re.compile(rf"{_SEGMENT}(?:\.{_SEGMENT})*")
-KEYWORDS = set('by exact apply rw simp simpa intro intros have let fun forall theorem lemma def abbrev axiom constant instance structure class inductive opaque private protected noncomputable unsafe partial where do if then else match with at using from in Type Sort Prop namespace section end open variable variables import set_option attribute rfl trivial decide constructor cases case obtain rcases induction show change calc return true false'.split())
+from lean_exposition.models import DeclRef, Dependency, Provenance, TextContent
+from .reference_index import ReferenceIndex, adapter_reference_index
+from .text_scope import SourceContext, name_parts, scan_scope
 
 
-def _binders(text):
-    names = set()
-    for match in re.finditer(r'[({\[]\s*([^:(){}\[\]\n]+)\s*:', text):
-        names.update(NAME.findall(match.group(1)))
-    for match in re.finditer(r'(?:\b(?:fun|intro|intros|rintro)\s+|∀\s+)([^\n,:=↦]+)', text):
-        names.update(NAME.findall(match.group(1).split('=>')[0]))
-    for match in re.finditer(r'\b(?:have|let|obtain|rcases)\s+([^\n:=]+)', text):
-        names.update(NAME.findall(match.group(1).split('with')[-1]))
-    return names
+def add_text_references(adapter, source_texts, *, reference_index=None):
+    """Resolve lexical references and explicitly typed receiver dot notation.
 
-
-def add_text_references(adapter, source_texts):
-    """Resolve explicit references against selected source declarations.
-
-    Unknown external names and ambiguous matches remain diagnostics, never
-    fabricated declarations. Binder suppression deliberately prefers missing
-    an edge over inventing a global reference for a local variable.
+    The optional index may cover a larger, fixed source import closure than the
+    target adapter. Unknown syntax/types and ambiguous names remain diagnostics;
+    coverage stays partial. Compiled facts are never rewritten here.
     """
-    from lean_mcp_toolkit.backends.text_ast.comments import mask_comments_and_strings
-    index = defaultdict(list)
-    fields = {}
+    local_index, module_states = adapter_reference_index(adapter, source_texts)
+    index = local_index
+    if reference_index is not None:
+        target_repos = {d.locator.ref.repo_key for d in adapter.declarations}
+        for signature in reference_index.signatures:
+            if signature.ref.repo_key in target_repos and signature.module in source_texts and signature.source_sha256:
+                actual = hashlib.sha256(source_texts[signature.module].encode()).hexdigest()
+                if actual != signature.source_sha256:
+                    raise ValueError(f'text reference index source changed: {signature.module}')
+        # The target adapter owns identities for its declarations (including
+        # compiled canonical identities), even when also present in the index.
+        owned = {(s.ref.repo_key, s.module, s.name, s.line) for s in local_index.signatures}
+        extras = tuple(replace(s, ref=DeclRef(s.ref.repo_key, s.name))
+                       if s.public and s.ref.repo_key not in target_repos else s
+                       for s in reference_index.signatures
+                       if (s.ref.repo_key, s.module, s.name, s.line) not in owned)
+        index = ReferenceIndex(local_index.signatures + extras,
+                               {**local_index.imports, **reference_index.imports},
+                               reference_index.repositories, reference_index.diagnostics)
+    result, coverage = [], list(adapter.coverage)
+    local_signatures = {s.ref: s for s in local_index.signatures}
+    diagnostics = list(adapter.diagnostics) + list(index.diagnostics)
     for contribution in adapter.declarations:
+        ref = contribution.locator.ref
         values = {f.field: f.value for f in contribution.fields if f.state == 'present'}
-        ref = contribution.locator.ref
-        fields[ref] = values
-        index[values['lean_name']].append(ref)
-    contexts, imports = {}, {}
-    # A single linear pass per module; no rescanning file prefixes per declaration.
-    for module, text in source_texts.items():
-        stack = [([], set(), [], {})]
-        contexts[module] = []
-        imports[module] = set()
-        for line in mask_comments_and_strings(text).splitlines():
-            stripped = line.strip()
-            if re.match(r'(?:public\s+)?import\s+', stripped):
-                imports[module].update(NAME.findall(stripped)[1:])
-            if re.match(r'(namespace|section)\b', stripped):
-                stack.append((list(stack[-1][0]), set(stack[-1][1]), list(stack[-1][2]), dict(stack[-1][3])))
-                stack[-1][2].append(stripped)
-            elif re.match(r'end\b', stripped) and len(stack) > 1:
-                stack.pop()
-            elif re.match(r'open\s+', stripped) and not re.search(r'\bin\s*$', stripped):
-                values = NAME.findall(stripped)[1:]
-                if values and values[0] != 'scoped':
-                    stack[-1][0].extend(values)
-                    stack[-1][2].append(stripped)
-            elif re.match(r'variables?\b', stripped):
-                stack[-1][1].update(_binders(stripped))
-                stack[-1][2].append(stripped)
-            alias = re.match(r'alias\s+(' + NAME.pattern + r')\s*:=\s*(' + NAME.pattern + r')', stripped)
-            if alias:
-                stack[-1][3][alias.group(1)] = alias.group(2)
-            contexts[module].append((tuple(stack[-1][0]), frozenset(stack[-1][1]), tuple(stack[-1][2]), dict(stack[-1][3])))
-    closure = {}
-    for module in imports:
-        reached, pending = {module}, list(imports[module])
-        while pending:
-            current = pending.pop()
-            if current in reached:
-                continue
-            reached.add(current)
-            pending.extend(imports.get(current, ()))
-        closure[module] = reached
-    result, coverage, diagnostics = [], list(adapter.coverage), list(adapter.diagnostics)
-    for contribution in adapter.declarations:
-        ref = contribution.locator.ref
-        values = fields[ref]
-        module, full_name = values['module'], values['lean_name']
+        module = values['module']
         ranges = values.get('source_refs', ())
         line = ranges[0].start_line if ranges else 1
-        states = contexts.get(module, ())
-        opens, section_vars, context_lines, aliases = states[min(line - 1, len(states) - 1)] if states else ((), (), (), {})
-        namespace = full_name.rsplit('.', 1)[0] if '.' in full_name else ''
+        states = module_states.get(module, ((), ()))[0]
+        context = states[min(line - 1, len(states) - 1)] if states else SourceContext()
+        namespace = '.'.join(name_parts(local_signatures[ref].name)[:-1])
         statement = values.get('statement.formal')
-        statement_text = statement.text or '' if statement else ''
-        local_names = set(section_vars) | _binders(mask_comments_and_strings(statement_text))
+        statement_scan = scan_scope(statement.text or '', declaration=True) if statement else scan_scope('')
+        locals_for_proof = dict(context.variables)
+        locals_for_proof.update((b.name, b.type_text) for b in statement_scan.parameters)
         added = []
-        if context_lines:
+        if context.lines:
             origin = (Provenance('source_scope_context', f'{module}:{line}'),)
             added.append(FieldContribution('source_context', 'present',
-                (TextContent('\n'.join(context_lines), 'present', origin),), 'text_ast', 'text_ast',
+                (TextContent('\n'.join(context.lines), 'present', origin),), 'text_ast', 'text_ast',
                 'source_scope_context', origin))
         for part in ('statement', 'proof'):
             formal = values.get(part + '.formal')
             if not isinstance(formal, TextContent) or not formal.text:
                 continue
-            masked = mask_comments_and_strings(formal.text)
-            bound = local_names | _binders(masked)
-            # Remove declaration header/name, not the type following it.
-            if part == 'statement':
-                masked = re.sub(r'\b(?:theorem|lemma|def|abbrev|axiom|constant|instance|structure|class|inductive|opaque)\s+' + NAME.pattern, ' ', masked, count=1)
-            deps, unresolved, ambiguous = {}, set(), set()
-            for token in dict.fromkeys(NAME.findall(masked)):
-                if token in KEYWORDS or token.split('.')[0] in bound:
-                    continue
-                rooted = token.startswith('_root_.')
-                name = token.removeprefix('_root_.')
-                name = aliases.get(name, name)
-                prefixes = namespace.split('.') if namespace else []
-                tiers = [[name]] if rooted else [[('.'.join(prefixes[:i]) + '.' if i else '') + name]
-                                                    for i in range(len(prefixes), -1, -1)]
-                if not rooted:
-                    tiers.append([o + '.' + name for o in opens])
-                candidates = []
-                for tier in tiers:
-                    candidates = list(dict.fromkeys(r for n in tier for r in index.get(n, ())
-                                      if fields[r]['module'] in closure.get(module, {module})))
-                    if candidates:
-                        break
+            scan = statement_scan if part == 'statement' else scan_scope(formal.text)
+            initial = dict(context.variables) if part == 'statement' else locals_for_proof
+            deps, unresolved, ambiguous, uncertain_dots = {}, set(), set(), set()
+            occurrences = [(token, bound, None) for token, bound in scan.occurrences(initial)]
+            used_section_names = {name_parts(token.text)[0] for token, _, _ in occurrences} & dict(context.variables).keys()
+            for name, typ in context.variables:
+                if name in used_section_names and typ:
+                    occurrences.extend((token, bound, name) for token, bound in scan_scope(typ).occurrences(initial))
+            for token, bound, section_name in occurrences:
+                name = token.text
+                parts = name_parts(name)
+                head, method = parts[0], '.'.join(parts[1:])
+                if head in bound:
+                    if not method:
+                        continue
+                    candidates, reason = index.dot_candidates(bound[head], method, repo_key=ref.repo_key,
+                        module=module, namespace=namespace, opens=context.opens, line=line)
+                    if reason:
+                        uncertain_dots.add(name + ':' + reason)
+                else:
+                    candidates = index.resolve(name, repo_key=ref.repo_key, module=module,
+                        namespace=namespace, opens=context.opens, aliases=context.aliases, line=line)
                 if len(candidates) == 1:
                     provider = candidates[0]
-                    if provider != ref:
-                        origin = (Provenance('text_reference', f'{module}:{line}:{part}:{token}', ranges),)
-                        deps[provider] = Dependency(provider, 'text_reference', origin)
+                    if provider.ref != ref:
+                        origin = (Provenance('text_reference',
+                            f'{module}:{line}:{part}:{token.line}:{token.column}:{name}', ranges),)
+                        if section_name:
+                            origin = (Provenance('text_reference',
+                                f'{module}:{line}:{part}:section_type:{section_name}:{name}', ranges),)
+                        if provider.source_sha256:
+                            origin += (Provenance('text_reference_index',
+                                f'{provider.ref.repo_key}:{provider.module}:{provider.name}:{provider.source_sha256}'),)
+                        previous = deps.get(provider.ref)
+                        if previous:
+                            origin = tuple(dict.fromkeys(previous.provenance + origin))
+                        deps[provider.ref] = Dependency(provider.ref, 'text_reference', origin,
+                                                        provider_module=provider.module)
                 elif candidates:
-                    ambiguous.add(token)
+                    ambiguous.add(name)
                 else:
-                    unresolved.add(token)
+                    unresolved.add(name)
             origin = (Provenance('text_reference_scan', f'{module}:{line}:{part}', ranges),)
             added.append(FieldContribution(part + '.deps', 'present', tuple(deps.values()),
                                            'text_ast', 'text_ast', 'text_reference', origin))
             coverage.append(CoverageContribution(ref, part, 'text_reference', 'partial', origin))
-            for kind, names in [('ambiguous', ambiguous), ('unresolved', unresolved)]:
+            for kind, names in [('ambiguous', ambiguous), ('unresolved', unresolved),
+                                ('uncertain_dot', uncertain_dots), ('unsupported', set(scan.diagnostics))]:
                 if names:
                     diagnostics.append(f'text_reference_{kind}:{module}:{line}:{part}:' + ','.join(sorted(names)))
         result.append(replace(contribution, fields=contribution.fields + tuple(added)))
-    return replace(adapter, declarations=tuple(result), coverage=tuple(coverage), diagnostics=tuple(diagnostics))
+    repositories = list(adapter.repositories)
+    for repository in index.repositories:
+        existing = next((r for r in repositories if r.repo_key == repository.repo_key), None)
+        if existing is None:
+            repositories.append(replace(repository, root_scope=None))
+        elif (existing.revision and existing.revision != repository.revision) or (
+                existing.toolchain and repository.toolchain and existing.toolchain != repository.toolchain):
+            raise ValueError(f'text reference index repository identity mismatch: {repository.repo_key}')
+    return replace(adapter, declarations=tuple(result), coverage=tuple(coverage),
+                   repositories=tuple(repositories), diagnostics=tuple(diagnostics))

@@ -60,6 +60,8 @@ for line in sys.stdin:
     elif kind == "get_session_stats":
         reply(request, {"tokens": {"input": 10, "output": 2}, "cost": 0.1})
     elif kind == "prompt":
+        with open(os.path.join(session_dir, "captured-prompt.json"), "w") as output:
+            json.dump(request, output)
         reply(request)
         if MODE == "retry":
             message = {"role": "assistant", "stopReason": "error", "errorMessage": "temporary",

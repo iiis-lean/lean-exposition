@@ -96,7 +96,7 @@ class LocaleTests(unittest.TestCase):
         from lean_exposition.exposition.content import PARTS
         def submission(node_id):
             block = blocks[node_id]
-            return {key:block[key] for key in (*PARTS[block['kind']], 'anchors')}
+            return {key: value for key, value in block.items() if key not in {'node_id', 'kind'}}
         partial.publish({key:submission(key) for key in ('root','setup','conclusion')})
         self.service.stores[partial.instance_id] = partial
         self.reader = self.service.call('open_reader', {'instance_id':partial.instance_id})['reader_id']
@@ -147,7 +147,7 @@ class LocaleTests(unittest.TestCase):
         blocks = original_store.manifest()['blocks']
         def submission(node_id):
             block = blocks[node_id]
-            return {key:block[key] for key in (*PARTS[block['kind']], 'anchors')}
+            return {key: value for key, value in block.items() if key not in {'node_id', 'kind'}}
         partial = ContentStore(original_store.workspace, original_store.hierarchy, self.path / 'title-publication.zh.json', locale='zh')
         partial.publish({node:submission(node) for node in ('root','setup','conclusion')})
         self.service.stores[partial.instance_id] = partial

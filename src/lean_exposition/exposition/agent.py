@@ -9,11 +9,16 @@ from .writing import mathematical_prompt
 
 
 @contextmanager
-def writing_mcp(store, job_id, trace):
+def writing_mcp(store, job_id, trace, *, prepare=True):
     """Serve only this job's operations in the owning process, sharing its lock."""
     from mcp.server.fastmcp import FastMCP
     import uvicorn
 
+    if prepare:
+        store.prepare_writing_job(job_id)
+    with store.lock:
+        store._job(job_id, active=True)["agent_review_required"] = True
+        store._save()
     path = "/writing-" + uuid.uuid4().hex
     mcp = FastMCP("Mathematical Writing", log_level="ERROR", stateless_http=True, json_response=True, streamable_http_path=path)
 
@@ -55,7 +60,7 @@ def writing_mcp(store, job_id, trace):
 
     @mcp.tool()
     def query_path(node_id: str, offset: int = 0, limit: int = 12000) -> dict:
-        """Page canonical ancestor introductions and preceding fixed outcomes."""
+        """Page full writing context, including conventions, child order, anchors and preview."""
         arguments = dict(node_id=node_id, offset=offset, limit=limit)
         return call("query_path", arguments, lambda: store.query_job(job_id, "path", **arguments))
 
@@ -97,19 +102,24 @@ def run_agent_job(store, job_id, executor_factory, *, trace=None, record_request
     if step["status"] != "active":
         raise ValueError("Agent writing requires an active job.")
     trace = [] if trace is None else trace
-    with writing_mcp(store, job_id, trace) as url:
+    with writing_mcp(store, job_id, trace, prepare=False) as url:
         prompt = mathematical_prompt(store.locale, {}, {}) + (
             "\nYou are the writer for job " + job_id + ". Call get_step first. For every current step, read the material, "
             "call at least one bound source query to verify the interface; call query_decl/scope/path when additional source is needed, then submit_draft. Inspect the returned continuous "
             "preview for mathematical correctness, notation and transitions. Revise drafts when the preview or diagnostics reveal a concrete issue; do not add claims merely to make a revision. "
             "Keep terminal mathematical titles concise. Compiler-only source-missing entries must honestly explain the absence of an authored source or proof; never invent a mathematical lemma. Only accept the latest draft_id after reviewing the preview and any length warnings; essential hypotheses take priority over soft targets. Continue until status published. "
             "For source queries keep the default limit of 12000 characters unless a smaller page is specifically useful; "
-            "follow next_offset only when more source is needed, and do not repeat an already-read page. "
+            "Results contain complete field entries and path locations, not JSON fragments. Continue with the same limit; "
+            "follow next_offset when material is incomplete, and do not repeat an already-read page. "
             "Do not call any tools other than this writing MCP. Return the actual job_id and manifest_id after publication."
         )
         schema = {"type": "object", "properties": {"job_id": {"type": "string"}, "manifest_id": {"type": "string"}},
                   "required": ["job_id", "manifest_id"], "additionalProperties": False}
         executor = executor_factory(url)
+        from lean_exposition.runtime.agents import PiAgentExecutor
+        if isinstance(executor, PiAgentExecutor):
+            raise ValueError("Pi writing is unsupported: this backend has no bound writing MCP bridge.")
+        store.prepare_writing_job(job_id)
         if record_request is not None:
             record_request({"prompt": prompt, "schema": schema,
                             "executor": type(executor).__name__})

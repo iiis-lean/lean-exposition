@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 import tempfile
 import time
@@ -36,6 +37,9 @@ class PiAgentExecutorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {"FAKE_PI_MODE": "tool"}):
             executor = PiAgentExecutor(self.config(root, tools=("read",)))
             result = executor.result(executor.start("answer", SCHEMA), 3)
+            captured = json.loads((Path(root) / "sessions" / "captured-prompt.json").read_text())["message"]
+            self.assertIn('"required":["answer"]', captured)
+            self.assertTrue(captured.endswith("\n\nTASK\nanswer"))
         self.assertEqual(result.status, "succeeded")
         self.assertEqual(result.data, {"answer": "ok"})
         self.assertEqual(result.session.backend, "pi")

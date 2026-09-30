@@ -1,4 +1,5 @@
 import hashlib
+import json
 import tempfile
 from pathlib import Path
 import unittest
@@ -10,6 +11,51 @@ from lean_exposition.importers.native import NativeRepositoryAdapter, normalize_
 
 
 class NativeTests(unittest.TestCase):
+    def test_offline_revision_and_module_ownership_do_not_guess_from_names(self):
+        text = 'def result := True\n'
+        compiled = [{'name': 'result', 'user_name': 'result', 'module': 'M',
+                     'kind': 'definition', 'generator': None, 'value': [], 'type': [
+                         {'name': 'Lean.custom', 'module': 'Lean.Custom'},
+                         {'name': 'Finset.custom', 'module': 'Finset.Local'},
+                         {'name': 'Lean.package', 'module': 'Lean.Package'},
+                         {'name': 'Finset.filter', 'module': 'Mathlib.Data.Finset.Filter'},
+                         {'name': 'Finset.missing', 'module': 'Mathlib.Missing'},
+                         {'name': 'Nat', 'module': 'Init.Prelude'},
+                         {'name': 'Lean.unknown', 'module': None},
+                     ]}]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for path in ('M.lean', 'Lean/Custom.lean', 'Finset/Local.lean',
+                         '.lake/packages/other/Lean/Package.lean',
+                         '.lake/packages/mathlib/Mathlib/Data/Finset/Filter.lean'):
+                file = root / path
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_text(text)
+            toolchain = 'leanprover/lean4:v4.28.0'
+            (root / 'lean-toolchain').write_text(toolchain)
+            (root / 'lake-manifest.json').write_text(json.dumps({'packages': [
+                {'name': 'mathlib', 'rev': '1' * 40}, {'name': 'other', 'rev': '2' * 40}]}))
+            payload = {'compiled': compiled, 'source': {}, 'toolchain': toolchain,
+                       'source_digests': {'M': hashlib.sha256(text.encode()).hexdigest()}}
+            for revision in (None, '3' * 40):
+                with patch('subprocess.Popen', side_effect=AssertionError('offline means no process')):
+                    workspace = normalize_native(root, repo_key='p', modules=('M',),
+                                                 payload={**payload, 'project_revision': revision})
+                    with patch('lean_exposition.importers.native._load_native_workspace', return_value=workspace):
+                        bundle = build_repository(NativeRepositoryAdapter(root, repo_key='p', modules=('M',)).collect())
+                self.assertEqual(bundle.workspace, workspace)
+                self.assertEqual(workspace.manifest.repositories[0].revision, revision)
+                deps = {d.provider.local_id: d for d in workspace.declarations[0].statement.deps}
+                self.assertEqual(deps['Lean.custom'].provider.repo_key, 'p')
+                self.assertEqual(deps['Finset.custom'].provider.repo_key, 'p')
+                self.assertEqual(deps['Lean.package'].provider.repo_key, 'p/dependency/other')
+                self.assertEqual(deps['Finset.filter'].provider.repo_key, 'p/dependency/mathlib')
+                self.assertEqual(deps['Finset.filter'].provider_module, 'Mathlib.Data.Finset.Filter')
+                self.assertEqual(deps['Finset.missing'].provider.repo_key, 'p/external/mathlib')
+                self.assertEqual(deps['Nat'].provider.repo_key, 'p/lean')
+                self.assertEqual(deps['Lean.unknown'].provider.repo_key, 'p/external/unknown')
+                self.assertIsNone(deps['Lean.unknown'].provider_module)
+
     def test_unicode_columns(self):
         text = 'def «😀α» := 1\n'
         span = source_range('x', {'start': {'line': 1, 'column': 4},

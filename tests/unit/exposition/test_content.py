@@ -45,27 +45,13 @@ class ContentTests(unittest.TestCase):
             self.store.publish({'root': {**self.fixture['blocks']['root'], 'synopsis': 'rewritten'}})
         self.assertEqual(self.store.state['latest_manifest'], second)
 
-    def test_failure_retains_draft_but_publishes_nothing_then_retries_only_failed_child(self):
+    def test_legacy_unlocalized_content_is_readable_but_cannot_bypass_review(self):
         original = self.store.publish({'root': self.fixture['blocks']['root']})
-        calls = []
-        def runtime(prompt, schema):
-            context = json.loads(prompt.split('\n', 1)[1])
-            node = context['scope_view']['node']['id']
-            calls.append(node)
-            if node == 'conclusion' and calls.count(node) == 1:
-                raise RuntimeError('controlled failure')
-            if node == 'conclusion':
-                self.assertEqual(context['write_context']['previous_fixed_boundary'], self.fixture['blocks']['setup']['lead_out'])
-            return self.fixture['blocks'][node]
-        self.store.runtime = runtime
-        with self.assertRaises(RuntimeError):
+        self.store.runtime = lambda *_: self.fail('unlocalized generation must not call a model')
+        with self.assertRaisesRegex(ContentError, 'explicit en or zh locale'):
             self.store.generate_children('root')
+        self.assertEqual(self.store.generate_root(), original)
         self.assertEqual(self.store.state['latest_manifest'], original)
-        self.assertEqual(list(self.store.state['drafts']['root']), ['setup'])
-        self.store.generate_children('root')
-        self.assertEqual(calls, ['setup', 'conclusion', 'conclusion'])
-        self.assertEqual(set(self.store.manifest()['blocks']), {'root', 'setup', 'conclusion'})
-        self.assertEqual(self.store.manifest(original)['blocks']['root']['synopsis'], self.fixture['blocks']['root']['synopsis'])
 
     def test_metadata_is_display_only_and_frozen(self):
         self.store.runtime = lambda prompt, schema: {'title': 'A display title', 'short_description': 'One sentence.', 'evidence_refs': []}

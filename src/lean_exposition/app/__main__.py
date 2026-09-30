@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--workspace", type=Path)
     parser.add_argument("--hierarchy", type=Path)
     parser.add_argument("--content", type=Path)
+    parser.add_argument("--locale", choices=("zh", "en"), help="Required for a fresh generated package; existing packages retain their locale")
     parser.add_argument("--features", type=Path, help="FeatureSet JSON matching the single package")
     parser.add_argument("--recommendation-policy", choices=("structural", "random"), default="structural")
     parser.add_argument("--packages", type=Path, help="JSON array of workspace/hierarchy/content paths for a multilingual library")
@@ -40,7 +41,7 @@ def main():
             paths = {key: args.packages.parent / package[key] for key in ("workspace", "hierarchy", "content")}
             stores.append(ContentStore(Workspace.from_json(paths["workspace"].read_text()),
                                        json.loads(paths["hierarchy"].read_text()), paths["content"],
-                                       executor=generation_executor,
+                                       executor=generation_executor, locale=package.get("locale", args.locale),
                                        generation_strategy=args.generation_strategy))
             if package.get("features"):
                 feature_paths[stores[-1].instance_id] = args.packages.parent / package["features"]

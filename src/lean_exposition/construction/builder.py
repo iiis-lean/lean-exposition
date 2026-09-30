@@ -125,8 +125,8 @@ def _merge_dependency_values(values) -> tuple[Dependency, ...]:
                  "dependency fields must be tuples of Dependency")
         for dependency in value:
             position = next((i for i, current in enumerate(merged)
-                             if (current.provider, current.evidence_kind) ==
-                             (dependency.provider, dependency.evidence_kind)), None)
+                             if (current.provider, current.evidence_kind, current.provider_module) ==
+                             (dependency.provider, dependency.evidence_kind, dependency.provider_module)), None)
             if position is None:
                 merged.append(dependency)
             else:

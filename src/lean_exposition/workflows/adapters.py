@@ -9,6 +9,20 @@ from .common import StructuredExecutorLike, ToolExecutorLike
 from .tools import ReaderTaskWorkflow
 
 
+class CallableExecutor:
+    """Run every writing stage through an existing callable with the same schemas."""
+    def __init__(self, runtime):
+        self.runtime = runtime
+        self.config = getattr(runtime, "config", None)
+
+    def execute(self, prompt, schema, *, trace_label=None):
+        from lean_exposition.runtime import ExecutionResult
+        return ExecutionResult("succeeded", data=self.runtime(prompt, schema), trace_label=trace_label)
+
+    def run_json(self, prompt, schema, *, trace_label=None):
+        return self.runtime(prompt, schema)
+
+
 def content_runtime(
     executor: StructuredExecutorLike, *, trace_label: str = "content.generate"
 ):
@@ -20,8 +34,20 @@ def content_runtime(
             raise RuntimeFailure(result)
         return result.data
 
+    run.config = getattr(executor, "config", None)
+    run.executor = executor
     return run
 
+
+_READER_DESCRIPTIONS = {
+    "open_reader": "Open a fixed published instance. Returns reader_id and an immutable view_id; subsequent operations use these IDs.",
+    "get_overview": "Read visible nodes, dependency edges and reading order. Continue with next_cursor for the same view and scope.",
+    "read_text": "Read published mathematical Markdown with stable line anchors. Use view_id for historical content and cursor for complete pages.",
+    "inspect": "Inspect a node, declaration, dependency or generation job. detail selects interfaces, members, NL, Lean, sources or job status. Follow next_cursor.",
+    "locate": "Resolve an opaque node or declaration reference to its location and anchors in a fixed view.",
+    "recommend": "Read optional next-step recommendations based on the current view and remaining reading budget.",
+    "apply_action": "Expand, collapse, reset, cancel a job, set a budget or switch locale. Supply current expected_view; stale versions are rejected. Expansion may return a pending job to inspect.",
+}
 
 def reader_workflow(
     executor: ToolExecutorLike,
@@ -32,14 +58,14 @@ def reader_workflow(
 ) -> ReaderTaskWorkflow:
     """Bind a ReaderService through an explicit tool whitelist."""
 
-    names = tuple(allowed_tools or TOOL_SCHEMAS)
+    names = tuple(TOOL_SCHEMAS if allowed_tools is None else allowed_tools)
     unknown = set(names) - set(TOOL_SCHEMAS)
     if unknown:
         raise ValueError("unknown Reader tools: " + ", ".join(sorted(unknown)))
     tools = [
         FunctionTool(
             name,
-            "Call the fixed Reader operation " + name + ".",
+            _READER_DESCRIPTIONS[name],
             TOOL_SCHEMAS[name],
         )
         for name in names

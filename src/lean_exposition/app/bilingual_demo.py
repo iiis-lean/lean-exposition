@@ -29,6 +29,9 @@ def create_bilingual_demo(directory):
         store = ContentStore(workspace, fixture['hierarchy'], directory / f'content.{locale}.json', locale=locale)
         if not store.state['latest_manifest']:
             store.state['metadata'] = {node['id']: {'title': titles[node['id']] if locale == 'zh' else node['title'], 'short_description': ''} for node in fixture['hierarchy']['nodes']}
+            for node in fixture["hierarchy"]["nodes"]:
+                if node["kind"] == "unit":
+                    blocks[node["id"]]["title"] = titles[node["id"]] if locale == "zh" else node["title"]
             store.publish(blocks)
         stores.append(store)
     return stores
